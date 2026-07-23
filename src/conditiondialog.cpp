@@ -1700,6 +1700,7 @@ void ConditionDialog::on_pushLuaExample_clicked()
         tr("Empty check functions"),
         tr("Village along the way from A to B"),
         QStringLiteral("地下型の荒廃したポータル"),
+        QStringLiteral("ダイヤ入りの砂漠の寺院（1.16）"),
     };
     QMap<QString, QString> code = {
         {   examples[0],
@@ -1742,6 +1743,17 @@ void ConditionDialog::on_pushLuaExample_clicked()
             "function check(seed, at, deps)\n"
             "\tlocal v = getStructureVariant(Ruined_Portal, at.x, at.z)\n"
             "\tif v and v.underground then\n"
+            "\t\treturn at.x, at.z\n"
+            "\tend\n"
+            "\treturn nil\n"
+            "end"
+        },
+        {   examples[3],
+            "-- 親条件で見つかった砂漠の寺院の4チェスト合計を確認\n"
+            "-- Java 1.16.1 / 1.16.5専用\n"
+            "function check(seed, at, deps)\n"
+            "\tlocal loot = getDesertPyramidLoot(at.x, at.z)\n"
+            "\tif loot and loot.total.diamond >= 1 then\n"
             "\t\treturn at.x, at.z\n"
             "\tend\n"
             "\treturn nil\n"
@@ -1818,6 +1830,11 @@ void ConditionDialog::on_pushInfoLua_clicked()
         "<dd>指定位置の構造物バリアントを返します。underground, airpocket, "
         "giant, mirror, rotation, start, biome, basement, abandoned, cracked, "
         "sizeおよび境界情報を参照できます。失敗時は<b>nil</b>です。"
+        "<dt><b>getDesertPyramidLoot(x, z [, chest])</b>"
+        "<dd>Java 1.16.1 / 1.16.5の砂漠の寺院ルートを返します。"
+        "chestはVanilla内部のRNG順で1～4です。省略時は<b>[1]～[4]</b>と"
+        "4個合計の<b>total</b>を返します。未対応バージョンまたは失敗時は"
+        "<b>nil</b>です。"
         "</p></body></html>"
         ));
     mb->show();

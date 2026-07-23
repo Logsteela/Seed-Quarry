@@ -119,3 +119,45 @@ function check(seed, at, branches)
     end
 end
 ```
+
+### 砂漠の寺院のチェスト（Java 1.16.1 / 1.16.5）
+
+`getDesertPyramidLoot(x, z [, chest])`で、指定した砂漠の寺院のチェスト内容を
+取得できます。`x, z`は構造物のブロック座標です。
+
+- `chest`に1～4を指定: Vanilla内部のRNG順に対応する1個のチェストを返す
+- `chest`を省略: `[1]`～`[4]`の4個と、その合計である`total`を返す
+- 未対応バージョン、範囲外、無効なチェスト番号: `nil`を返す
+
+各チェストはアイテム名をキー、個数を値とするテーブルです。現在のキーは
+`diamond`, `iron_ingot`, `gold_ingot`, `emerald`, `bone`, `spider_eye`,
+`rotten_flesh`, `saddle`, `iron_horse_armor`, `golden_horse_armor`,
+`diamond_horse_armor`, `enchanted_book`, `golden_apple`,
+`enchanted_golden_apple`, `gunpowder`, `string`, `sand`です。
+
+4個のどこかにダイヤが1個以上ある例:
+
+```lua
+function check(seed, at, branches)
+    local loot = getDesertPyramidLoot(at.x, at.z)
+    if loot and loot.total.diamond >= 1 then
+        return at.x, at.z
+    end
+end
+```
+
+同じチェストにダイヤと金のリンゴが入る例:
+
+```lua
+function check(seed, at, branches)
+    local loot = getDesertPyramidLoot(at.x, at.z)
+    if not loot then return nil end
+    for chest = 1, 4 do
+        if loot[chest].diamond >= 1 and loot[chest].golden_apple >= 1 then
+            return at.x, at.z
+        end
+    end
+end
+```
+
+詳細な出典、既知の制限、参照テスト値は`LOOT_INTEGRATION_JA.md`にあります。

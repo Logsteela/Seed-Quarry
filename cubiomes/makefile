@@ -3,7 +3,7 @@
 ARFLAGS = cr
 override LDFLAGS = -lm
 override CFLAGS += -Wall -Wextra -fwrapv
-CUBIOMES_SRC = noise.c biomes.c layers.c biomenoise.c generator.c finders.c util.c quadbase.c
+CUBIOMES_SRC = noise.c biomes.c layers.c biomenoise.c generator.c finders.c loot.c util.c quadbase.c
 
 ifeq ($(OS),Windows_NT)
 	override CFLAGS += -D_WIN32
@@ -31,7 +31,7 @@ release: CFLAGS += -fPIC
 endif
 
 
-libcubiomes: noise.o biomes.o layers.o biomenoise.o generator.o finders.o util.o quadbase.o
+libcubiomes: noise.o biomes.o layers.o biomenoise.o generator.o finders.o loot.o util.o quadbase.o
 	$(AR) $(ARFLAGS) libcubiomes.a $^
 
 test-versions: tests_versions.c $(CUBIOMES_SRC) $(wildcard *.h)
@@ -39,6 +39,9 @@ test-versions: tests_versions.c $(CUBIOMES_SRC) $(wildcard *.h)
 	./tests_versions
 
 finders.o: finders.c finders.h
+	$(CC) -c $(CFLAGS) $<
+
+loot.o: loot.c loot.h
 	$(CC) -c $(CFLAGS) $<
 
 generator.o: generator.c generator.h

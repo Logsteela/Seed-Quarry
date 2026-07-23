@@ -27,6 +27,34 @@ Parts of the legacy dark stylesheet are derived from QDarkStyleSheet by Colin
 Duquesnoy and contributors, licensed under the MIT License.
 Source: https://github.com/ColinDuquesnoy/QDarkStyleSheet
 
+## SeedFinding Java libraries
+
+The Java 1.16 desert-pyramid loot pipeline and loot-table behavior in
+`cubiomes/loot.c` were independently ported with reference to
+`mc_feature_java` 1.171.1 and `mc_core_java` 1.192.1.
+
+The MIT License (MIT)
+
+Copyright (c) 2020 KaptainWutax, Neil
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
 ## Amidst
 
 Biome colors and some icon concepts are inspired by Amidst, licensed under

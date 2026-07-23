@@ -396,6 +396,8 @@ uint64_t chunkGenerateRnd(uint64_t worldSeed, int chunkX, int chunkZ)
     return rnd;
 }
 
+uint64_t getPopulationSeed(int mc, uint64_t worldSeed, int x, int z);
+
 /* Get data, such as rotation and bounding box of a structure instance.
  * (Supports only some structure types.)
  */
@@ -839,4 +841,3 @@ Pos getLargeStructurePos(StructureConfig config, uint64_t seed, int regX, int re
 #endif
 
 #endif // FINDERS_H_
-

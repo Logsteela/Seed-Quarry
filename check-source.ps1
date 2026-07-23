@@ -7,6 +7,14 @@ $uiPath = Join-Path $sourceDir "src\conditiondialog.ui"
 $dialogPath = Join-Path $sourceDir "src\conditiondialog.cpp"
 $searchPath = Join-Path $sourceDir "src\search.cpp"
 $headerPath = Join-Path $sourceDir "src\search.h"
+$scriptsPath = Join-Path $sourceDir "src\scripts.cpp"
+$lootHeaderPath = Join-Path $sourceDir "cubiomes\loot.h"
+$lootSourcePath = Join-Path $sourceDir "cubiomes\loot.c"
+$cubiomesMakefilePath = Join-Path $sourceDir "cubiomes\makefile"
+$cubiomesCmakePath = Join-Path $sourceDir "cubiomes\CMakeLists.txt"
+$projectPath = Join-Path $sourceDir "seed-atlas.pro"
+$versionTestsPath = Join-Path $sourceDir "cubiomes\tests_versions.c"
+$noticesPath = Join-Path $sourceDir "THIRD_PARTY_NOTICES.md"
 $buildScriptPath = Join-Path $sourceDir "dev-build.ps1"
 
 function Assert-SourceCheck {
@@ -106,6 +114,36 @@ foreach ($dependency in $variantDependencies) {
         "$dependency should have one declaration and three uses; found $count."
 }
 
+$scriptsText = Get-Content -LiteralPath $scriptsPath -Raw -Encoding UTF8
+$lootHeaderText = Get-Content -LiteralPath $lootHeaderPath -Raw -Encoding UTF8
+$lootSourceText = Get-Content -LiteralPath $lootSourcePath -Raw -Encoding UTF8
+$cubiomesMakefileText = Get-Content -LiteralPath $cubiomesMakefilePath -Raw -Encoding UTF8
+$cubiomesCmakeText = Get-Content -LiteralPath $cubiomesCmakePath -Raw -Encoding UTF8
+$projectText = Get-Content -LiteralPath $projectPath -Raw -Encoding UTF8
+$versionTestsText = Get-Content -LiteralPath $versionTestsPath -Raw -Encoding UTF8
+$noticesText = Get-Content -LiteralPath $noticesPath -Raw -Encoding UTF8
+
+Assert-SourceCheck ($scriptsText.Contains(
+    'lua_setglobal(L, "getDesertPyramidLoot")'
+)) "The desert-pyramid loot function is not registered in Lua."
+Assert-SourceCheck ($scriptsText.Contains(
+    'rules.append(Rule("\\b" "getDesertPyramidLoot" "\\b", format));'
+)) "The desert-pyramid loot Lua function is missing syntax highlighting."
+Assert-SourceCheck ($lootHeaderText.Contains("getDesertPyramidLoot16")) `
+    "cubiomes/loot.h is missing the public desert-pyramid API."
+Assert-SourceCheck ($lootSourceText.Contains("DP_DECORATION_SALT_16 = 40003")) `
+    "cubiomes/loot.c is missing the Java 1.16 decoration salt."
+Assert-SourceCheck ($cubiomesMakefileText.Contains("loot.c")) `
+    "cubiomes/makefile does not compile loot.c."
+Assert-SourceCheck ($cubiomesCmakeText.Contains("loot.c")) `
+    "cubiomes/CMakeLists.txt does not compile loot.c."
+Assert-SourceCheck ($projectText.Contains('$$CUPATH/loot.h')) `
+    "seed-atlas.pro does not track cubiomes/loot.h."
+Assert-SourceCheck ($versionTestsText.Contains("3515201313347228787ULL")) `
+    "The MineMap desert-pyramid golden-vector test is missing."
+Assert-SourceCheck ($noticesText.Contains("SeedFinding Java libraries")) `
+    "The SeedFinding attribution is missing from THIRD_PARTY_NOTICES.md."
+
 $tokens = $null
 $parseErrors = $null
 [System.Management.Automation.Language.Parser]::ParseFile(
@@ -120,4 +158,5 @@ Write-Host "Source checks passed:"
 Write-Host "  UTF-8 and conditiondialog.ui XML"
 Write-Host "  unique Qt object names and C++ UI references"
 Write-Host "  structure-variant dependency wiring"
+Write-Host "  desert-pyramid loot source, Lua API, tests, and attribution"
 Write-Host "  dev-build.ps1 syntax"

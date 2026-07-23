@@ -2,6 +2,7 @@
 
 #include "search.h"
 #include "util.h"
+#include "cubiomes/loot.h"
 
 #include <QApplication>
 #include <QDebug>
@@ -270,6 +271,74 @@ static int l_getStructureVariant(lua_State *L)
     return 1;
 }
 
+static void pushDesertPyramidLoot(lua_State *L,
+                                  const DesertPyramidLoot& loot)
+{
+    lua_createtable(L, 0, DP_LOOT_ITEM_COUNT);
+    for (int item = 0; item < DP_LOOT_ITEM_COUNT; item++)
+    {
+        lua_pushinteger(L, loot.count[item]);
+        lua_setfield(L, -2, desertPyramidLootItemName(item));
+    }
+}
+
+static int l_getDesertPyramidLoot(lua_State *L)
+{
+    lua_getglobal(L, "_cb_env");
+    SearchThreadEnv *env = (SearchThreadEnv*) lua_touserdata(L, -1);
+    lua_pop(L, 1);
+
+    lua_Integer lx = luaL_checkinteger(L, 1);
+    lua_Integer lz = luaL_checkinteger(L, 2);
+    if ((env->mc != MC_1_16_1 && env->mc != MC_1_16_5) ||
+        lx < -30000000 || lx > 30000000 ||
+        lz < -30000000 || lz > 30000000)
+    {
+        lua_pushnil(L);
+        return 1;
+    }
+
+    int x = (int) lx;
+    int z = (int) lz;
+    int chunkX = x >= 0 ? x / 16 : -((-x + 15) / 16);
+    int chunkZ = z >= 0 ? z / 16 : -((-z + 15) / 16);
+
+    if (lua_gettop(L) >= 3 && !lua_isnil(L, 3))
+    {
+        int chest = (int) luaL_checkinteger(L, 3);
+        DesertPyramidLoot loot;
+        if (chest < 1 || chest > 4 ||
+            !getDesertPyramidLoot16(
+                &loot, env->seed, chunkX, chunkZ, chest - 1))
+        {
+            lua_pushnil(L);
+            return 1;
+        }
+        pushDesertPyramidLoot(L, loot);
+        return 1;
+    }
+
+    DesertPyramidLoot total = {};
+    lua_createtable(L, 4, 1);
+    for (int chest = 0; chest < 4; chest++)
+    {
+        DesertPyramidLoot loot;
+        if (!getDesertPyramidLoot16(
+                &loot, env->seed, chunkX, chunkZ, chest))
+        {
+            lua_pushnil(L);
+            return 1;
+        }
+        for (int item = 0; item < DP_LOOT_ITEM_COUNT; item++)
+            total.count[item] += loot.count[item];
+        pushDesertPyramidLoot(L, loot);
+        lua_seti(L, -2, chest + 1);
+    }
+    pushDesertPyramidLoot(L, total);
+    lua_setfield(L, -2, "total");
+    return 1;
+}
+
 lua_State *loadScript(QString path, QString *err)
 {
     lua_State *L = luaL_newstate();
@@ -342,6 +411,8 @@ lua_State *loadScript(QString path, QString *err)
         lua_setglobal(L, "getStructures");
         lua_pushcfunction(L, l_getStructureVariant);
         lua_setglobal(L, "getStructureVariant");
+        lua_pushcfunction(L, l_getDesertPyramidLoot);
+        lua_setglobal(L, "getDesertPyramidLoot");
         ok = true;
     }
     while (0);
@@ -487,6 +558,7 @@ LuaHighlighter::LuaHighlighter(QTextDocument *parent)
     rules.append(Rule("\\b" "getBiomeAt" "\\b", format));
     rules.append(Rule("\\b" "getStructures" "\\b", format));
     rules.append(Rule("\\b" "getStructureVariant" "\\b", format));
+    rules.append(Rule("\\b" "getDesertPyramidLoot" "\\b", format));
 
     format.setFontWeight(QFont::Normal);
     format.setForeground(QColor(0, 160, 0));

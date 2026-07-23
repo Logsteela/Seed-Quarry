@@ -150,6 +150,7 @@ HEADERS += \
         $$CUPATH/generator.h \
         $$CUPATH/layers.h \
         $$CUPATH/biomes.h \
+        $$CUPATH/loot.h \
         $$CUPATH/quadbase.h \
         $$CUPATH/util.h \
         $$LUAPATH/lapi.h \

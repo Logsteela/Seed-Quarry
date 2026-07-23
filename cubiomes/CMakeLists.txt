@@ -17,6 +17,7 @@ set(HEADERS
 	layers.h
 	biomenoise.h
 	biomes.h
+	loot.h
 	noise.h
 	rng.h
 	util.h
@@ -28,6 +29,7 @@ set(SOURCES
 	layers.c
 	biomenoise.c
 	biomes.c
+	loot.c
 	noise.c
 	util.c
 	quadbase.c
@@ -41,5 +43,4 @@ add_library(cubiomes_static STATIC $<TARGET_OBJECTS:objects>)
 
 install(TARGETS cubiomes cubiomes_static DESTINATION lib)
 install(FILES ${HEADERS} DESTINATION include)
-
 
