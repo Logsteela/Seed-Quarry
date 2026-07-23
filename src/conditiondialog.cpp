@@ -195,6 +195,10 @@ ConditionDialog::ConditionDialog(FormConditions *parent, MapView *mapview, Confi
     ui->checkAbandoned->setStyleSheet(tristyle);
     ui->checkEndShip->setStyleSheet(tristyle);
     ui->checkBasement->setStyleSheet(tristyle);
+    ui->checkPortalUnderground->setStyleSheet(tristyle);
+    ui->checkPortalAirpocket->setStyleSheet(tristyle);
+    ui->checkPortalGiant->setStyleSheet(tristyle);
+    ui->checkPortalMirrored->setStyleSheet(tristyle);
 
     memset(climaterange, 0, sizeof(climaterange));
     memset(climatecomplete, 0, sizeof(climatecomplete));
@@ -421,11 +425,41 @@ ConditionDialog::ConditionDialog(FormConditions *parent, MapView *mapview, Confi
         auto totristate = [](uint16_t st, uint16_t msk) {
             return (st & msk) ? (st & Condition::VAR_NOT) ? Qt::Checked : Qt::PartiallyChecked : Qt::Unchecked;
         };
+        auto totristate2 = [](uint16_t st, uint16_t required, uint16_t forbidden) {
+            return (st & forbidden) ? Qt::Checked :
+                   (st & required) ? Qt::PartiallyChecked : Qt::Unchecked;
+        };
         ui->checkStartPieces->setChecked(cond.varflags & Condition::VAR_WITH_START);
         ui->checkDenseBB->setChecked(cond.varflags & Condition::VAR_DENSE_BB);
         ui->checkAbandoned->setCheckState(totristate(cond.varflags, Condition::VAR_ABANODONED));
         ui->checkEndShip->setCheckState(totristate(cond.varflags, Condition::VAR_ENDSHIP));
         ui->checkBasement->setCheckState(totristate(cond.varflags, Condition::VAR_BASEMENT));
+        ui->checkPortalUnderground->setCheckState(totristate2(
+            cond.varflags,
+            Condition::VAR_PORTAL_UNDERGROUND,
+            Condition::VAR_PORTAL_NOT_UNDERGROUND));
+        ui->checkPortalAirpocket->setCheckState(totristate2(
+            cond.varflags,
+            Condition::VAR_PORTAL_AIRPOCKET,
+            Condition::VAR_PORTAL_NOT_AIRPOCKET));
+        ui->checkPortalGiant->setCheckState(totristate2(
+            cond.varflags,
+            Condition::VAR_PORTAL_GIANT,
+            Condition::VAR_PORTAL_NOT_GIANT));
+        ui->checkPortalMirrored->setCheckState(totristate2(
+            cond.varflags,
+            Condition::VAR_PORTAL_MIRRORED,
+            Condition::VAR_PORTAL_NOT_MIRRORED));
+
+        int portalCategory = cond.varbiome;
+        if (portalCategory < 0 || portalCategory >= ui->comboPortalCategory->count())
+            portalCategory = Condition::PORTAL_CATEGORY_ANY;
+        ui->comboPortalCategory->setCurrentIndex(portalCategory);
+
+        int portalRotation = cond.deps[Condition::DEP_PORTAL_ROTATION];
+        if (portalRotation < 0 || portalRotation >= ui->comboPortalRotation->count())
+            portalRotation = 0;
+        ui->comboPortalRotation->setCurrentIndex(portalRotation);
         for (VariantCheckBox *cb : qAsConst(variantboxes))
         {
             int idx = cb->sp - g_start_pieces;
@@ -635,16 +669,22 @@ void ConditionDialog::updateMode()
     {
         ui->stackedWidget->setCurrentWidget(ui->pagePortal);
         ui->checkStartPortal->setEnabled(wi.mc >= MC_1_16_1);
+        ui->checkPortalUnderground->setEnabled(wi.mc >= MC_1_16_1);
+        ui->checkPortalAirpocket->setEnabled(wi.mc >= MC_1_16_1);
+        ui->checkPortalGiant->setEnabled(wi.mc >= MC_1_16_1);
+        ui->checkPortalMirrored->setEnabled(wi.mc >= MC_1_16_1);
+        ui->comboPortalCategory->setEnabled(wi.mc >= MC_1_16_1);
+        ui->comboPortalRotation->setEnabled(wi.mc >= MC_1_16_1);
     }
     else if (filterindex == F_ENDCITY)
     {
         ui->stackedWidget->setCurrentWidget(ui->pageEndCity);
-        ui->checkBasement->setEnabled(wi.mc >= MC_1_9);
+        ui->checkEndShip->setEnabled(wi.mc >= MC_1_9);
     }
     else if (filterindex == F_IGLOO)
     {
         ui->stackedWidget->setCurrentWidget(ui->pageIgloo);
-        ui->checkEndShip->setEnabled(wi.mc >= MC_1_9);
+        ui->checkBasement->setEnabled(wi.mc >= MC_1_9);
     }
     else if (filterindex == F_HEIGHT)
     {
@@ -1000,6 +1040,16 @@ static uint16_t tristateFlags(QCheckBox *cb, uint16_t flg)
     return ret;
 }
 
+static uint16_t tristateFlags(
+    QCheckBox *cb, uint16_t required, uint16_t forbidden)
+{
+    if (cb->checkState() == Qt::PartiallyChecked)
+        return required;
+    if (cb->checkState() == Qt::Checked)
+        return forbidden;
+    return 0;
+}
+
 
 void ConditionDialog::onReject()
 {
@@ -1143,6 +1193,8 @@ void ConditionDialog::onAccept()
     }
 
     c.varflags = c.varstart = 0;
+    c.varbiome = 0;
+    memset(c.deps, 0, sizeof(c.deps));
     if (ui->checkStartPieces->isChecked())
         c.varflags |= Condition::VAR_WITH_START;
     if (ui->checkDenseBB->isChecked())
@@ -1150,6 +1202,28 @@ void ConditionDialog::onAccept()
     c.varflags |= tristateFlags(ui->checkAbandoned, Condition::VAR_ABANODONED);
     c.varflags |= tristateFlags(ui->checkEndShip, Condition::VAR_ENDSHIP);
     c.varflags |= tristateFlags(ui->checkBasement, Condition::VAR_BASEMENT);
+    if (c.type == F_PORTAL || c.type == F_PORTALN)
+    {
+        c.varflags |= tristateFlags(
+            ui->checkPortalUnderground,
+            Condition::VAR_PORTAL_UNDERGROUND,
+            Condition::VAR_PORTAL_NOT_UNDERGROUND);
+        c.varflags |= tristateFlags(
+            ui->checkPortalAirpocket,
+            Condition::VAR_PORTAL_AIRPOCKET,
+            Condition::VAR_PORTAL_NOT_AIRPOCKET);
+        c.varflags |= tristateFlags(
+            ui->checkPortalGiant,
+            Condition::VAR_PORTAL_GIANT,
+            Condition::VAR_PORTAL_NOT_GIANT);
+        c.varflags |= tristateFlags(
+            ui->checkPortalMirrored,
+            Condition::VAR_PORTAL_MIRRORED,
+            Condition::VAR_PORTAL_NOT_MIRRORED);
+        c.varbiome = ui->comboPortalCategory->currentIndex();
+        c.deps[Condition::DEP_PORTAL_ROTATION] =
+            ui->comboPortalRotation->currentIndex();
+    }
 
     for (VariantCheckBox *cb : qAsConst(variantboxes))
     {
@@ -1549,6 +1623,7 @@ void ConditionDialog::on_pushLuaExample_clicked()
     QStringList examples = {
         tr("Empty check functions"),
         tr("Village along the way from A to B"),
+        QStringLiteral("地下型の荒廃したポータル"),
     };
     QMap<QString, QString> code = {
         {   examples[0],
@@ -1582,6 +1657,16 @@ void ConditionDialog::on_pushLuaExample_clicked()
             "\t\tif d < 32*32 then -- village within 32 blocks of the line\n"
             "\t\t\treturn vils[i].x, vils[i].z\n"
             "\t\tend\n"
+            "\tend\n"
+            "\treturn nil\n"
+            "end"
+        },
+        {   examples[2],
+            "-- 親条件で見つかった荒廃したポータルが地下型なら通過\n"
+            "function check(seed, at, deps)\n"
+            "\tlocal v = getStructureVariant(Ruined_Portal, at.x, at.z)\n"
+            "\tif v and v.underground then\n"
+            "\t\treturn at.x, at.z\n"
             "\tend\n"
             "\treturn nil\n"
             "end"
@@ -1653,6 +1738,10 @@ void ConditionDialog::on_pushInfoLua_clicked()
         "<dd>returns a list of <b>{x, z}</b> structure positions for the "
         "specified structure <b>type</b> within the area spanning the block "
         "positions <b>x1, z1</b> to <b>x2, z2</b>, or <b>nil</b> upon failure"
+        "<dt><b>getStructureVariant(type, x, z [, biome])</b>"
+        "<dd>指定位置の構造物バリアントを返します。underground, airpocket, "
+        "giant, mirror, rotation, start, biome, basement, abandoned, cracked, "
+        "sizeおよび境界情報を参照できます。失敗時は<b>nil</b>です。"
         "</p></body></html>"
         ));
     mb->show();

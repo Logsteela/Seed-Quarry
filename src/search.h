@@ -589,6 +589,29 @@ struct /*__attribute__((packed))*/ Condition
         VAR_DENSE_BB    = 0x0008, // fortress with a 2x2 arrangement of start/crossings
         VAR_NOT         = 0x0010, // invert flag (e.g. not abandoned)
         VAR_BASEMENT    = 0x0020, // igloo with basement
+        // Portal flags use separate positive/negative bits so multiple
+        // tri-state requirements can be combined in one condition.
+        VAR_PORTAL_UNDERGROUND     = 0x0040,
+        VAR_PORTAL_NOT_UNDERGROUND = 0x0080,
+        VAR_PORTAL_AIRPOCKET       = 0x0100,
+        VAR_PORTAL_NOT_AIRPOCKET   = 0x0200,
+        VAR_PORTAL_GIANT           = 0x0400,
+        VAR_PORTAL_NOT_GIANT       = 0x0800,
+        VAR_PORTAL_MIRRORED        = 0x1000,
+        VAR_PORTAL_NOT_MIRRORED    = 0x2000,
+    };
+    enum { // values stored in varbiome for ruined portal conditions
+        PORTAL_CATEGORY_ANY = 0,
+        PORTAL_CATEGORY_STANDARD,
+        PORTAL_CATEGORY_DESERT,
+        PORTAL_CATEGORY_JUNGLE,
+        PORTAL_CATEGORY_SWAMP,
+        PORTAL_CATEGORY_MOUNTAIN,
+        PORTAL_CATEGORY_OCEAN,
+        PORTAL_CATEGORY_NETHER,
+    };
+    enum { // indexes in deps[] used by variant filters
+        DEP_PORTAL_ROTATION = 0, // 0:any, 1..4: rotation 0..3
     };
     enum { // min/max
         // legacy 0:min<= 1:max>= 2:min>= 3:max<=

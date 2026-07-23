@@ -782,6 +782,30 @@ static const QuadInfo *getQMInfo(uint64_t s48)
 }
 
 
+static bool matchesVariantFlag(
+    uint16_t flags, uint16_t required, uint16_t forbidden, bool value)
+{
+    if ((flags & required) && !value)
+        return false;
+    if ((flags & forbidden) && value)
+        return false;
+    return true;
+}
+
+static int portalCategoryFilter(int biome)
+{
+    switch (biome)
+    {
+    case plains:        return Condition::PORTAL_CATEGORY_STANDARD;
+    case desert:        return Condition::PORTAL_CATEGORY_DESERT;
+    case jungle:        return Condition::PORTAL_CATEGORY_JUNGLE;
+    case swamp:         return Condition::PORTAL_CATEGORY_SWAMP;
+    case mountains:     return Condition::PORTAL_CATEGORY_MOUNTAIN;
+    case ocean:         return Condition::PORTAL_CATEGORY_OCEAN;
+    default:            return Condition::PORTAL_CATEGORY_NETHER;
+    }
+}
+
 static bool isVariantOk(const Condition *c, SearchThreadEnv *e, int stype, int varbiome, Pos *pos)
 {
     StructureVariant sv;
@@ -811,6 +835,36 @@ static bool isVariantOk(const Condition *c, SearchThreadEnv *e, int stype, int v
         e->init4Dim(stype == Ruined_Portal ? DIM_OVERWORLD : DIM_NETHER);
         varbiome = getBiomeAt(&e->g, 4, (pos->x >> 2) + 2, 0, (pos->z >> 2) + 2);
         getVariant(&sv, stype, e->mc, e->seed, pos->x, pos->z, varbiome);
+
+        if (!matchesVariantFlag(c->varflags,
+                Condition::VAR_PORTAL_UNDERGROUND,
+                Condition::VAR_PORTAL_NOT_UNDERGROUND,
+                sv.underground))
+            return false;
+        if (!matchesVariantFlag(c->varflags,
+                Condition::VAR_PORTAL_AIRPOCKET,
+                Condition::VAR_PORTAL_NOT_AIRPOCKET,
+                sv.airpocket))
+            return false;
+        if (!matchesVariantFlag(c->varflags,
+                Condition::VAR_PORTAL_GIANT,
+                Condition::VAR_PORTAL_NOT_GIANT,
+                sv.giant))
+            return false;
+        if (!matchesVariantFlag(c->varflags,
+                Condition::VAR_PORTAL_MIRRORED,
+                Condition::VAR_PORTAL_NOT_MIRRORED,
+                sv.mirror))
+            return false;
+
+        if (c->varbiome != Condition::PORTAL_CATEGORY_ANY &&
+            c->varbiome != portalCategoryFilter(sv.biome))
+            return false;
+
+        int rotation = c->deps[Condition::DEP_PORTAL_ROTATION];
+        if (rotation && sv.rotation != rotation - 1)
+            return false;
+
         if (!(c->varflags & Condition::VAR_WITH_START)) return true;
     }
     else if (stype == Igloo)
@@ -874,7 +928,9 @@ static bool isVariantOk(const Condition *c, SearchThreadEnv *e, int stype, int v
         if ((size_t)idx < sizeof(g_start_pieces) / sizeof(g_start_pieces[0]))
         {
             const StartPiece *sp = g_start_pieces + idx;
-            if (sp->stype == stype && sp->start == sv.start)
+            bool sameType = sp->stype == stype ||
+                (stype == Ruined_Portal_N && sp->stype == Ruined_Portal);
+            if (sameType && sp->start == sv.start)
             {
                 if (sp->biome != -1 && sp->biome != sv.biome)
                     continue;
@@ -2248,8 +2304,6 @@ void findQuadStructs(int styp, Generator *g, QVector<QuadInfo> *out)
 
     delete[] qlist;
 }
-
-
 
 
 

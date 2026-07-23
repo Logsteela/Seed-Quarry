@@ -1,0 +1,11 @@
+/build-dev-*/
+/.qmake.stash
+*.o
+*.obj
+*.a
+*.exe
+Makefile
+Makefile.*
+debug/
+release/
+

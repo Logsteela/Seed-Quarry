@@ -12,6 +12,8 @@
 #include <QTextBlock>
 #include <QTextDocumentFragment>
 
+#include <cstdint>
+
 
 LuaOutput g_lua_output[100];
 
@@ -197,6 +199,77 @@ static int l_getStructures(lua_State *L)
     return 1;
 }
 
+static int l_getStructureVariant(lua_State *L)
+{
+    lua_getglobal(L, "_cb_env");
+    SearchThreadEnv *env = (SearchThreadEnv*) lua_touserdata(L, -1);
+    lua_pop(L, 1);
+
+    int styp = (int) luaL_checkinteger(L, 1);
+    int x = (int) luaL_checkinteger(L, 2);
+    int z = (int) luaL_checkinteger(L, 3);
+
+    StructureConfig sconf;
+    if (!getStructureConfig(styp, env->mc, &sconf) || !validPos(x, 0, z))
+    {
+        lua_pushnil(L);
+        return 1;
+    }
+
+    env->init4Dim(sconf.dim);
+
+    int biome = -1;
+    if (lua_gettop(L) >= 4 && !lua_isnil(L, 4))
+    {
+        biome = (int) luaL_checkinteger(L, 4);
+    }
+    else
+    {
+        // This matches the structure-variant sampling used by the built-in
+        // search. Callers can pass an explicit biome as the fourth argument
+        // when they need to reproduce a different sampling context.
+        biome = getBiomeAt(&env->g, 4, (x >> 2) + 2, 0, (z >> 2) + 2);
+    }
+
+    StructureVariant sv;
+    if (!getVariant(&sv, styp, env->mc, env->seed, x, z, biome))
+    {
+        lua_pushnil(L);
+        return 1;
+    }
+
+    lua_createtable(L, 0, 20);
+
+    auto setbool = [L](const char *name, bool value) {
+        lua_pushboolean(L, value);
+        lua_setfield(L, -2, name);
+    };
+    auto setint = [L](const char *name, lua_Integer value) {
+        lua_pushinteger(L, value);
+        lua_setfield(L, -2, name);
+    };
+
+    setbool("abandoned", sv.abandoned);
+    setbool("giant", sv.giant);
+    setbool("underground", sv.underground);
+    setbool("airpocket", sv.airpocket);
+    setbool("basement", sv.basement);
+    setbool("cracked", sv.cracked);
+    setint("size", sv.size);
+    setint("start", sv.start == UINT8_MAX ? -1 : sv.start);
+    setint("biome", sv.biome);
+    setint("rotation", sv.rotation);
+    setbool("mirror", sv.mirror);
+    setint("x", sv.x);
+    setint("y", sv.y);
+    setint("z", sv.z);
+    setint("sx", sv.sx);
+    setint("sy", sv.sy);
+    setint("sz", sv.sz);
+
+    return 1;
+}
+
 lua_State *loadScript(QString path, QString *err)
 {
     lua_State *L = luaL_newstate();
@@ -255,6 +328,8 @@ lua_State *loadScript(QString path, QString *err)
             {End_City, "End_City"},
             {End_Gateway, "End_Gateway"},
             {Ancient_City, "Ancient_City"},
+            {Geode, "Geode"},
+            {Trial_Chambers, "Trial_Chambers"},
         };
         for (size_t i = 0; i < sizeof(values)/sizeof(values[0]); i++)
         {
@@ -265,6 +340,8 @@ lua_State *loadScript(QString path, QString *err)
         lua_setglobal(L, "getBiomeAt");
         lua_pushcfunction(L, l_getStructures);
         lua_setglobal(L, "getStructures");
+        lua_pushcfunction(L, l_getStructureVariant);
+        lua_setglobal(L, "getStructureVariant");
         ok = true;
     }
     while (0);
@@ -408,6 +485,8 @@ LuaHighlighter::LuaHighlighter(QTextDocument *parent)
     rules.append(Rule("\\b" "check" "\\b", format));
     rules.append(Rule("\\b" "check48" "\\b", format));
     rules.append(Rule("\\b" "getBiomeAt" "\\b", format));
+    rules.append(Rule("\\b" "getStructures" "\\b", format));
+    rules.append(Rule("\\b" "getStructureVariant" "\\b", format));
 
     format.setFontWeight(QFont::Normal);
     format.setForeground(QColor(0, 160, 0));
@@ -663,5 +742,3 @@ void ScriptEditor::keyPressEvent(QKeyEvent *event)
     }
     QPlainTextEdit::keyPressEvent(event);
 }
-
-

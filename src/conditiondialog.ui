@@ -1811,20 +1811,159 @@ QPushButton:hover {
             <widget class="QGroupBox" name="groupBoxPortal">
              <property name="title">
               <string>Ruined portal variants</string>
-             </property>
-             <layout class="QGridLayout" name="gridLayoutPortal2">
-              <item row="0" column="0">
-               <widget class="QCheckBox" name="checkStartPortal">
-                <property name="toolTip">
-                 <string>Allow only structures that start with one of the selected pieces</string>
+              </property>
+              <layout class="QGridLayout" name="gridLayoutPortal2">
+               <item row="0" column="0">
+                <widget class="QCheckBox" name="checkPortalUnderground">
+                 <property name="toolTip">
+                  <string>中間状態=必須、チェック状態=禁止、未選択=条件なし</string>
+                 </property>
+                 <property name="text">
+                  <string>地下に生成</string>
+                 </property>
+                 <property name="tristate">
+                  <bool>true</bool>
+                 </property>
+                </widget>
+               </item>
+               <item row="0" column="1">
+                <widget class="QCheckBox" name="checkPortalAirpocket">
+                 <property name="toolTip">
+                  <string>中間状態=必須、チェック状態=禁止、未選択=条件なし</string>
+                 </property>
+                 <property name="text">
+                  <string>空洞（エアポケット）あり</string>
+                 </property>
+                 <property name="tristate">
+                  <bool>true</bool>
+                 </property>
+                </widget>
+               </item>
+               <item row="1" column="0">
+                <widget class="QCheckBox" name="checkPortalGiant">
+                 <property name="toolTip">
+                  <string>中間状態=必須、チェック状態=禁止、未選択=条件なし</string>
+                 </property>
+                 <property name="text">
+                  <string>巨大ポータル</string>
+                 </property>
+                 <property name="tristate">
+                  <bool>true</bool>
+                 </property>
+                </widget>
+               </item>
+               <item row="1" column="1">
+                <widget class="QCheckBox" name="checkPortalMirrored">
+                 <property name="toolTip">
+                  <string>中間状態=必須、チェック状態=禁止、未選択=条件なし</string>
+                 </property>
+                 <property name="text">
+                  <string>左右反転</string>
+                 </property>
+                 <property name="tristate">
+                  <bool>true</bool>
+                 </property>
+                </widget>
+               </item>
+               <item row="2" column="0">
+                <widget class="QLabel" name="labelPortalCategory">
+                 <property name="text">
+                  <string>生成カテゴリ</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="2" column="1">
+                <widget class="QComboBox" name="comboPortalCategory">
+                 <item>
+                  <property name="text">
+                   <string>指定なし</string>
+                  </property>
+                 </item>
+                 <item>
+                  <property name="text">
+                   <string>標準</string>
+                  </property>
+                 </item>
+                 <item>
+                  <property name="text">
+                   <string>砂漠</string>
+                  </property>
+                 </item>
+                 <item>
+                  <property name="text">
+                   <string>ジャングル</string>
+                  </property>
+                 </item>
+                 <item>
+                  <property name="text">
+                   <string>湿地</string>
+                  </property>
+                 </item>
+                 <item>
+                  <property name="text">
+                   <string>山岳</string>
+                  </property>
+                 </item>
+                 <item>
+                  <property name="text">
+                   <string>海洋</string>
+                  </property>
+                 </item>
+                 <item>
+                  <property name="text">
+                   <string>ネザー</string>
+                  </property>
+                 </item>
+                </widget>
+               </item>
+               <item row="3" column="0">
+                <widget class="QLabel" name="labelPortalRotation">
+                 <property name="text">
+                  <string>回転</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="3" column="1">
+                <widget class="QComboBox" name="comboPortalRotation">
+                 <item>
+                  <property name="text">
+                   <string>指定なし</string>
+                  </property>
+                 </item>
+                 <item>
+                  <property name="text">
+                   <string>0°</string>
+                  </property>
+                 </item>
+                 <item>
+                  <property name="text">
+                   <string>90°</string>
+                  </property>
+                 </item>
+                 <item>
+                  <property name="text">
+                   <string>180°</string>
+                  </property>
+                 </item>
+                 <item>
+                  <property name="text">
+                   <string>270°</string>
+                  </property>
+                 </item>
+                </widget>
+               </item>
+               <item row="4" column="0" colspan="2">
+                <widget class="QCheckBox" name="checkStartPortal">
+                 <property name="toolTip">
+                  <string>Allow only structures that start with one of the selected pieces</string>
                 </property>
                 <property name="text">
                  <string>Filter starting piece</string>
-                </property>
-               </widget>
-              </item>
-              <item row="1" column="0">
-               <widget class="QScrollArea" name="scrollPortalPieces">
+                 </property>
+                </widget>
+               </item>
+               <item row="5" column="0" colspan="2">
+                <widget class="QScrollArea" name="scrollPortalPieces">
                 <property name="widgetResizable">
                  <bool>true</bool>
                 </property>
