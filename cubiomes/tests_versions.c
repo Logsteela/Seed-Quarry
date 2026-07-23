@@ -27,6 +27,130 @@ static void assertStructurePos(int stype, int mc, uint64_t seed,
     assert(pos.x == x && pos.z == z);
 }
 
+static int templateOrientation(const StructureVariant *sv)
+{
+    if (sv->mirror)
+        return sv->rotation ? 3 : 2;
+    return sv->rotation;
+}
+
+static void assertStructureVariants(void)
+{
+    unsigned portalUnderground = 0;
+    unsigned portalAirpocket = 0;
+    unsigned portalGiant = 0;
+    unsigned portalMirror = 0;
+    unsigned portalRotation = 0;
+    unsigned portalNormalStarts = 0;
+    unsigned portalGiantStarts = 0;
+    unsigned villageRotation = 0;
+    unsigned bastionStarts = 0;
+    unsigned bastionRotation = 0;
+    unsigned iglooBasement = 0;
+    unsigned iglooOrientation = 0;
+    unsigned iglooSizes = 0;
+    unsigned ancientStarts = 0;
+    unsigned ancientRotation = 0;
+    unsigned chamberStarts = 0;
+    unsigned chamberRotation = 0;
+    unsigned templeOrientation = 0;
+
+    // Consecutive Java Random seeds have correlated first outputs. The odd
+    // golden-ratio step spreads this sample over all low 48-bit seed states.
+    for (uint64_t i = 0; i < 4096; i++)
+    {
+        uint64_t seed = i * 0x9e3779b97f4a7c15ULL;
+        StructureVariant sv, sv161, sv165;
+
+        assert(getVariant(&sv, Ruined_Portal, MC_1_16_1,
+                          seed, 0, 0, plains));
+        assert(sv.biome == plains);
+        assert(sv.start >= 1 && sv.start <= (sv.giant ? 3 : 10));
+        assert(sv.rotation < 4 && sv.mirror < 2);
+        if (sv.underground)
+            assert(sv.airpocket);
+        portalUnderground |= 1U << sv.underground;
+        portalAirpocket |= 1U << sv.airpocket;
+        portalGiant |= 1U << sv.giant;
+        portalMirror |= 1U << sv.mirror;
+        portalRotation |= 1U << sv.rotation;
+        if (sv.giant)
+            portalGiantStarts |= 1U << (sv.start - 1);
+        else
+            portalNormalStarts |= 1U << (sv.start - 1);
+
+        assert(getVariant(&sv, Ruined_Portal, MC_1_16_1,
+                          seed, 0, 0, desert));
+        assert(sv.biome == desert);
+        assert(!sv.underground && !sv.airpocket);
+
+        assert(getVariant(&sv, Ruined_Portal_N, MC_1_16_1,
+                          seed, 0, 0, nether_wastes));
+        assert(sv.biome == nether_wastes);
+        assert(!sv.underground && !sv.airpocket);
+
+        assert(getVariant(&sv, Village, MC_1_16_1,
+                          seed, 0, 0, plains));
+        assert(sv.rotation < 4 && sv.start < 4);
+        villageRotation |= 1U << sv.rotation;
+
+        assert(getVariant(&sv161, Bastion, MC_1_16_1,
+                          seed, 0, 0, -1));
+        assert(getVariant(&sv165, Bastion, MC_1_16_5,
+                          seed, 0, 0, -1));
+        assert(sv161.start < 4 && sv161.rotation < 4);
+        assert(sv161.start == sv165.rotation);
+        assert(sv161.rotation == sv165.start);
+        bastionStarts |= 1U << sv161.start;
+        bastionRotation |= 1U << sv161.rotation;
+
+        assert(getVariant(&sv, Igloo, MC_1_16_1,
+                          seed, 0, 0, snowy_tundra));
+        assert(sv.basement < 2);
+        assert(sv.size >= 4 && sv.size <= 11);
+        assert(templateOrientation(&sv) < 4);
+        iglooBasement |= 1U << sv.basement;
+        iglooOrientation |= 1U << templateOrientation(&sv);
+        iglooSizes |= 1U << (sv.size - 4);
+
+        assert(getVariant(&sv, Ancient_City, MC_1_19,
+                          seed, 0, 0, -1));
+        assert(sv.start >= 1 && sv.start <= 3 && sv.rotation < 4);
+        ancientStarts |= 1U << (sv.start - 1);
+        ancientRotation |= 1U << sv.rotation;
+
+        assert(getVariant(&sv, Trial_Chambers, MC_1_21_1,
+                          seed, 0, 0, -1));
+        assert(sv.start < 2 && sv.rotation < 4);
+        chamberStarts |= 1U << sv.start;
+        chamberRotation |= 1U << sv.rotation;
+
+        assert(getVariant(&sv, Desert_Pyramid, MC_1_20,
+                          seed, 0, 0, desert));
+        assert(templateOrientation(&sv) < 4);
+        templeOrientation |= 1U << templateOrientation(&sv);
+    }
+
+    assert(portalUnderground == 0x3);
+    assert(portalAirpocket == 0x3);
+    assert(portalGiant == 0x3);
+    assert(portalMirror == 0x3);
+    assert(portalRotation == 0xf);
+    assert(portalNormalStarts == 0x3ff);
+    assert(portalGiantStarts == 0x7);
+    assert(villageRotation == 0xf);
+    assert(bastionStarts == 0xf);
+    assert(bastionRotation == 0xf);
+    assert(iglooBasement == 0x3);
+    assert(iglooOrientation == 0xf);
+    assert(iglooSizes == 0xff);
+    assert(ancientStarts == 0x7);
+    assert(ancientRotation == 0xf);
+    assert(chamberStarts == 0x3);
+    assert(chamberRotation == 0xf);
+    assert(templeOrientation == 0xf);
+}
+
 int main(void)
 {
     static const char *stable[] = {
@@ -153,6 +277,8 @@ int main(void)
     Pos newSpawn = estimateSpawn(&spawnNew, NULL);
     assert(oldSpawn.x == -136 && oldSpawn.z == 584);
     assert(newSpawn.x == -760 && newSpawn.z == -920);
+
+    assertStructureVariants();
 
     puts("stable version, biome, and structure tests passed");
     return 0;

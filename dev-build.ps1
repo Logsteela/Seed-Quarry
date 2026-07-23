@@ -2,13 +2,16 @@ param(
     [ValidateSet("debug", "release")]
     [string]$Configuration = "debug",
     [switch]$NoRun,
-    [switch]$Reconfigure
+    [switch]$Reconfigure,
+    [switch]$SkipTests
 )
 
 $ErrorActionPreference = "Stop"
 
 $sourceDir = $PSScriptRoot
 $buildDir = Join-Path $sourceDir "build-dev-$Configuration"
+
+& (Join-Path $sourceDir "check-source.ps1")
 
 function Find-QtTool {
     param(
@@ -64,6 +67,13 @@ $mingwBin = Split-Path $make -Parent
 $qtBin = Split-Path $qmake -Parent
 $env:Path = "$qtBin;$mingwBin;$env:Path"
 $env:QT_PLUGIN_PATH = Join-Path $qtRoot "plugins"
+
+if (-not $SkipTests) {
+    & $make -C (Join-Path $sourceDir "cubiomes") test-versions
+    if ($LASTEXITCODE -ne 0) {
+        throw "Cubiomes tests failed (exit $LASTEXITCODE)"
+    }
+}
 
 New-Item -ItemType Directory -Path $buildDir -Force | Out-Null
 $makefile = Join-Path $buildDir "Makefile"

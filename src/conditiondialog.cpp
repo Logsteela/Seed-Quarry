@@ -460,6 +460,29 @@ ConditionDialog::ConditionDialog(FormConditions *parent, MapView *mapview, Confi
         if (portalRotation < 0 || portalRotation >= ui->comboPortalRotation->count())
             portalRotation = 0;
         ui->comboPortalRotation->setCurrentIndex(portalRotation);
+
+        auto setvariantcombo = [](QComboBox *combo, int value) {
+            combo->setCurrentIndex(
+                value >= 0 && value < combo->count() ? value : 0);
+        };
+        setvariantcombo(ui->comboVillageRotation,
+            cond.deps[Condition::DEP_VILLAGE_ROTATION]);
+        setvariantcombo(ui->comboBastionRotation,
+            cond.deps[Condition::DEP_BASTION_ROTATION]);
+        setvariantcombo(ui->comboIglooOrientation,
+            cond.deps[Condition::DEP_IGLOO_ORIENTATION]);
+        setvariantcombo(ui->comboIglooSize,
+            cond.deps[Condition::DEP_IGLOO_SIZE]);
+        setvariantcombo(ui->comboAncientStart,
+            cond.deps[Condition::DEP_ANCIENT_START]);
+        setvariantcombo(ui->comboAncientRotation,
+            cond.deps[Condition::DEP_ANCIENT_ROTATION]);
+        setvariantcombo(ui->comboChambersStart,
+            cond.deps[Condition::DEP_CHAMBERS_START]);
+        setvariantcombo(ui->comboChambersRotation,
+            cond.deps[Condition::DEP_CHAMBERS_ROTATION]);
+        setvariantcombo(ui->comboTempleOrientation,
+            cond.deps[Condition::DEP_TEMPLE_ORIENTATION]);
         for (VariantCheckBox *cb : qAsConst(variantboxes))
         {
             int idx = cb->sp - g_start_pieces;
@@ -654,6 +677,7 @@ void ConditionDialog::updateMode()
         ui->stackedWidget->setCurrentWidget(ui->pageVillage);
         ui->checkStartPieces->setEnabled(wi.mc >= MC_1_14);
         ui->checkAbandoned->setEnabled(filterindex == F_VILLAGE && wi.mc >= MC_1_10);
+        ui->comboVillageRotation->setEnabled(wi.mc >= MC_1_14);
     }
     else if (filterindex == F_FORTRESS)
     {
@@ -664,6 +688,7 @@ void ConditionDialog::updateMode()
     {
         ui->stackedWidget->setCurrentWidget(ui->pageBastion);
         ui->checkStartBastion->setEnabled(wi.mc >= MC_1_16_1);
+        ui->comboBastionRotation->setEnabled(wi.mc >= MC_1_16_1);
     }
     else if (filterindex == F_PORTAL || filterindex == F_PORTALN)
     {
@@ -685,6 +710,21 @@ void ConditionDialog::updateMode()
     {
         ui->stackedWidget->setCurrentWidget(ui->pageIgloo);
         ui->checkBasement->setEnabled(wi.mc >= MC_1_9);
+        ui->comboIglooOrientation->setEnabled(wi.mc >= MC_1_9);
+        ui->comboIglooSize->setEnabled(wi.mc >= MC_1_9);
+    }
+    else if (filterindex == F_ANCIENT_CITY)
+    {
+        ui->stackedWidget->setCurrentWidget(ui->pageAncientCity);
+    }
+    else if (filterindex == F_CHAMBERS)
+    {
+        ui->stackedWidget->setCurrentWidget(ui->pageChambers);
+    }
+    else if (filterindex == F_DESERT || filterindex == F_JUNGLE || filterindex == F_HUT)
+    {
+        ui->stackedWidget->setCurrentWidget(ui->pageTemple);
+        ui->comboTempleOrientation->setEnabled(wi.mc > MC_1_19);
     }
     else if (filterindex == F_HEIGHT)
     {
@@ -1223,6 +1263,42 @@ void ConditionDialog::onAccept()
         c.varbiome = ui->comboPortalCategory->currentIndex();
         c.deps[Condition::DEP_PORTAL_ROTATION] =
             ui->comboPortalRotation->currentIndex();
+    }
+    else if (c.type == F_VILLAGE)
+    {
+        c.deps[Condition::DEP_VILLAGE_ROTATION] =
+            ui->comboVillageRotation->currentIndex();
+    }
+    else if (c.type == F_BASTION)
+    {
+        c.deps[Condition::DEP_BASTION_ROTATION] =
+            ui->comboBastionRotation->currentIndex();
+    }
+    else if (c.type == F_IGLOO)
+    {
+        c.deps[Condition::DEP_IGLOO_ORIENTATION] =
+            ui->comboIglooOrientation->currentIndex();
+        c.deps[Condition::DEP_IGLOO_SIZE] =
+            ui->comboIglooSize->currentIndex();
+    }
+    else if (c.type == F_ANCIENT_CITY)
+    {
+        c.deps[Condition::DEP_ANCIENT_START] =
+            ui->comboAncientStart->currentIndex();
+        c.deps[Condition::DEP_ANCIENT_ROTATION] =
+            ui->comboAncientRotation->currentIndex();
+    }
+    else if (c.type == F_CHAMBERS)
+    {
+        c.deps[Condition::DEP_CHAMBERS_START] =
+            ui->comboChambersStart->currentIndex();
+        c.deps[Condition::DEP_CHAMBERS_ROTATION] =
+            ui->comboChambersRotation->currentIndex();
+    }
+    else if (c.type == F_DESERT || c.type == F_JUNGLE || c.type == F_HUT)
+    {
+        c.deps[Condition::DEP_TEMPLE_ORIENTATION] =
+            ui->comboTempleOrientation->currentIndex();
     }
 
     for (VariantCheckBox *cb : qAsConst(variantboxes))

@@ -166,6 +166,15 @@ bool Condition::versionUpgrade()
             z2 = (z2+1) * mult - 1;
         }
     }
+    if (version < VER_VARIANTS)
+    {
+        // deps and varbiome had no meaning before the extra variant filters.
+        // Clear them so old condition files cannot accidentally enable one.
+        memset(deps, 0, sizeof(deps));
+        varbiome = 0;
+        varflags &= VAR_WITH_START | VAR_ABANODONED | VAR_ENDSHIP |
+                    VAR_DENSE_BB | VAR_NOT | VAR_BASEMENT;
+    }
 
     version = VER_CURRENT;
     return true;
@@ -806,6 +815,13 @@ static int portalCategoryFilter(int biome)
     }
 }
 
+static int templateOrientation(const StructureVariant& sv)
+{
+    if (sv.mirror)
+        return sv.rotation ? 3 : 2;
+    return sv.rotation;
+}
+
 static bool isVariantOk(const Condition *c, SearchThreadEnv *e, int stype, int varbiome, Pos *pos)
 {
     StructureVariant sv;
@@ -821,12 +837,18 @@ static bool isVariantOk(const Condition *c, SearchThreadEnv *e, int stype, int v
             if (!(c->varflags & Condition::VAR_NOT) && !sv.abandoned)
                 return false;
         }
+        int rotation = c->deps[Condition::DEP_VILLAGE_ROTATION];
+        if (rotation && sv.rotation != rotation - 1)
+            return false;
         if (!(c->varflags & Condition::VAR_WITH_START) || e->mc < MC_1_14) return true;
     }
     else if (stype == Bastion)
     {
         if (e->mc <= MC_1_15) return true;
         getVariant(&sv, stype, e->mc, e->seed, pos->x, pos->z, -1);
+        int rotation = c->deps[Condition::DEP_BASTION_ROTATION];
+        if (rotation && sv.rotation != rotation - 1)
+            return false;
         if (!(c->varflags & Condition::VAR_WITH_START)) return true;
     }
     else if (stype == Ruined_Portal || stype == Ruined_Portal_N)
@@ -869,9 +891,56 @@ static bool isVariantOk(const Condition *c, SearchThreadEnv *e, int stype, int v
     }
     else if (stype == Igloo)
     {
-        if (!(c->varflags & Condition::VAR_BASEMENT)) return true;
+        int orientation = c->deps[Condition::DEP_IGLOO_ORIENTATION];
+        int size = c->deps[Condition::DEP_IGLOO_SIZE];
+        if (!(c->varflags & Condition::VAR_BASEMENT) && !orientation && !size)
+            return true;
         getVariant(&sv, stype, e->mc, e->seed, pos->x, pos->z, -1);
-        return (c->varflags & Condition::VAR_NOT ? !sv.basement : sv.basement);
+        if (c->varflags & Condition::VAR_BASEMENT)
+        {
+            bool basement = c->varflags & Condition::VAR_NOT ? !sv.basement : sv.basement;
+            if (!basement)
+                return false;
+        }
+        if (orientation && templateOrientation(sv) != orientation - 1)
+            return false;
+        if (size && sv.size != size + 3)
+            return false;
+        return true;
+    }
+    else if (stype == Ancient_City)
+    {
+        int start = c->deps[Condition::DEP_ANCIENT_START];
+        int rotation = c->deps[Condition::DEP_ANCIENT_ROTATION];
+        if (!start && !rotation)
+            return true;
+        getVariant(&sv, stype, e->mc, e->seed, pos->x, pos->z, -1);
+        if (start && sv.start != start)
+            return false;
+        if (rotation && sv.rotation != rotation - 1)
+            return false;
+        return true;
+    }
+    else if (stype == Trial_Chambers)
+    {
+        int start = c->deps[Condition::DEP_CHAMBERS_START];
+        int rotation = c->deps[Condition::DEP_CHAMBERS_ROTATION];
+        if (!start && !rotation)
+            return true;
+        getVariant(&sv, stype, e->mc, e->seed, pos->x, pos->z, -1);
+        if (start && sv.start != start - 1)
+            return false;
+        if (rotation && sv.rotation != rotation - 1)
+            return false;
+        return true;
+    }
+    else if (stype == Desert_Pyramid || stype == Jungle_Temple || stype == Swamp_Hut)
+    {
+        int orientation = c->deps[Condition::DEP_TEMPLE_ORIENTATION];
+        if (!orientation || e->mc <= MC_1_19)
+            return true;
+        getVariant(&sv, stype, e->mc, e->seed, pos->x, pos->z, -1);
+        return templateOrientation(sv) == orientation - 1;
     }
     else if (stype == End_City)
     {
@@ -2304,8 +2373,5 @@ void findQuadStructs(int styp, Generator *g, QVector<QuadInfo> *out)
 
     delete[] qlist;
 }
-
-
-
 
 

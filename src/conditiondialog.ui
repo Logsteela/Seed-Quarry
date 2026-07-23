@@ -486,10 +486,10 @@ QPushButton:hover {
                   </property>
                   <item>
                    <layout class="QGridLayout" name="gridLayoutBiomes"/>
-                  </item>
-                 </layout>
-                </widget>
-               </widget>
+           </item>
+          </layout>
+         </widget>
+         </widget>
               </item>
               <item row="2" column="0" colspan="5">
                <layout class="QHBoxLayout" name="horizontalLayout_4">
@@ -1677,8 +1677,44 @@ QPushButton:hover {
                 </property>
                </widget>
               </item>
-              <item row="1" column="0" colspan="2">
-               <widget class="QScrollArea" name="scrollVillagePieces">
+               <item row="1" column="0">
+                <widget class="QLabel" name="labelVillageRotation">
+                 <property name="text">
+                  <string>回転</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="1" column="1">
+                <widget class="QComboBox" name="comboVillageRotation">
+                 <item>
+                  <property name="text">
+                   <string>指定なし</string>
+                  </property>
+                 </item>
+                 <item>
+                  <property name="text">
+                   <string>0°</string>
+                  </property>
+                 </item>
+                 <item>
+                  <property name="text">
+                   <string>90°</string>
+                  </property>
+                 </item>
+                 <item>
+                  <property name="text">
+                   <string>180°</string>
+                  </property>
+                 </item>
+                 <item>
+                  <property name="text">
+                   <string>270°</string>
+                  </property>
+                 </item>
+                </widget>
+               </item>
+               <item row="2" column="0" colspan="2">
+                <widget class="QScrollArea" name="scrollVillagePieces">
                 <property name="widgetResizable">
                  <bool>true</bool>
                 </property>
@@ -1724,10 +1760,46 @@ QPushButton:hover {
                 <property name="text">
                  <string>Filter starting piece</string>
                 </property>
-               </widget>
-              </item>
-              <item row="1" column="0">
-               <widget class="QScrollArea" name="scrollBastionPieces">
+                </widget>
+               </item>
+               <item row="1" column="0">
+                <widget class="QLabel" name="labelBastionRotation">
+                 <property name="text">
+                  <string>回転</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="1" column="1">
+                <widget class="QComboBox" name="comboBastionRotation">
+                 <item>
+                  <property name="text">
+                   <string>指定なし</string>
+                  </property>
+                 </item>
+                 <item>
+                  <property name="text">
+                   <string>0°</string>
+                  </property>
+                 </item>
+                 <item>
+                  <property name="text">
+                   <string>90°</string>
+                  </property>
+                 </item>
+                 <item>
+                  <property name="text">
+                   <string>180°</string>
+                  </property>
+                 </item>
+                 <item>
+                  <property name="text">
+                   <string>270°</string>
+                  </property>
+                 </item>
+                </widget>
+               </item>
+               <item row="2" column="0" colspan="2">
+                <widget class="QScrollArea" name="scrollBastionPieces">
                 <property name="widgetResizable">
                  <bool>true</bool>
                 </property>
@@ -2057,10 +2129,102 @@ QPushButton:hover {
                 <property name="tristate">
                  <bool>true</bool>
                 </property>
-               </widget>
-              </item>
-              <item row="1" column="0">
-               <spacer name="verticalSpacer_7">
+                </widget>
+               </item>
+               <item row="1" column="0">
+                <widget class="QLabel" name="labelIglooOrientation">
+                 <property name="text">
+                  <string>入口の向き</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="1" column="1">
+                <widget class="QComboBox" name="comboIglooOrientation">
+                 <item>
+                  <property name="text">
+                   <string>指定なし</string>
+                  </property>
+                 </item>
+                 <item>
+                  <property name="text">
+                   <string>北</string>
+                  </property>
+                 </item>
+                 <item>
+                  <property name="text">
+                   <string>東</string>
+                  </property>
+                 </item>
+                 <item>
+                  <property name="text">
+                   <string>南</string>
+                  </property>
+                 </item>
+                 <item>
+                  <property name="text">
+                   <string>西</string>
+                  </property>
+                 </item>
+                </widget>
+               </item>
+               <item row="2" column="0">
+                <widget class="QLabel" name="labelIglooSize">
+                 <property name="text">
+                  <string>地下への縦穴</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="2" column="1">
+                <widget class="QComboBox" name="comboIglooSize">
+                 <item>
+                  <property name="text">
+                   <string>指定なし</string>
+                  </property>
+                 </item>
+                 <item>
+                  <property name="text">
+                   <string>中間部4（はしご16）</string>
+                  </property>
+                 </item>
+                 <item>
+                  <property name="text">
+                   <string>中間部5（はしご19）</string>
+                  </property>
+                 </item>
+                 <item>
+                  <property name="text">
+                   <string>中間部6（はしご22）</string>
+                  </property>
+                 </item>
+                 <item>
+                  <property name="text">
+                   <string>中間部7（はしご25）</string>
+                  </property>
+                 </item>
+                 <item>
+                  <property name="text">
+                   <string>中間部8（はしご28）</string>
+                  </property>
+                 </item>
+                 <item>
+                  <property name="text">
+                   <string>中間部9（はしご31）</string>
+                  </property>
+                 </item>
+                 <item>
+                  <property name="text">
+                   <string>中間部10（はしご34）</string>
+                  </property>
+                 </item>
+                 <item>
+                  <property name="text">
+                   <string>中間部11（はしご37）</string>
+                  </property>
+                 </item>
+                </widget>
+               </item>
+               <item row="3" column="0" colspan="2">
+                <spacer name="verticalSpacer_7">
                 <property name="orientation">
                  <enum>Qt::Vertical</enum>
                 </property>
@@ -2077,7 +2241,286 @@ QPushButton:hover {
            </item>
           </layout>
          </widget>
-        </widget>
+         <widget class="QWidget" name="pageAncientCity">
+          <layout class="QGridLayout" name="gridLayoutAncientCity">
+           <property name="leftMargin">
+            <number>0</number>
+           </property>
+           <property name="topMargin">
+            <number>0</number>
+           </property>
+           <property name="rightMargin">
+            <number>0</number>
+           </property>
+           <property name="bottomMargin">
+            <number>0</number>
+           </property>
+           <item row="0" column="0">
+            <widget class="QGroupBox" name="groupBoxAncientCity">
+             <property name="title">
+              <string>古代都市の生成バリアント</string>
+             </property>
+             <layout class="QGridLayout" name="gridLayoutAncientCity2">
+              <item row="0" column="0">
+               <widget class="QLabel" name="labelAncientStart">
+                <property name="text">
+                 <string>中央テンプレート</string>
+                </property>
+               </widget>
+              </item>
+              <item row="0" column="1">
+               <widget class="QComboBox" name="comboAncientStart">
+                <item>
+                 <property name="text">
+                  <string>指定なし</string>
+                 </property>
+                </item>
+                <item>
+                 <property name="text">
+                  <string>city_center_1</string>
+                 </property>
+                </item>
+                <item>
+                 <property name="text">
+                  <string>city_center_2</string>
+                 </property>
+                </item>
+                <item>
+                 <property name="text">
+                  <string>city_center_3</string>
+                 </property>
+                </item>
+               </widget>
+              </item>
+              <item row="1" column="0">
+               <widget class="QLabel" name="labelAncientRotation">
+                <property name="text">
+                 <string>回転</string>
+                </property>
+               </widget>
+              </item>
+              <item row="1" column="1">
+               <widget class="QComboBox" name="comboAncientRotation">
+                <item>
+                 <property name="text">
+                  <string>指定なし</string>
+                 </property>
+                </item>
+                <item>
+                 <property name="text">
+                  <string>0°</string>
+                 </property>
+                </item>
+                <item>
+                 <property name="text">
+                  <string>90°</string>
+                 </property>
+                </item>
+                <item>
+                 <property name="text">
+                  <string>180°</string>
+                 </property>
+                </item>
+                <item>
+                 <property name="text">
+                  <string>270°</string>
+                 </property>
+                </item>
+               </widget>
+              </item>
+              <item row="2" column="0" colspan="2">
+               <spacer name="verticalSpacerAncientCity">
+                <property name="orientation">
+                 <enum>Qt::Vertical</enum>
+                </property>
+                <property name="sizeHint" stdset="0">
+                 <size>
+                  <width>20</width>
+                  <height>40</height>
+                 </size>
+                </property>
+               </spacer>
+              </item>
+             </layout>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+         <widget class="QWidget" name="pageChambers">
+          <layout class="QGridLayout" name="gridLayoutChambers">
+           <property name="leftMargin">
+            <number>0</number>
+           </property>
+           <property name="topMargin">
+            <number>0</number>
+           </property>
+           <property name="rightMargin">
+            <number>0</number>
+           </property>
+           <property name="bottomMargin">
+            <number>0</number>
+           </property>
+           <item row="0" column="0">
+            <widget class="QGroupBox" name="groupBoxChambers">
+             <property name="title">
+              <string>試練の間の生成バリアント</string>
+             </property>
+             <layout class="QGridLayout" name="gridLayoutChambers2">
+              <item row="0" column="0">
+               <widget class="QLabel" name="labelChambersStart">
+                <property name="text">
+                 <string>開始テンプレート</string>
+                </property>
+               </widget>
+              </item>
+              <item row="0" column="1">
+               <widget class="QComboBox" name="comboChambersStart">
+                <item>
+                 <property name="text">
+                  <string>指定なし</string>
+                 </property>
+                </item>
+                <item>
+                 <property name="text">
+                  <string>corridor/end_1</string>
+                 </property>
+                </item>
+                <item>
+                 <property name="text">
+                  <string>corridor/end_2</string>
+                 </property>
+                </item>
+               </widget>
+              </item>
+              <item row="1" column="0">
+               <widget class="QLabel" name="labelChambersRotation">
+                <property name="text">
+                 <string>回転</string>
+                </property>
+               </widget>
+              </item>
+              <item row="1" column="1">
+               <widget class="QComboBox" name="comboChambersRotation">
+                <item>
+                 <property name="text">
+                  <string>指定なし</string>
+                 </property>
+                </item>
+                <item>
+                 <property name="text">
+                  <string>0°</string>
+                 </property>
+                </item>
+                <item>
+                 <property name="text">
+                  <string>90°</string>
+                 </property>
+                </item>
+                <item>
+                 <property name="text">
+                  <string>180°</string>
+                 </property>
+                </item>
+                <item>
+                 <property name="text">
+                  <string>270°</string>
+                 </property>
+                </item>
+               </widget>
+              </item>
+              <item row="2" column="0" colspan="2">
+               <spacer name="verticalSpacerChambers">
+                <property name="orientation">
+                 <enum>Qt::Vertical</enum>
+                </property>
+                <property name="sizeHint" stdset="0">
+                 <size>
+                  <width>20</width>
+                  <height>40</height>
+                 </size>
+                </property>
+               </spacer>
+              </item>
+             </layout>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+         <widget class="QWidget" name="pageTemple">
+          <layout class="QGridLayout" name="gridLayoutTemple">
+           <property name="leftMargin">
+            <number>0</number>
+           </property>
+           <property name="topMargin">
+            <number>0</number>
+           </property>
+           <property name="rightMargin">
+            <number>0</number>
+           </property>
+           <property name="bottomMargin">
+            <number>0</number>
+           </property>
+           <item row="0" column="0">
+            <widget class="QGroupBox" name="groupBoxTemple">
+             <property name="title">
+              <string>固定構造物の生成バリアント</string>
+             </property>
+             <layout class="QGridLayout" name="gridLayoutTemple2">
+              <item row="0" column="0">
+               <widget class="QLabel" name="labelTempleOrientation">
+                <property name="text">
+                 <string>入口の向き</string>
+                </property>
+               </widget>
+              </item>
+              <item row="0" column="1">
+               <widget class="QComboBox" name="comboTempleOrientation">
+                <item>
+                 <property name="text">
+                  <string>指定なし</string>
+                 </property>
+                </item>
+                <item>
+                 <property name="text">
+                  <string>北</string>
+                 </property>
+                </item>
+                <item>
+                 <property name="text">
+                  <string>東</string>
+                 </property>
+                </item>
+                <item>
+                 <property name="text">
+                  <string>南</string>
+                 </property>
+                </item>
+                <item>
+                 <property name="text">
+                  <string>西</string>
+                 </property>
+                </item>
+               </widget>
+              </item>
+              <item row="1" column="0" colspan="2">
+               <spacer name="verticalSpacerTemple">
+                <property name="orientation">
+                 <enum>Qt::Vertical</enum>
+                </property>
+                <property name="sizeHint" stdset="0">
+                 <size>
+                  <width>20</width>
+                  <height>40</height>
+                 </size>
+                </property>
+               </spacer>
+              </item>
+             </layout>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+         </widget>
        </item>
       </layout>
      </widget>

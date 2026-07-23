@@ -571,7 +571,8 @@ struct /*__attribute__((packed))*/ Condition
         VER_2_4_0       = 2,
         VER_3_4_0       = 3,
         VER_4_0_0       = 4,
-        VER_CURRENT     = VER_4_0_0,
+        VER_VARIANTS    = 5,
+        VER_CURRENT     = VER_VARIANTS,
     };
     enum { // meta flags
         DISABLED        = 0x0001,
@@ -612,6 +613,15 @@ struct /*__attribute__((packed))*/ Condition
     };
     enum { // indexes in deps[] used by variant filters
         DEP_PORTAL_ROTATION = 0, // 0:any, 1..4: rotation 0..3
+        DEP_VILLAGE_ROTATION,
+        DEP_BASTION_ROTATION,
+        DEP_IGLOO_ORIENTATION,
+        DEP_IGLOO_SIZE,
+        DEP_ANCIENT_START,
+        DEP_ANCIENT_ROTATION,
+        DEP_CHAMBERS_START,
+        DEP_CHAMBERS_ROTATION,
+        DEP_TEMPLE_ORIENTATION,
     };
     enum { // min/max
         // legacy 0:min<= 1:max>= 2:min>= 3:max<=
@@ -630,7 +640,7 @@ struct /*__attribute__((packed))*/ Condition
     char        text[28];
     uint8_t     pad1[12]; // legacy
     uint64_t    hash;
-    int8_t      deps[16]; // currently unused
+    int8_t      deps[16]; // compact values for additional variant filters
     uint64_t    biomeToFind, biomeToFindM; // inclusion biomes
     int32_t     biomeId; // legacy oceanToFind(8)
     uint32_t    biomeSize;
@@ -647,7 +657,7 @@ struct /*__attribute__((packed))*/ Condition
     uint32_t    flags;
     int32_t     rmax; // (<=0):disabled; (>0):strict upper radius
     uint16_t    varflags;
-    int16_t     varbiome; // unused
+    int16_t     varbiome; // structure biome/category variant
     uint64_t    varstart;
     int32_t     limok[NP_MAX][2];
     int32_t     limex[NP_MAX][2];
