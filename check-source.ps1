@@ -10,12 +10,18 @@ $headerPath = Join-Path $sourceDir "src\search.h"
 $scriptsPath = Join-Path $sourceDir "src\scripts.cpp"
 $lootHeaderPath = Join-Path $sourceDir "cubiomes\loot.h"
 $lootSourcePath = Join-Path $sourceDir "cubiomes\loot.c"
+$lootConditionHeaderPath = Join-Path $sourceDir "src\lootcondition.h"
+$lootConditionSourcePath = Join-Path $sourceDir "src\lootcondition.cpp"
+$lootWidgetHeaderPath = Join-Path $sourceDir "src\lootconditionwidget.h"
+$lootWidgetSourcePath = Join-Path $sourceDir "src\lootconditionwidget.cpp"
 $cubiomesMakefilePath = Join-Path $sourceDir "cubiomes\makefile"
 $cubiomesCmakePath = Join-Path $sourceDir "cubiomes\CMakeLists.txt"
 $projectPath = Join-Path $sourceDir "seed-atlas.pro"
 $versionTestsPath = Join-Path $sourceDir "cubiomes\tests_versions.c"
+$lootTestsPath = Join-Path $sourceDir "tests\lootcondition_tests.cpp"
 $noticesPath = Join-Path $sourceDir "THIRD_PARTY_NOTICES.md"
 $buildScriptPath = Join-Path $sourceDir "dev-build.ps1"
+$lootTestScriptPath = Join-Path $sourceDir "test-loot.ps1"
 
 function Assert-SourceCheck {
     param(
@@ -117,10 +123,15 @@ foreach ($dependency in $variantDependencies) {
 $scriptsText = Get-Content -LiteralPath $scriptsPath -Raw -Encoding UTF8
 $lootHeaderText = Get-Content -LiteralPath $lootHeaderPath -Raw -Encoding UTF8
 $lootSourceText = Get-Content -LiteralPath $lootSourcePath -Raw -Encoding UTF8
+$lootConditionHeaderText = Get-Content -LiteralPath $lootConditionHeaderPath -Raw -Encoding UTF8
+$lootConditionSourceText = Get-Content -LiteralPath $lootConditionSourcePath -Raw -Encoding UTF8
+$lootWidgetHeaderText = Get-Content -LiteralPath $lootWidgetHeaderPath -Raw -Encoding UTF8
+$lootWidgetSourceText = Get-Content -LiteralPath $lootWidgetSourcePath -Raw -Encoding UTF8
 $cubiomesMakefileText = Get-Content -LiteralPath $cubiomesMakefilePath -Raw -Encoding UTF8
 $cubiomesCmakeText = Get-Content -LiteralPath $cubiomesCmakePath -Raw -Encoding UTF8
 $projectText = Get-Content -LiteralPath $projectPath -Raw -Encoding UTF8
 $versionTestsText = Get-Content -LiteralPath $versionTestsPath -Raw -Encoding UTF8
+$lootTestsText = Get-Content -LiteralPath $lootTestsPath -Raw -Encoding UTF8
 $noticesText = Get-Content -LiteralPath $noticesPath -Raw -Encoding UTF8
 
 Assert-SourceCheck ($scriptsText.Contains(
@@ -131,32 +142,62 @@ Assert-SourceCheck ($scriptsText.Contains(
 )) "The desert-pyramid loot Lua function is missing syntax highlighting."
 Assert-SourceCheck ($lootHeaderText.Contains("getDesertPyramidLoot16")) `
     "cubiomes/loot.h is missing the public desert-pyramid API."
+Assert-SourceCheck ($lootHeaderText.Contains("desertPyramidEnchantmentName")) `
+    "cubiomes/loot.h is missing the enchantment API."
 Assert-SourceCheck ($lootSourceText.Contains("DP_DECORATION_SALT_16 = 40003")) `
     "cubiomes/loot.c is missing the Java 1.16 decoration salt."
+Assert-SourceCheck ($lootSourceText.Contains("out->enchantedBook")) `
+    "cubiomes/loot.c is missing enchanted-book details."
+Assert-SourceCheck ($lootConditionHeaderText.Contains("struct LootRuleSet")) `
+    "src/lootcondition.h is missing the GUI loot-rule model."
+Assert-SourceCheck ($lootConditionSourceText.Contains("matchAreaLoot")) `
+    "src/lootcondition.cpp is missing area-total evaluation."
+Assert-SourceCheck ($lootConditionSourceText.Contains("LootAccumulator")) `
+    "src/lootcondition.cpp is missing wide-count aggregation."
+Assert-SourceCheck ($lootWidgetHeaderText.Contains("class LootRuleEditor")) `
+    "src/lootconditionwidget.h is missing the GUI editor."
+Assert-SourceCheck ($lootWidgetSourceText.Contains("LootRuleEditor::addRule")) `
+    "src/lootconditionwidget.cpp is missing dynamic rule rows."
+Assert-SourceCheck ($dialogText.Contains("structureLootEditor")) `
+    "conditiondialog.cpp is missing structure loot controls."
+Assert-SourceCheck ($dialogText.Contains("areaLootEditor")) `
+    "conditiondialog.cpp is missing Other/area-total loot controls."
+Assert-SourceCheck ($searchText.Contains("case F_LOOT")) `
+    "src/search.cpp is missing the Other loot condition."
+Assert-SourceCheck ($searchText.Contains("matchAreaLoot")) `
+    "src/search.cpp is missing area-total search integration."
 Assert-SourceCheck ($cubiomesMakefileText.Contains("loot.c")) `
     "cubiomes/makefile does not compile loot.c."
 Assert-SourceCheck ($cubiomesCmakeText.Contains("loot.c")) `
     "cubiomes/CMakeLists.txt does not compile loot.c."
 Assert-SourceCheck ($projectText.Contains('$$CUPATH/loot.h')) `
     "seed-atlas.pro does not track cubiomes/loot.h."
+Assert-SourceCheck ($projectText.Contains('src/lootcondition.cpp')) `
+    "seed-atlas.pro does not compile src/lootcondition.cpp."
+Assert-SourceCheck ($projectText.Contains('src/lootconditionwidget.cpp')) `
+    "seed-atlas.pro does not compile src/lootconditionwidget.cpp."
 Assert-SourceCheck ($versionTestsText.Contains("3515201313347228787ULL")) `
     "The MineMap desert-pyramid golden-vector test is missing."
+Assert-SourceCheck ($lootTestsText.Contains("widePositions.fill(pyramid, 70000)")) `
+    "The wide area-total regression test is missing."
 Assert-SourceCheck ($noticesText.Contains("SeedFinding Java libraries")) `
     "The SeedFinding attribution is missing from THIRD_PARTY_NOTICES.md."
 
-$tokens = $null
-$parseErrors = $null
-[System.Management.Automation.Language.Parser]::ParseFile(
-    $buildScriptPath,
-    [ref]$tokens,
-    [ref]$parseErrors
-) | Out-Null
-Assert-SourceCheck ($parseErrors.Count -eq 0) `
-    "dev-build.ps1 has PowerShell syntax errors: $($parseErrors.Message -join '; ')"
+foreach ($scriptPath in @($buildScriptPath, $lootTestScriptPath)) {
+    $tokens = $null
+    $parseErrors = $null
+    [System.Management.Automation.Language.Parser]::ParseFile(
+        $scriptPath,
+        [ref]$tokens,
+        [ref]$parseErrors
+    ) | Out-Null
+    Assert-SourceCheck ($parseErrors.Count -eq 0) `
+        "$([System.IO.Path]::GetFileName($scriptPath)) has PowerShell syntax errors: $($parseErrors.Message -join '; ')"
+}
 
 Write-Host "Source checks passed:"
 Write-Host "  UTF-8 and conditiondialog.ui XML"
 Write-Host "  unique Qt object names and C++ UI references"
 Write-Host "  structure-variant dependency wiring"
-Write-Host "  desert-pyramid loot source, Lua API, tests, and attribution"
-Write-Host "  dev-build.ps1 syntax"
+Write-Host "  desert-pyramid loot source, enchantments, GUI, search, Lua API, tests, and attribution"
+Write-Host "  dev-build.ps1 and test-loot.ps1 syntax"

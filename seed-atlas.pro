@@ -130,6 +130,8 @@ SOURCES += \
         src/message.cpp \
         src/presetdialog.cpp \
         src/layerdialog.cpp \
+        src/lootcondition.cpp \
+        src/lootconditionwidget.cpp \
         src/mapview.cpp \
         src/rangedialog.cpp \
         src/scripts.cpp \
@@ -197,6 +199,8 @@ HEADERS += \
         src/message.h \
         src/presetdialog.h \
         src/layerdialog.h \
+        src/lootcondition.h \
+        src/lootconditionwidget.h \
         src/mapview.h \
         src/qzipwriter.h \
         src/rangedialog.h \

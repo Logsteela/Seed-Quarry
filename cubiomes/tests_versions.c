@@ -206,6 +206,13 @@ static void assertDesertPyramidLoot(void)
                 &loot, cases[c].seed, cases[c].chunkX, cases[c].chunkZ, chest));
             assert(memcmp(
                 loot.count, cases[c].expected[chest], sizeof(loot.count)) == 0);
+            int bookCount = 0;
+            for (int enchantment = 0; enchantment < DP_ENCH_COUNT; enchantment++)
+                for (int level = 1; level <= DP_ENCH_MAX_LEVEL; level++)
+                    bookCount += loot.enchantedBook[enchantment][level];
+            assert(bookCount == loot.count[DP_LOOT_ENCHANTED_BOOK]);
+            if (c == 0 && chest == 3)
+                assert(loot.enchantedBook[DP_ENCH_SILK_TOUCH][1] == 1);
         }
     }
 
@@ -218,6 +225,12 @@ static void assertDesertPyramidLoot(void)
     assert(strcmp(desertPyramidLootItemName(DP_LOOT_DIAMOND), "diamond") == 0);
     assert(desertPyramidLootItemName(-1) == NULL);
     assert(desertPyramidLootItemName(DP_LOOT_ITEM_COUNT) == NULL);
+    assert(strcmp(
+        desertPyramidEnchantmentName(DP_ENCH_SILK_TOUCH),
+        "silk_touch") == 0);
+    assert(desertPyramidEnchantmentMaxLevel(DP_ENCH_SHARPNESS) == 5);
+    assert(desertPyramidEnchantmentMaxLevel(DP_ENCH_MENDING) == 1);
+    assert(desertPyramidEnchantmentName(DP_ENCH_COUNT) == NULL);
 }
 
 int main(void)

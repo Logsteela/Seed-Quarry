@@ -15,7 +15,7 @@ enum
 {
     DP_DECORATION_SALT_16 = 40003,
     DP_PRIMARY_WEIGHT = 232,
-    DP_BOOK_ENCHANTMENTS_16 = 37,
+    DP_BOOK_ENCHANTMENTS_16 = DP_ENCH_COUNT,
     DP_WORLD_BORDER_CHUNKS = 1875000,
 };
 
@@ -59,8 +59,13 @@ static int primaryItem(uint64_t *rng)
     return -1; // empty entry, weight 15
 }
 
-static int primaryCount(uint64_t *rng, int item)
+static int primaryCount(
+    uint64_t *rng, int item, int *bookEnchantment, int *bookLevel)
 {
+    if (bookEnchantment)
+        *bookEnchantment = -1;
+    if (bookLevel)
+        *bookLevel = 0;
     switch (item)
     {
     case DP_LOOT_DIAMOND:       return 1 + nextInt(rng, 3);
@@ -74,8 +79,13 @@ static int primaryCount(uint64_t *rng, int item)
         {
             int enchantment = nextInt(rng, DP_BOOK_ENCHANTMENTS_16);
             int maxLevel = DP_BOOK_MAX_LEVEL_16[enchantment];
+            int level = 1;
             if (maxLevel > 1)
-                nextInt(rng, maxLevel);
+                level += nextInt(rng, maxLevel);
+            if (bookEnchantment)
+                *bookEnchantment = enchantment;
+            if (bookLevel)
+                *bookLevel = level;
             return 1;
         }
     default:
@@ -111,7 +121,13 @@ int getDesertPyramidLoot16(DesertPyramidLoot *out, uint64_t worldSeed,
     {
         int item = primaryItem(&lootRng);
         if (item >= 0)
-            out->count[item] += primaryCount(&lootRng, item);
+        {
+            int enchantment, level;
+            out->count[item] += primaryCount(
+                &lootRng, item, &enchantment, &level);
+            if (enchantment >= 0 && level > 0)
+                out->enchantedBook[enchantment][level]++;
+        }
     }
 
     static const uint8_t secondaryItem[] = {
@@ -154,4 +170,57 @@ const char *desertPyramidLootItemName(int item)
     if (item < 0 || item >= DP_LOOT_ITEM_COUNT)
         return 0;
     return name[item];
+}
+
+const char *desertPyramidEnchantmentName(int enchantment)
+{
+    static const char *name[DP_ENCH_COUNT] = {
+        "protection",
+        "fire_protection",
+        "feather_falling",
+        "blast_protection",
+        "projectile_protection",
+        "respiration",
+        "aqua_affinity",
+        "thorns",
+        "depth_strider",
+        "frost_walker",
+        "binding_curse",
+        "sharpness",
+        "smite",
+        "bane_of_arthropods",
+        "knockback",
+        "fire_aspect",
+        "looting",
+        "sweeping",
+        "efficiency",
+        "silk_touch",
+        "unbreaking",
+        "fortune",
+        "power",
+        "punch",
+        "flame",
+        "infinity",
+        "luck_of_the_sea",
+        "lure",
+        "loyalty",
+        "impaling",
+        "riptide",
+        "channeling",
+        "multishot",
+        "quick_charge",
+        "piercing",
+        "mending",
+        "vanishing_curse",
+    };
+    if (enchantment < 0 || enchantment >= DP_ENCH_COUNT)
+        return 0;
+    return name[enchantment];
+}
+
+int desertPyramidEnchantmentMaxLevel(int enchantment)
+{
+    if (enchantment < 0 || enchantment >= DP_ENCH_COUNT)
+        return 0;
+    return DP_BOOK_MAX_LEVEL_16[enchantment];
 }

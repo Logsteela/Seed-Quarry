@@ -1,4 +1,9 @@
 /build-dev-*/
+/build-tests/
+/tests/.qmake.stash
+/tests/Makefile*
+/tests/debug/
+/tests/release/
 /.qmake.stash
 *.o
 *.obj
@@ -8,4 +13,3 @@ Makefile
 Makefile.*
 debug/
 release/
-

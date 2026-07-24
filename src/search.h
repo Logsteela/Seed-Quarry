@@ -2,6 +2,7 @@
 #define SEARCH_H
 
 #include "cubiomes/finders.h"
+#include "lootcondition.h"
 
 #include "lua/src/lua.hpp"
 
@@ -92,6 +93,7 @@ enum
     F_BIOME_SAMPLE,
     F_NOISE_SAMPLE,
     F_CHAMBERS,
+    F_LOOT,
     // new filters should be added here at the end to keep some downwards compatibility
     FILTER_MAX,
 };
@@ -555,6 +557,15 @@ static const struct FilterList : private FilterInfo
             "Checks only scattered return gateways. Does not include those generated "
             "when defeating the dragon.")
         };
+
+        list[F_LOOT] = FilterInfo{
+            CAT_OTHER, 1, LOC_RAD, 0, 1, BR_NONE, MC_1_16_1, MC_1_16_5, 0, 0, disp++,
+            "desert",
+            QT_TRANSLATE_NOOP("Filter", "範囲内の構造物Loot合計"),
+            QT_TRANSLATE_NOOP("Filter",
+            "Location 内に生成される対象構造物のチェスト内容をすべて合計して判定します。"
+            "現在は Java 1.16.1 / 1.16.5 の砂漠のピラミッドに対応しています。")
+        };
     }
 }
 g_filterinfo;
@@ -582,6 +593,7 @@ struct /*__attribute__((packed))*/ Condition
         FLG_MATCH_ANY   = 0x0010,
         FLG_IN_RANGE    = 0x0020,
         FLG_INVERT      = 0x0040,
+        FLG_LOOT        = 0x0080,
     };
     enum { // variant flags
         VAR_WITH_START  = 0x0001, // restrict start piece index and biome
@@ -730,6 +742,7 @@ struct SearchThreadEnv
     std::atomic_bool *stop;
 
     std::map<uint64_t, lua_State*> l_states;
+    std::map<uint64_t, LootRuleSet> loot_rules;
 
     SearchThreadEnv();
     ~SearchThreadEnv();

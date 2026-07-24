@@ -280,6 +280,24 @@ static void pushDesertPyramidLoot(lua_State *L,
         lua_pushinteger(L, loot.count[item]);
         lua_setfield(L, -2, desertPyramidLootItemName(item));
     }
+    lua_createtable(L, 0, DP_ENCH_COUNT);
+    for (int enchantment = 0; enchantment < DP_ENCH_COUNT; enchantment++)
+    {
+        lua_createtable(L, DP_ENCH_MAX_LEVEL, 1);
+        int total = 0;
+        for (int level = 1; level <= DP_ENCH_MAX_LEVEL; level++)
+        {
+            int count = loot.enchantedBook[enchantment][level];
+            total += count;
+            lua_pushinteger(L, count);
+            lua_seti(L, -2, level);
+        }
+        lua_pushinteger(L, total);
+        lua_setfield(L, -2, "total");
+        lua_setfield(
+            L, -2, desertPyramidEnchantmentName(enchantment));
+    }
+    lua_setfield(L, -2, "enchanted_books");
 }
 
 static int l_getDesertPyramidLoot(lua_State *L)
@@ -331,6 +349,10 @@ static int l_getDesertPyramidLoot(lua_State *L)
         }
         for (int item = 0; item < DP_LOOT_ITEM_COUNT; item++)
             total.count[item] += loot.count[item];
+        for (int enchantment = 0; enchantment < DP_ENCH_COUNT; enchantment++)
+            for (int level = 1; level <= DP_ENCH_MAX_LEVEL; level++)
+                total.enchantedBook[enchantment][level] +=
+                    loot.enchantedBook[enchantment][level];
         pushDesertPyramidLoot(L, loot);
         lua_seti(L, -2, chest + 1);
     }

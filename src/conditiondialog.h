@@ -15,6 +15,8 @@
 
 class MainWindow;
 class MapView;
+class LootRuleEditor;
+class QComboBox;
 
 namespace Ui {
 class ConditionDialog;
@@ -129,6 +131,10 @@ private:
 
     QVector<VariantCheckBox*> variantboxes;
     uint64_t luahash;
+    LootRuleEditor *structureLootEditor;
+    LootRuleEditor *areaLootEditor;
+    QWidget *areaLootPage;
+    QComboBox *areaLootStructure;
 
 public:
     MapView *mapview;

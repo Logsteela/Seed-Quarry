@@ -78,6 +78,27 @@ Qtをまだ導入していない状態でも、次の静的検査だけは実行
 - 古代都市: 中央テンプレート、回転
 - 試練の間: 開始テンプレート、回転
 - 砂漠の寺院、ジャングルの寺院、沼地の小屋: 入口の向き
+- 砂漠の寺院（Java 1.16.1 / 1.16.5）: チェスト内容による検索
+- Other → `範囲内の構造物Loot合計`（Java 1.16.1 / 1.16.5）:
+  Location内の砂漠の寺院すべてを合計したチェスト内容による検索
+
+Loot条件では、アイテム条件を任意の個数だけ追加できます。GUI上で次を選べます。
+
+- 条件同士をすべて満たす（AND）/ いずれかを満たす（OR）
+- 複数の構造物のいずれか / 各構造物それぞれ / 全構造物の合計
+- 構造物内の全チェスト合計 / いずれか1個 / 各チェストそれぞれ /
+  Vanilla内部の生成順チェスト1～4
+- アイテム個数の最小値・最大値（最大値は上限なしも可）
+- エンチャント本の種類とレベル範囲
+
+現在Loot計算が正確に実装されているのは砂漠の寺院だけです。ジャングルの寺院や
+沼地の小屋で同じ詳細ページを開くと、未対応である旨を表示してLoot欄を無効化
+します。未検証の結果を流用しません。
+
+可変個のLoot条件は、従来の固定長Conditionを変更せず、条件文字列の末尾に
+バージョン付き拡張データとして保存します。このため、従来のセッションと
+プリセットはそのまま読み込め、新しい条件もセッション、プリセット、
+コピー＆貼り付けに含まれます。
 
 荒廃したポータル、村、砦の遺跡、イグルーについては、Java 1.16.1を
 明示的に通す回帰テストも追加しています。特に砦の遺跡は1.16.1だけにある
@@ -101,7 +122,13 @@ git log --oneline --decorate -10
 変更を保存するコミット:
 
 ```powershell
-git add src cubiomes/tests_versions.c dev-build.ps1 check-source.ps1 DEVELOPMENT_JA.md .gitignore
+git add .gitignore DEVELOPMENT_JA.md LOOT_INTEGRATION_JA.md `
+    cubiomes/loot.c cubiomes/loot.h cubiomes/tests_versions.c `
+    seed-atlas.pro src/conditiondialog.cpp src/conditiondialog.h `
+    src/lootcondition.cpp src/lootcondition.h `
+    src/lootconditionwidget.cpp src/lootconditionwidget.h `
+    src/scripts.cpp src/search.cpp src/search.h `
+    test-loot.ps1 tests
 git commit -m "変更内容を日本語で書く"
 ```
 
@@ -145,6 +172,11 @@ end
 `diamond_horse_armor`, `enchanted_book`, `golden_apple`,
 `enchanted_golden_apple`, `gunpowder`, `string`, `sand`です。
 
+さらに`enchanted_books`には、エンチャント名ごとのテーブルが入ります。
+レベルは`[1]`～`[5]`、その種類の合計は`total`です。例えば
+`loot.total.enchanted_books.silk_touch[1]`でシルクタッチIの本の冊数を
+取得できます。
+
 4個のどこかにダイヤが1個以上ある例:
 
 ```lua
@@ -171,3 +203,26 @@ end
 ```
 
 詳細な出典、既知の制限、参照テスト値は`LOOT_INTEGRATION_JA.md`にあります。
+
+## Loot条件のテスト
+
+通常の全体ビルドとC回帰テスト:
+
+```powershell
+.\dev-build.ps1 -NoRun
+```
+
+可変長ルール、AND/OR、チェスト集計、範囲合計、エンチャントの単体テストと、
+実際の検索スレッドを通す結合テスト:
+
+```powershell
+.\test-loot.ps1
+```
+
+すでにアプリをビルド済みで、Lootテスト側だけを再実行するなら
+`.\test-loot.ps1 -SkipAppBuild`を使えます。
+
+`tests\loot_integration_session.txt`と
+`tests\loot_structure_integration_session.txt`は、固定Seedを実際の検索スレッドへ
+通す結合テスト用セッションです。`loot_integration_fail_session.txt`は
+ダイヤ999個という不成立条件で、同じSeedが除外されることを確認します。

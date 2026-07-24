@@ -4,6 +4,7 @@
 #include "scripts.h"
 #include "seedtables.h"
 #include "util.h"
+#include "lootcondition.h"
 
 #include "cubiomes/finders.h"
 #include "cubiomes/quadbase.h"
@@ -62,6 +63,15 @@ QString Condition::summary(bool aligntab) const
         {
             txts += QString(" 1:%1").arg(step);
         }
+    }
+    if ((flags & Condition::FLG_LOOT) || type == F_LOOT)
+    {
+        LootRuleSet rules;
+        if (lookupLootRuleSet(hash, &rules))
+            txts += QString::fromUtf8(" [Loot条件 %1件]")
+                .arg(rules.rules.size());
+        else
+            txts += QString::fromUtf8(" [Loot設定なし]");
     }
 
     if (aligntab)
@@ -207,14 +217,28 @@ QString Condition::apply(int mc)
 QString Condition::toHex() const
 {
     size_t savsize = offsetof(Condition, generated_start);
-    return QByteArray((const char*) this, savsize).toHex();
+    QString encoded = QByteArray((const char*) this, savsize).toHex();
+    if ((flags & FLG_LOOT) || type == F_LOOT)
+    {
+        LootRuleSet rules;
+        if (lookupLootRuleSet(hash, &rules))
+        {
+            QByteArray payload = serializeLootRuleSet(rules).toBase64(
+                QByteArray::Base64UrlEncoding |
+                QByteArray::OmitTrailingEquals);
+            encoded += "|" + QString::fromLatin1(payload);
+        }
+    }
+    return encoded;
 }
 
 bool Condition::readHex(const QString& hex)
 {
-    if ((size_t)hex.length()/2 < offsetof(Condition, count))
+    int separator = hex.indexOf('|');
+    QString conditionHex = separator >= 0 ? hex.left(separator) : hex;
+    if ((size_t)conditionHex.length()/2 < offsetof(Condition, count))
         return false;
-    QByteArray ba = QByteArray::fromHex(QByteArray(hex.toLocal8Bit().data()));
+    QByteArray ba = QByteArray::fromHex(conditionHex.toLatin1());
     size_t minsize = (size_t)ba.size();
     size_t savsize = offsetof(Condition, generated_start);
     if (savsize < minsize)
@@ -226,6 +250,23 @@ bool Condition::readHex(const QString& hex)
             type >= 0 && type < FILTER_MAX;
     if (ok)
         ok = versionUpgrade();
+    if (ok && separator >= 0)
+    {
+        QByteArray payload = QByteArray::fromBase64(
+            hex.mid(separator + 1).toLatin1(),
+            QByteArray::Base64UrlEncoding);
+        LootRuleSet rules;
+        ok = deserializeLootRuleSet(payload, &rules);
+        if (ok)
+        {
+            hash = registerLootRuleSet(rules);
+            flags |= FLG_LOOT;
+        }
+    }
+    else if (ok && ((flags & FLG_LOOT) || type == F_LOOT))
+    {
+        ok = lookupLootRuleSet(hash, nullptr);
+    }
     return ok;
 }
 
@@ -267,6 +308,7 @@ SearchThreadEnv::SearchThreadEnv()
 , searchpass(PASS_FAST_48)
 , stop()
 , l_states()
+, loot_rules()
 {
     memset(&g, 0, sizeof(g));
     memset(&sn, 0, sizeof(sn));
@@ -296,22 +338,43 @@ QString SearchThreadEnv::init(int mc, bool large, const ConditionTree& condtree)
     for (auto& it : l_states)
         lua_close(it.second);
     l_states.clear();
+    loot_rules.clear();
 
     for (const Condition& c: condtree.condvec)
     {
-        if (c.type != F_LUA)
-            continue;
-        if (!scripts.contains(c.hash))
-            return QApplication::translate("Filter", "missing script for condition %1").arg(c.save);
-        QString err;
-        lua_State *L = loadScript(scripts.value(c.hash), &err);
-        if (!L)
+        if (c.type == F_LUA)
         {
-            QString s = QApplication::translate("Filter", "Condition %1:\n").arg(c.save);
-            s += err;
-            return s;
+            if (!scripts.contains(c.hash))
+                return QApplication::translate("Filter", "missing script for condition %1").arg(c.save);
+            QString err;
+            lua_State *L = loadScript(scripts.value(c.hash), &err);
+            if (!L)
+            {
+                QString s = QApplication::translate("Filter", "Condition %1:\n").arg(c.save);
+                s += err;
+                return s;
+            }
+            l_states[c.hash] = L;
         }
-        l_states[c.hash] = L;
+        if ((c.flags & Condition::FLG_LOOT) || c.type == F_LOOT)
+        {
+            if (c.type != F_DESERT && c.type != F_LOOT)
+                return QString::fromUtf8(
+                    "条件 %1 はLoot検索を利用できない種類です。").arg(c.save);
+            LootRuleSet rules;
+            if (!lookupLootRuleSet(c.hash, &rules))
+                return QString::fromUtf8("条件 %1 のLoot設定が見つかりません。").arg(c.save);
+            if (c.type == F_DESERT &&
+                rules.structureType != g_filterinfo.list[c.type].stype)
+            {
+                return QString::fromUtf8(
+                    "条件 %1 の構造物とLoot設定が一致しません。").arg(c.save);
+            }
+            QString error = validateLootRuleSet(rules, mc);
+            if (!error.isEmpty())
+                return QString::fromUtf8("条件 %1: %2").arg(c.save).arg(error);
+            loot_rules[c.hash] = rules;
+        }
     }
     return "";
 }
@@ -608,6 +671,12 @@ int _testTreeAt(
         }
 
         br = g_filterinfo.list[c.type].branch;
+        auto lootBranch = env->loot_rules.find(c.hash);
+        if (lootBranch != env->loot_rules.end() &&
+            lootBranch->second.instanceMode == LootRuleSet::INSTANCE_TOTAL)
+        {
+            br = FilterInfo::BR_NONE;
+        }
 
         if (br == FilterInfo::BR_NONE || (br == FilterInfo::BR_CLUST && c.count != 1))
         {   // this condition cannot branch, position of multiple instances
@@ -1221,10 +1290,17 @@ testCondAt(
     Pos *p = getPosBuf(0);
 
     const FilterInfo& finfo = g_filterinfo.list[cond->type];
+    const LootRuleSet *lootRules = nullptr;
+    auto lootIt = env->loot_rules.find(cond->hash);
+    if (lootIt != env->loot_rules.end())
+        lootRules = &lootIt->second;
 
-    if ((st = finfo.stype) > 0)
+    st = finfo.stype;
+    if (cond->type == F_LOOT && lootRules)
+        st = lootRules->structureType;
+    if (st > 0)
     {
-        if (!getStructureConfig_override(finfo.stype, env->mc, &sconf))
+        if (!getStructureConfig_override(st, env->mc, &sconf))
             return COND_FAILED;
     }
     else memset(&sconf, 0, sizeof(sconf)); // never relevant, but clang-analyzer complains
@@ -1407,6 +1483,7 @@ L_qm_any:
 
     case F_ENDCITY:
     case F_GATEWAY:
+    case F_LOOT:
 
         if (sconf.regionSize == 32)
         {
@@ -1433,6 +1510,12 @@ L_qm_any:
         cent->x = xt = 0;
         cent->z = zt = 0;
         icnt = 0;
+        {
+        int imaxCapacity = imax ? *imax : 0;
+        bool evaluateLoot = lootRules && env->searchpass == PASS_FULL_64;
+        bool lootScanAll = evaluateLoot &&
+            lootRules->instanceMode != LootRuleSet::INSTANCE_ANY;
+        QVector<Pos> lootPositions;
 
         // Note "<="
         for (rz = rz1; rz <= rz2 && !*env->stop; rz++)
@@ -1499,6 +1582,27 @@ L_qm_any:
                             continue;
                         }
                     }
+                    if (evaluateLoot)
+                    {
+                        if (lootRules->instanceMode ==
+                            LootRuleSet::INSTANCE_TOTAL)
+                        {
+                            lootPositions.push_back(pc);
+                        }
+                        else
+                        {
+                            bool lootMatch = matchStructureLoot(
+                                *lootRules, env->mc, env->seed, pc);
+                            if (lootRules->instanceMode ==
+                                LootRuleSet::INSTANCE_EVERY && !lootMatch)
+                            {
+                                return COND_FAILED;
+                            }
+                            if (!lootMatch)
+                                continue;
+                            lootPositions.push_back(pc);
+                        }
+                    }
                 }
 
                 icnt++;
@@ -1507,19 +1611,28 @@ L_qm_any:
                     xt += pc.x;
                     zt += pc.z;
                 }
-                else if (*imax)
+                else if (imaxCapacity)
                 {
-                    cent[icnt-1] = pc;
-                    if (icnt >= *imax)
+                    if (icnt <= imaxCapacity)
+                        cent[icnt-1] = pc;
+                    if (!lootScanAll && icnt >= imaxCapacity)
                         goto L_struct_decide;
                 }
                 else
                 {
-                    goto L_struct_decide;
+                    if (!lootScanAll)
+                        goto L_struct_decide;
                 }
             }
         }
     L_struct_decide:
+        if (evaluateLoot &&
+            lootRules->instanceMode == LootRuleSet::INSTANCE_TOTAL &&
+            !matchAreaLoot(
+                *lootRules, env->mc, env->seed, lootPositions))
+        {
+            return COND_FAILED;
+        }
         if (cond->count <= 0)
         {   // structure exclusion filter
             cent->x = (x1 + x2) >> 1;
@@ -1540,7 +1653,9 @@ L_qm_any:
         {
             if (imax)
             {
-                *imax = icnt;
+                *imax = imaxCapacity
+                    ? qMin(icnt, imaxCapacity)
+                    : icnt;
             }
             else
             {
@@ -1559,6 +1674,7 @@ L_qm_any:
             return COND_MAYBE_POS_VALID;
         }
         return COND_FAILED;
+        }
 
 
     case F_MINESHAFT:
@@ -2373,5 +2489,3 @@ void findQuadStructs(int styp, Generator *g, QVector<QuadInfo> *out)
 
     delete[] qlist;
 }
-
-

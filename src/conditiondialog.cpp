@@ -5,6 +5,7 @@
 #include "layerdialog.h"
 #include "mapview.h"
 #include "message.h"
+#include "lootconditionwidget.h"
 #include "scripts.h"
 #include "util.h"
 
@@ -27,6 +28,10 @@ ConditionDialog::ConditionDialog(FormConditions *parent, MapView *mapview, Confi
     : QDialog(parent, Qt::WindowMinMaxButtonsHint | Qt::WindowCloseButtonHint)
     , ui(new Ui::ConditionDialog)
     , luahash()
+    , structureLootEditor()
+    , areaLootEditor()
+    , areaLootPage()
+    , areaLootStructure()
     , mapview(mapview)
     , config(config)
     , item(item)
@@ -34,6 +39,28 @@ ConditionDialog::ConditionDialog(FormConditions *parent, MapView *mapview, Confi
 {
     memset(&cond, 0, sizeof(cond));
     ui->setupUi(this);
+
+    structureLootEditor = new LootRuleEditor(ui->pageTemple);
+    structureLootEditor->setContext(Desert_Pyramid, wi.mc);
+    ui->gridLayoutTemple->addWidget(
+        structureLootEditor, ui->gridLayoutTemple->rowCount(), 0);
+
+    areaLootPage = new QWidget(ui->stackedWidget);
+    QVBoxLayout *areaLootLayout = new QVBoxLayout(areaLootPage);
+    QHBoxLayout *areaStructureLayout = new QHBoxLayout();
+    areaStructureLayout->addWidget(
+        new QLabel(QString::fromUtf8("対象構造物"), areaLootPage));
+    areaLootStructure = new QComboBox(areaLootPage);
+    areaLootStructure->addItem(
+        QString::fromUtf8("砂漠のピラミッド"), Desert_Pyramid);
+    areaStructureLayout->addWidget(areaLootStructure, 1);
+    areaLootLayout->addLayout(areaStructureLayout);
+    areaLootEditor = new LootRuleEditor(areaLootPage);
+    areaLootEditor->setContext(Desert_Pyramid, wi.mc);
+    areaLootEditor->setAreaTotalMode(true);
+    areaLootLayout->addWidget(areaLootEditor);
+    areaLootLayout->addStretch();
+    ui->stackedWidget->addWidget(areaLootPage);
 
     connect(ui->buttonBox, &QDialogButtonBox::accepted, this, &ConditionDialog::onAccept);
     connect(ui->buttonBox, &QDialogButtonBox::rejected, this, &ConditionDialog::onReject);
@@ -320,16 +347,43 @@ ConditionDialog::ConditionDialog(FormConditions *parent, MapView *mapview, Confi
     {
         cond = *initcond;
         const FilterInfo &ft = g_filterinfo.list[cond.type];
+        LootRuleSet lootRules;
+        if (((cond.flags & Condition::FLG_LOOT) ||
+             cond.type == F_LOOT) &&
+            lookupLootRuleSet(cond.hash, &lootRules))
+        {
+            if (cond.type == F_LOOT)
+            {
+                areaLootStructure->setCurrentIndex(
+                    areaLootStructure->findData(
+                        lootRules.structureType));
+                areaLootEditor->setRuleSet(lootRules, true);
+            }
+            else
+            {
+                structureLootEditor->setRuleSet(lootRules, true);
+            }
+        }
 
         ui->checkEnabled->setChecked(!(cond.meta & Condition::DISABLED));
         ui->lineSummary->setText(QString::fromLocal8Bit(QByteArray(cond.text, sizeof(cond.text))));
         ui->lineSummary->setPlaceholderText(QApplication::translate("Filter", ft.name));
 
-        if (cond.hash && !scripts.contains(cond.hash))
-            ui->comboLua->addItem(tr("[script not found]"), QVariant::fromValue(cond.hash));
+        if (cond.type == F_LUA)
+        {
+            if (cond.hash && !scripts.contains(cond.hash))
+                ui->comboLua->addItem(
+                    tr("[script not found]"),
+                    QVariant::fromValue(cond.hash));
+            else
+                ui->comboLua->setCurrentIndex(-1); // force index change
+            ui->comboLua->setCurrentIndex(
+                ui->comboLua->findData(QVariant::fromValue(cond.hash)));
+        }
         else
-            ui->comboLua->setCurrentIndex(-1); // force index change
-        ui->comboLua->setCurrentIndex(ui->comboLua->findData(QVariant::fromValue(cond.hash)));
+        {
+            ui->comboLua->setCurrentIndex(-1);
+        }
 
         ui->comboCat->setCurrentIndex(ui->comboCat->findData(ft.cat));
         ui->comboType->setCurrentIndex(ui->comboType->findData(cond.type));
@@ -725,6 +779,13 @@ void ConditionDialog::updateMode()
     {
         ui->stackedWidget->setCurrentWidget(ui->pageTemple);
         ui->comboTempleOrientation->setEnabled(wi.mc > MC_1_19);
+        structureLootEditor->setContext(ft.stype, wi.mc);
+    }
+    else if (filterindex == F_LOOT)
+    {
+        ui->stackedWidget->setCurrentWidget(areaLootPage);
+        areaLootEditor->setContext(
+            areaLootStructure->currentData().toInt(), wi.mc);
     }
     else if (filterindex == F_HEIGHT)
     {
@@ -1108,7 +1169,7 @@ void ConditionDialog::onAccept()
     c.count = ui->spinBox->value();
     c.skipref = ui->checkSkipRef->isChecked();
 
-    const FilterInfo &ft = g_filterinfo.list[cond.type];
+    const FilterInfo &ft = g_filterinfo.list[c.type];
 
     if (ui->checkEnabled->isChecked())
         c.meta &= ~Condition::DISABLED;
@@ -1118,7 +1179,9 @@ void ConditionDialog::onAccept()
     QByteArray text = ui->lineSummary->text().toLocal8Bit().leftJustified(sizeof(c.text), '\0');
     memcpy(c.text, text.data(), sizeof(c.text));
 
-    c.hash = ui->comboLua->currentData().toULongLong();
+    c.hash = c.type == F_LUA
+        ? ui->comboLua->currentData().toULongLong()
+        : 0;
 
     if (ui->radioSquare->isEnabled() && ui->radioSquare->isChecked())
     {
@@ -1306,6 +1369,36 @@ void ConditionDialog::onAccept()
         if (!cb->isChecked())
             continue;
         c.varstart |= 1ULL << (cb->sp - g_start_pieces);
+    }
+
+    LootRuleSet lootRules;
+    bool useLoot = false;
+    if (c.type == F_LOOT)
+    {
+        lootRules = areaLootEditor->ruleSet();
+        lootRules.structureType =
+            areaLootStructure->currentData().toInt();
+        lootRules.instanceMode = LootRuleSet::INSTANCE_TOTAL;
+        useLoot = true;
+        c.count = 1;
+    }
+    else if (structureLootEditor->lootEnabled() &&
+             c.type == F_DESERT)
+    {
+        lootRules = structureLootEditor->ruleSet();
+        lootRules.structureType = ft.stype;
+        useLoot = true;
+    }
+    if (useLoot)
+    {
+        QString error = validateLootRuleSet(lootRules, wi.mc);
+        if (!error.isEmpty())
+        {
+            warn(this, QString::fromUtf8("Loot条件"), error);
+            return;
+        }
+        c.hash = registerLootRuleSet(lootRules);
+        c.flags |= Condition::FLG_LOOT;
     }
 
     getClimateLimits(c.limok, c.limex);
