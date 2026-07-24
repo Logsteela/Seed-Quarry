@@ -41,12 +41,13 @@ if ($env:QTDIR) {
     $qmakeCandidates += (Join-Path $env:QTDIR "bin\qmake.exe")
 }
 $qmakeCandidates += "C:\Qt\6.8.*\mingw_64\bin\qmake.exe"
+$qmakeCandidates += "C:\Qt\6.*\mingw_64\bin\qmake.exe"
 
 $qmake = Find-QtTool "qmake.exe" $qmakeCandidates
 if (-not $qmake) {
     throw @"
-Qt 6.8 MinGW was not found.
-Install "Qt 6.8.x / MinGW 64-bit" and
+Qt 6 MinGW was not found.
+Install "Qt 6.x / MinGW 64-bit" and
 "Developer and Designer Tools / MinGW 13.1 64-bit" with Qt Online Installer.
 The script auto-detects a standard C:\Qt installation.
 "@
