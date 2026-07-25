@@ -6,6 +6,7 @@
 #include <QMutex>
 #include <QMutexLocker>
 
+#include <algorithm>
 #include <limits>
 
 namespace {
@@ -219,6 +220,31 @@ bool getCachedRuleCounts(
     if (cache)
         cache->entries[key] = generated;
     return true;
+}
+
+QVector<uint64_t> totalRuleCounts(
+    const LootSearchCacheEntry& entry, int ruleCount)
+{
+    QVector<uint64_t> total(ruleCount, 0);
+    for (int chest = 0; chest < 4; chest++)
+    {
+        if (!entry.present[chest])
+            continue;
+        for (int rule = 0;
+             rule < ruleCount && rule < entry.count[chest].size();
+             rule++)
+        {
+            total[rule] += entry.count[chest][rule];
+        }
+    }
+    return total;
+}
+
+bool rangeCanMatch(
+    const LootRule& rule, uint64_t minimum, uint64_t maximum)
+{
+    return maximum >= uint64_t(rule.minCount) &&
+        (rule.maxCount < 0 || minimum <= uint64_t(rule.maxCount));
 }
 
 }
@@ -524,4 +550,101 @@ bool matchAreaLoot(
         }
     }
     return matchesCounts(rules, total);
+}
+
+bool canMatchStructureLoot48(
+    const LootRuleSet& rules, int mc, uint64_t structureSeed,
+    Pos structurePos, LootSearchCache *cache,
+    uint64_t cacheRuleKey)
+{
+    if (rules.structureType != Shipwreck)
+    {
+        return matchStructureLoot(
+            rules, mc, structureSeed, structurePos, -1,
+            cache, cacheRuleKey);
+    }
+
+    // A structure seed does not determine whether a shipwreck is beached.
+    // Calculate both now so FULL_64 can select the real one from the cache
+    // after biome viability is known.
+    bool oceanMatch = matchStructureLoot(
+        rules, mc, structureSeed, structurePos, ocean,
+        cache, cacheRuleKey);
+    bool beachedMatch = matchStructureLoot(
+        rules, mc, structureSeed, structurePos, beach,
+        cache, cacheRuleKey);
+    return oceanMatch || beachedMatch;
+}
+
+bool canMatchAreaLoot48(
+    const LootRuleSet& rules, int mc, uint64_t structureSeed,
+    const QVector<Pos>& candidatePositions, int minimumInstances,
+    LootSearchCache *cache, uint64_t cacheRuleKey)
+{
+    if (rules.rules.isEmpty())
+        return true;
+    minimumInstances = qMax(0, minimumInstances);
+    if (candidatePositions.size() < minimumInstances)
+        return false;
+
+    const int ruleCount = rules.rules.size();
+    QVector<uint64_t> maximum(ruleCount, 0);
+    QVector<QVector<uint64_t>> possibleMinimums(ruleCount);
+
+    for (Pos pos : candidatePositions)
+    {
+        LootSearchCacheEntry first;
+        if (!getCachedRuleCounts(
+                &first, rules, mc, structureSeed, pos,
+                rules.structureType == Shipwreck ? ocean : -1,
+                cache, cacheRuleKey))
+        {
+            return false;
+        }
+        QVector<uint64_t> low =
+            totalRuleCounts(first, ruleCount);
+        QVector<uint64_t> high = low;
+
+        if (rules.structureType == Shipwreck)
+        {
+            LootSearchCacheEntry beached;
+            if (!getCachedRuleCounts(
+                    &beached, rules, mc, structureSeed, pos, beach,
+                    cache, cacheRuleKey))
+            {
+                return false;
+            }
+            QVector<uint64_t> other =
+                totalRuleCounts(beached, ruleCount);
+            for (int rule = 0; rule < ruleCount; rule++)
+            {
+                low[rule] = qMin(low[rule], other[rule]);
+                high[rule] = qMax(high[rule], other[rule]);
+            }
+        }
+
+        for (int rule = 0; rule < ruleCount; rule++)
+        {
+            possibleMinimums[rule].push_back(low[rule]);
+            maximum[rule] += high[rule];
+        }
+    }
+
+    bool anyPossible = false;
+    for (int rule = 0; rule < ruleCount; rule++)
+    {
+        QVector<uint64_t>& values = possibleMinimums[rule];
+        std::sort(values.begin(), values.end());
+        uint64_t minimum = 0;
+        for (int i = 0; i < minimumInstances; i++)
+            minimum += values[i];
+
+        bool possible =
+            rangeCanMatch(rules.rules[rule], minimum, maximum[rule]);
+        if (rules.logic == LootRuleSet::LOGIC_ALL && !possible)
+            return false;
+        if (possible)
+            anyPossible = true;
+    }
+    return rules.logic == LootRuleSet::LOGIC_ALL || anyPossible;
 }

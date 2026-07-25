@@ -160,10 +160,10 @@ QPushButton:hover {
        <item>
         <widget class="QCheckBox" name="checkLootFast">
          <property name="toolTip">
-          <string>48-bit family blocks検索で、同じ下位48bit・座標・Lootに影響する構造種別の計算結果を再利用します。現在対応している1.16の構造物Lootでは結果の正確性を維持します。</string>
+          <string>48-bit only／family blocks検索で、構造物の下位48bit候補をLootにより事前に絞り込みます。family blocksでは計算結果も上位16bit間で再利用します。</string>
          </property>
          <property name="text">
-          <string>Loot高速化（48-bit family）</string>
+          <string>Loot高速化（48-bit検索）</string>
          </property>
         </widget>
        </item>

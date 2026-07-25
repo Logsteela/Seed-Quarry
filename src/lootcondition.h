@@ -69,8 +69,8 @@ struct LootSearchCacheEntry
 };
 
 /**
- * Worker-local cache used only by the optional 48-bit family Loot speed mode.
- * Entries are discarded whenever the lower 48-bit family changes.
+ * Worker-local cache used by the optional 48-bit Loot precheck/speed mode.
+ * Entries are discarded whenever the lower 48-bit seed changes.
  */
 struct LootSearchCache
 {
@@ -103,6 +103,21 @@ bool matchAreaLoot(
     const LootRuleSet& rules, int mc, uint64_t worldSeed,
     const QVector<Pos>& structurePositions,
     const QVector<int>& biomeIds = QVector<int>(),
+    LootSearchCache *cache = nullptr,
+    uint64_t cacheRuleKey = 0);
+
+/**
+ * Conservative lower-48-bit checks used before biome/viability is known.
+ * Shipwrecks test both the ocean and beached outcomes. A true result means
+ * that at least one outcome can match; false is safe to reject.
+ */
+bool canMatchStructureLoot48(
+    const LootRuleSet& rules, int mc, uint64_t structureSeed,
+    Pos structurePos, LootSearchCache *cache = nullptr,
+    uint64_t cacheRuleKey = 0);
+bool canMatchAreaLoot48(
+    const LootRuleSet& rules, int mc, uint64_t structureSeed,
+    const QVector<Pos>& candidatePositions, int minimumInstances,
     LootSearchCache *cache = nullptr,
     uint64_t cacheRuleKey = 0);
 

@@ -1305,6 +1305,7 @@ testCondAt(
     Pos *p = getPosBuf(0);
 
     const FilterInfo& finfo = g_filterinfo.list[cond->type];
+    const FilterInfo *structureInfo = &finfo;
     const LootRuleSet *lootRules = nullptr;
     auto lootIt = env->loot_rules.find(cond->hash);
     if (lootIt != env->loot_rules.end())
@@ -1312,13 +1313,51 @@ testCondAt(
 
     st = finfo.stype;
     if (cond->type == F_LOOT && lootRules)
+    {
         st = lootRules->structureType;
+        switch (st)
+        {
+        case Desert_Pyramid:
+            structureInfo = &g_filterinfo.list[F_DESERT];
+            break;
+        case Shipwreck:
+            structureInfo = &g_filterinfo.list[F_SHIPWRECK];
+            break;
+        case Treasure:
+            structureInfo = &g_filterinfo.list[F_TREASURE];
+            break;
+        case Ruined_Portal:
+            structureInfo = &g_filterinfo.list[F_PORTAL];
+            break;
+        case Ruined_Portal_N:
+            structureInfo = &g_filterinfo.list[F_PORTALN];
+            break;
+        }
+    }
     if (st > 0)
     {
         if (!getStructureConfig_override(st, env->mc, &sconf))
             return COND_FAILED;
     }
     else memset(&sconf, 0, sizeof(sconf)); // never relevant, but clang-analyzer complains
+    bool hasVariantFilter =
+        cond->varflags || cond->varstart;
+    for (int dependency = 0;
+         dependency < int(sizeof(cond->deps)); dependency++)
+    {
+        hasVariantFilter =
+            hasVariantFilter || cond->deps[dependency];
+    }
+    if (st == Ruined_Portal || st == Ruined_Portal_N)
+    {
+        hasVariantFilter = hasVariantFilter ||
+            cond->varbiome != Condition::PORTAL_CATEGORY_ANY;
+    }
+    const bool portalVariantDepends64 =
+        (st == Ruined_Portal || st == Ruined_Portal_N) &&
+        hasVariantFilter;
+    const bool structureDepends64 =
+        structureInfo->dep64 || portalVariantDepends64;
 
     if (cond->rmax > 0)
     {
@@ -1527,11 +1566,24 @@ L_qm_any:
         icnt = 0;
         {
         int imaxCapacity = imax ? *imax : 0;
-        bool evaluateLoot = lootRules && env->searchpass == PASS_FULL_64;
-        bool lootScanAll = evaluateLoot &&
-            lootRules->instanceMode != LootRuleSet::INSTANCE_ANY;
+        bool preliminaryLoot = lootRules && env->fastFamilyLoot &&
+            (env->searchpass == PASS_FULL_48 ||
+             env->searchpass == PASS_FULL_64);
+        bool preliminaryOnly = preliminaryLoot &&
+            env->searchpass == PASS_FULL_48 &&
+            structureDepends64;
+        bool evaluateLoot = lootRules &&
+            (env->searchpass == PASS_FULL_64 ||
+             (env->searchpass == PASS_FULL_48 &&
+              env->fastFamilyLoot && !structureDepends64));
+        bool lootScanAll =
+            (evaluateLoot &&
+             lootRules->instanceMode != LootRuleSet::INSTANCE_ANY) ||
+            (preliminaryOnly &&
+             lootRules->instanceMode == LootRuleSet::INSTANCE_TOTAL);
         QVector<Pos> lootPositions;
         QVector<int> lootBiomes;
+        QVector<Pos> lootCandidatePositions;
 
         // Note "<="
         for (rz = rz1; rz <= rz2 && !*env->stop; rz++)
@@ -1554,8 +1606,46 @@ L_qm_any:
                 {
                     continue;
                 }
+
+                bool possibleLootMatch = true;
+                if (preliminaryLoot)
+                {
+                    if (lootRules->instanceMode ==
+                        LootRuleSet::INSTANCE_TOTAL)
+                    {
+                        // Populate the per-position cache before any biome
+                        // generation. A conservative area check is performed
+                        // after all lower-48-bit candidates are known.
+                        (void) canMatchStructureLoot48(
+                            *lootRules, env->mc, env->seed, pc,
+                            &env->lootCache, cond->hash);
+                        if (preliminaryOnly)
+                            lootCandidatePositions.push_back(pc);
+                    }
+                    else
+                    {
+                        possibleLootMatch = canMatchStructureLoot48(
+                            *lootRules, env->mc, env->seed, pc,
+                            &env->lootCache, cond->hash);
+                        if (preliminaryOnly && !possibleLootMatch &&
+                            (cond->count > 0 ||
+                             lootRules->instanceMode ==
+                                LootRuleSet::INSTANCE_ANY))
+                        {
+                            continue;
+                        }
+                        if (lootRules->instanceMode ==
+                            LootRuleSet::INSTANCE_ANY &&
+                            !possibleLootMatch)
+                        {
+                            continue;
+                        }
+                    }
+                }
+
                 if ((env->searchpass == PASS_FULL_64) ||
-                    (env->searchpass == PASS_FULL_48 && !finfo.dep64))
+                    (env->searchpass == PASS_FULL_48 &&
+                     !structureDepends64))
                 {
                     if (*env->stop) return COND_FAILED;
 
@@ -1575,7 +1665,7 @@ L_qm_any:
                             continue;
                     }
 
-                    env->init4Dim(finfo.dim);
+                    env->init4Dim(structureInfo->dim);
                     int id = isViableStructurePos(st, &env->g, pc.x, pc.z, 0);
                     if (!id)
                         continue;
@@ -1597,7 +1687,7 @@ L_qm_any:
                         if (!isViableEndCityTerrain(&env->g, &env->sn, pc.x, pc.z))
                             continue;
                     }
-                    if (cond->varflags)
+                    if (hasVariantFilter)
                     {
                         if (!isVariantOk(cond, env, st, id, &pc))
                             continue;
@@ -1660,6 +1750,16 @@ L_qm_any:
             }
         }
     L_struct_decide:
+        if (preliminaryOnly &&
+            cond->count > 0 &&
+            lootRules->instanceMode == LootRuleSet::INSTANCE_TOTAL &&
+            !canMatchAreaLoot48(
+                *lootRules, env->mc, env->seed,
+                lootCandidatePositions, cond->count,
+                &env->lootCache, cond->hash))
+        {
+            return COND_FAILED;
+        }
         if (evaluateLoot &&
             lootRules->instanceMode == LootRuleSet::INSTANCE_TOTAL &&
             !matchAreaLoot(
@@ -1670,6 +1770,20 @@ L_qm_any:
                 cond->hash))
         {
             return COND_FAILED;
+        }
+        if (preliminaryOnly &&
+            cond->count <= 0 &&
+            lootRules->instanceMode == LootRuleSet::INSTANCE_TOTAL)
+        {
+            // With no known viable structures, FULL_64 can still reject an
+            // exclusion TOTAL rule because the zero aggregate misses its
+            // Loot range. Preserve MAYBE here so NOT cannot create a false
+            // negative from that unresolved result.
+            cent->x = (x1 + x2) >> 1;
+            cent->z = (z1 + z2) >> 1;
+            if (imax)
+                *imax = 1;
+            return COND_MAYBE_POS_VALID;
         }
         if (cond->count <= 0)
         {   // structure exclusion filter
@@ -1682,7 +1796,8 @@ L_qm_any:
             {
                 if (env->searchpass == PASS_FULL_64)
                     return COND_FAILED;
-                if (env->searchpass == PASS_FULL_48 && !finfo.dep64)
+                if (env->searchpass == PASS_FULL_48 &&
+                    !structureDepends64)
                     return COND_FAILED;
                 return COND_MAYBE_POS_VALID;
             }
@@ -1703,7 +1818,8 @@ L_qm_any:
 
             if (env->searchpass == PASS_FULL_64)
                 return COND_OK;
-            if (env->searchpass == PASS_FULL_48 && !finfo.dep64)
+            if (env->searchpass == PASS_FULL_48 &&
+                !structureDepends64)
                 return COND_OK;
             // some non-exhaustive structure clusters do not
             // have known center positions with 48-bit seeds

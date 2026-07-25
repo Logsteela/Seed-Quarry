@@ -14,6 +14,13 @@
 #include <QMenu>
 
 
+static bool supportsFast48Loot(int searchType)
+{
+    return searchType == SEARCH_BLOCKS ||
+        searchType == SEARCH_48ONLY;
+}
+
+
 QVariant SeedTableModel::data(const QModelIndex& index, int role) const
 {
     if (role == Qt::DisplayRole)
@@ -192,7 +199,7 @@ SearchConfig FormSearchControl::getSearchConfig()
     s.startseed = ui->lineStart->text().toLongLong();
     s.stoponres = ui->checkStop->isChecked();
     s.fastFamilyLoot =
-        s.searchtype == SEARCH_BLOCKS &&
+        supportsFast48Loot(s.searchtype) &&
         ui->checkLootFast->isChecked();
     s.smin = smin;
     s.smax = smax;
@@ -316,7 +323,7 @@ void FormSearchControl::searchLockUi(bool lock)
         ui->spinThreads->setEnabled(true);
         int type = ui->comboSearchType->currentData().toInt();
         ui->buttonMore->setEnabled(type == SEARCH_INC || type == SEARCH_LIST);
-        ui->checkLootFast->setEnabled(type == SEARCH_BLOCKS);
+        ui->checkLootFast->setEnabled(supportsFast48Loot(type));
     }
     emit searchStatusChanged(lock);
 }
@@ -526,11 +533,11 @@ void FormSearchControl::on_buttonSearchHelp_clicked()
         "16-bits. This search type can be a better match for exhaustive searches "
         "and those with very restrictive structure requirements."
         "</p><p>"
-        "<b>Loot高速化（48-bit family）</b>を有効にすると、同じ下位48bit、"
-        "構造物座標、Lootに影響する構造種別のチェスト計算を再利用します。"
-        "構造物の生成可否とバイオーム条件は各64-bit Seedで通常どおり判定します。"
-        "現在対応しているJava 1.16 Lootでは、難破船の浜辺型／海中型も"
-        "別々に扱うため結果の正確性を維持します。"
+        "<b>Loot高速化（48-bit検索）</b>を有効にすると、構造物の下位48bit候補を"
+        "Lootで事前に絞り込みます。難破船は浜辺型と海中型の両方を候補として"
+        "確認します。48-bit onlyでは上位16bitで成立し得る候補を返し、"
+        "48-bit family blocksでは、その後に各64-bit Seedの構造物生成可否、"
+        "バイオーム、実際の難破船型を通常どおり確定判定します。"
         "</p><p>"
         "Load a <b>seed list from a file</b> to search through an "
         "existing set of seeds. The seeds should be in decimal ASCII text, "
@@ -546,7 +553,7 @@ void FormSearchControl::on_comboSearchType_currentIndexChanged(int)
 {
     int type = ui->comboSearchType->currentData().toInt();
     ui->buttonMore->setEnabled(type == SEARCH_INC || type == SEARCH_LIST);
-    ui->checkLootFast->setEnabled(type == SEARCH_BLOCKS);
+    ui->checkLootFast->setEnabled(supportsFast48Loot(type));
     searchProgressReset();
 }
 

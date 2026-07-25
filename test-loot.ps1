@@ -37,7 +37,11 @@ try {
     if ($LASTEXITCODE -ne 0) {
         throw "Loot test qmake failed (exit $LASTEXITCODE)"
     }
-    & $make.FullName "-j$([Math]::Max(1, [Environment]::ProcessorCount))"
+    $jobs = [Math]::Max(
+        1,
+        [Math]::Min(2, [Environment]::ProcessorCount)
+    )
+    & $make.FullName "-j$jobs"
     if ($LASTEXITCODE -ne 0) {
         throw "Loot test build failed (exit $LASTEXITCODE)"
     }
@@ -97,6 +101,41 @@ function Test-HeadlessSession {
     }
 }
 
+function Test-Headless48Session {
+    param(
+        [string]$Template,
+        [string[]]$ExpectedSeeds
+    )
+
+    $name = [IO.Path]::GetFileNameWithoutExtension($Template)
+    $sessionPath = Join-Path $testBuildDir "$name.48only.session.txt"
+    $converted = @(
+        foreach ($line in Get-Content -LiteralPath $Template) {
+            if ($line.StartsWith("#Search:")) {
+                "#Search:   3"
+            }
+            elseif ($line.StartsWith("#List64:")) {
+                "#Mode48:   3"
+                "#List48:   tests\loot_48only_seeds.txt"
+            }
+            elseif ($line.StartsWith("#Cond:")) {
+                "#FastLoot48: 1"
+                $line
+            }
+            else {
+                $line
+            }
+        }
+    )
+    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+    [IO.File]::WriteAllLines(
+        $sessionPath,
+        [string[]]$converted,
+        $utf8NoBom
+    )
+    Test-HeadlessSession $sessionPath $ExpectedSeeds
+}
+
 Push-Location $sourceDir
 try {
     Test-HeadlessSession `
@@ -117,6 +156,12 @@ try {
     Test-HeadlessSession `
         "tests\loot_portal_integration_session.txt" `
         @("3515201313347228787")
+    Test-Headless48Session `
+        "tests\loot_integration_session.txt" `
+        @("141804184556659")
+    Test-Headless48Session `
+        "tests\loot_integration_fail_session.txt" `
+        @()
 }
 finally {
     Pop-Location

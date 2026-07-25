@@ -3,7 +3,8 @@ param(
     [string]$Configuration = "debug",
     [switch]$NoRun,
     [switch]$Reconfigure,
-    [switch]$SkipTests
+    [switch]$SkipTests,
+    [switch]$SkipDeploy
 )
 
 $ErrorActionPreference = "Stop"
@@ -94,7 +95,10 @@ if ($Reconfigure -or -not (Test-Path $makefile)) {
     }
 }
 
-$jobs = [Math]::Max(1, [Environment]::ProcessorCount)
+$jobs = [Math]::Max(
+    1,
+    [Math]::Min(2, [Environment]::ProcessorCount)
+)
 & $make -C $buildDir "-j$jobs"
 if ($LASTEXITCODE -ne 0) {
     throw "Build failed (exit $LASTEXITCODE)"
@@ -103,6 +107,20 @@ if ($LASTEXITCODE -ne 0) {
 $exe = Join-Path $buildDir "$Configuration\seed-atlas.exe"
 if (-not (Test-Path $exe)) {
     throw "Build completed but the executable was not found: $exe"
+}
+
+$deploy = Join-Path $qtBin "windeployqt.exe"
+if (-not $SkipDeploy) {
+    if (-not (Test-Path $deploy)) {
+        throw "windeployqt.exe was not found next to qmake: $deploy"
+    }
+    # The installed MinGW Qt runtime uses the release-named Qt6*.dll files
+    # for both local configurations. Copy Qt, platform plugins, and compiler
+    # runtimes beside the executable so it can be started by double-clicking.
+    & $deploy --release --compiler-runtime $exe
+    if ($LASTEXITCODE -ne 0) {
+        throw "windeployqt failed (exit $LASTEXITCODE)"
+    }
 }
 
 Write-Host "Build completed: $exe"

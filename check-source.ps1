@@ -139,6 +139,8 @@ $noticesText = Get-Content -LiteralPath $noticesPath -Raw -Encoding UTF8
 $formSearchUiText = Get-Content -LiteralPath $formSearchUiPath -Raw -Encoding UTF8
 $formSearchSourceText = Get-Content -LiteralPath $formSearchSourcePath -Raw -Encoding UTF8
 $configSourceText = Get-Content -LiteralPath $configSourcePath -Raw -Encoding UTF8
+$buildScriptText = Get-Content -LiteralPath $buildScriptPath -Raw -Encoding UTF8
+$lootTestScriptText = Get-Content -LiteralPath $lootTestScriptPath -Raw -Encoding UTF8
 
 Assert-SourceCheck ($scriptsText.Contains(
     'lua_setglobal(L, "getDesertPyramidLoot")'
@@ -191,15 +193,26 @@ Assert-SourceCheck ($searchText.Contains("case F_LOOT")) `
 Assert-SourceCheck ($searchText.Contains("matchAreaLoot")) `
     "src/search.cpp is missing area-total search integration."
 Assert-SourceCheck ($lootConditionSourceText.Contains("LootSearchCacheEntry")) `
-    "src/lootcondition.cpp is missing the 48-bit family Loot cache."
+    "src/lootcondition.cpp is missing the 48-bit Loot cache."
+Assert-SourceCheck ($lootConditionSourceText.Contains("canMatchStructureLoot48")) `
+    "src/lootcondition.cpp is missing the conservative 48-bit Loot precheck."
 Assert-SourceCheck ($searchText.Contains("env->fastFamilyLoot")) `
-    "src/search.cpp is missing the optional family Loot cache wiring."
+    "src/search.cpp is missing the optional 48-bit Loot precheck wiring."
 Assert-SourceCheck ($formSearchUiText.Contains('name="checkLootFast"')) `
     "formsearchcontrol.ui is missing the Loot speed-search checkbox."
 Assert-SourceCheck ($formSearchSourceText.Contains("fastFamilyLoot")) `
     "formsearchcontrol.cpp is missing the Loot speed-search setting."
+Assert-SourceCheck ([regex]::IsMatch(
+    $formSearchSourceText,
+    "supportsFast48Loot[\s\S]{0,160}SEARCH_BLOCKS\s*\|\|" +
+        "\s*searchType\s*==\s*SEARCH_48ONLY"
+)) "The Loot speed-search option is not enabled for 48-bit only."
 Assert-SourceCheck ($configSourceText.Contains("#FastLoot48:")) `
     "SearchConfig does not save the Loot speed-search setting."
+Assert-SourceCheck ($lootTestScriptText.Contains("Test-Headless48Session")) `
+    "The 48-bit-only Loot integration regression is missing."
+Assert-SourceCheck ($buildScriptText.Contains("windeployqt.exe")) `
+    "dev-build.ps1 does not deploy the Qt runtime for direct EXE startup."
 Assert-SourceCheck ($cubiomesMakefileText.Contains("loot.c")) `
     "cubiomes/makefile does not compile loot.c."
 Assert-SourceCheck ($cubiomesCmakeText.Contains("loot.c")) `

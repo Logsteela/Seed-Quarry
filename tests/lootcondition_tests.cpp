@@ -362,6 +362,43 @@ int main(int argc, char **argv)
     assert(familyCache.calculations == 1);
     assert(familyCache.hits == 1);
 
+    bool oceanShipMatch = matchStructureLoot(
+        additional, MC_1_16_5, shipSeed,
+        Pos{-31 * 16, -32 * 16}, ocean);
+    bool beachedShipMatch = matchStructureLoot(
+        additional, MC_1_16_5, shipSeed,
+        Pos{-31 * 16, -32 * 16}, beach);
+    familyCache.reset();
+    assert(canMatchStructureLoot48(
+        additional, MC_1_16_5, shipSeed,
+        Pos{-31 * 16, -32 * 16}, &familyCache) ==
+        (oceanShipMatch || beachedShipMatch));
+    assert(familyCache.calculations == 2);
+
+    LootRuleSet possibleTotal;
+    possibleTotal.structureType = Desert_Pyramid;
+    possibleTotal.logic = LootRuleSet::LOGIC_ALL;
+    possibleTotal.instanceMode = LootRuleSet::INSTANCE_TOTAL;
+    possibleTotal.chestMode = LootRuleSet::CHESTS_TOTAL;
+    possibleTotal.rules << itemRule(DP_LOOT_DIAMOND, 2, 2);
+    QVector<Pos> candidatePyramids{pyramid, pyramid};
+    familyCache.reset();
+    assert(canMatchAreaLoot48(
+        possibleTotal, MC_1_16_1, seed,
+        candidatePyramids, 2, &familyCache));
+    possibleTotal.rules[0] =
+        itemRule(DP_LOOT_DIAMOND, 3, -1);
+    familyCache.reset();
+    assert(!canMatchAreaLoot48(
+        possibleTotal, MC_1_16_1, seed,
+        candidatePyramids, 2, &familyCache));
+    possibleTotal.rules[0] =
+        itemRule(DP_LOOT_DIAMOND, 0, 1);
+    familyCache.reset();
+    assert(!canMatchAreaLoot48(
+        possibleTotal, MC_1_16_1, seed,
+        candidatePyramids, 2, &familyCache));
+
     LootRuleSet wideRules = rules;
     wideRules.rules.clear();
     wideRules.rules << itemRule(DP_LOOT_DIAMOND, 70000, 70000);
