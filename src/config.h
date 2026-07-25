@@ -235,6 +235,7 @@ struct SearchConfig
     int threads;
     uint64_t startseed;
     bool stoponres;
+    bool fastFamilyLoot;
     uint64_t smin;
     uint64_t smax;
 

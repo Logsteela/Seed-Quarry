@@ -141,6 +141,7 @@ SearchMaster::SearchMaster(QWidget *parent)
     , condtree()
     , itemsize()
     , threadcnt()
+    , fastFamilyLoot()
     , gen48()
     , slist()
     , idx()
@@ -292,7 +293,10 @@ bool SearchMaster::set(QWidget *widget, const Session& s)
     QString err = condtree.set(s.cv, s.wi.mc);
     if (err.isEmpty())
     {
-        err = env.init(s.wi.mc, s.wi.large, condtree);
+        err = env.init(
+            s.wi.mc, s.wi.large, condtree,
+            s.sc.searchtype == SEARCH_BLOCKS &&
+                s.sc.fastFamilyLoot);
     }
     if (!err.isEmpty())
     {
@@ -305,6 +309,9 @@ bool SearchMaster::set(QWidget *widget, const Session& s)
     this->large = s.wi.large;
     this->itemsize = 1;
     this->threadcnt = s.sc.threads;
+    this->fastFamilyLoot =
+        s.sc.searchtype == SEARCH_BLOCKS &&
+        s.sc.fastFamilyLoot;
     this->slist = s.slist;
     this->gen48 = s.gen48;
     this->idx = 0;
@@ -943,7 +950,9 @@ bool SearchWorker::getNextItem()
 void SearchWorker::run()
 {
     Pos origin = {0,0};
-    env.init(master->mc, master->large, master->condtree);
+    env.init(
+        master->mc, master->large, master->condtree,
+        master->fastFamilyLoot);
 
     switch (master->searchtype)
     {
@@ -1095,6 +1104,5 @@ void SearchWorker::run()
         break;
     }
 }
-
 
 

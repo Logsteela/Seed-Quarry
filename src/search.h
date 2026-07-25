@@ -743,11 +743,15 @@ struct SearchThreadEnv
 
     std::map<uint64_t, lua_State*> l_states;
     std::map<uint64_t, LootRuleSet> loot_rules;
+    bool fastFamilyLoot;
+    LootSearchCache lootCache;
 
     SearchThreadEnv();
     ~SearchThreadEnv();
 
-    QString init(int mc, bool large, const ConditionTree& condtree);
+    QString init(
+        int mc, bool large, const ConditionTree& condtree,
+        bool fastFamilyLoot = false);
 
     void setSeed(uint64_t seed);
     void init4Dim(int dim);

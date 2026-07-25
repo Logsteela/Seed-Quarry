@@ -324,6 +324,44 @@ int main(int argc, char **argv)
         UINT64_C(2276366175191987160),
         Pos{-31 * 16, -32 * 16}, ocean));
 
+    LootSearchCache familyCache;
+    const uint64_t shipSeed =
+        UINT64_C(2276366175191987160);
+    const uint64_t sameFamilySeed =
+        ((shipSeed + (UINT64_C(1) << 48)) & ~MASK48) |
+        (shipSeed & MASK48);
+    assert(matchStructureLoot(
+        additional, MC_1_16_5, shipSeed,
+        Pos{-31 * 16, -32 * 16}, ocean, &familyCache));
+    assert(matchStructureLoot(
+        additional, MC_1_16_5, sameFamilySeed,
+        Pos{-31 * 16, -32 * 16}, ocean, &familyCache));
+    assert(familyCache.calculations == 1);
+    assert(familyCache.hits == 1);
+
+    // Beached and ocean shipwrecks use different template pools and RNG
+    // advancement, so they deliberately occupy separate cache entries.
+    (void) matchStructureLoot(
+        additional, MC_1_16_5, sameFamilySeed,
+        Pos{-31 * 16, -32 * 16}, beach, &familyCache);
+    assert(familyCache.calculations == 2);
+    (void) matchStructureLoot(
+        additional, MC_1_16_5, shipSeed,
+        Pos{-31 * 16, -32 * 16}, beach, &familyCache);
+    assert(familyCache.hits == 2);
+
+    QVector<Pos> repeatedShips{
+        Pos{-31 * 16, -32 * 16},
+        Pos{-31 * 16, -32 * 16},
+    };
+    QVector<int> repeatedBiomes{ocean, ocean};
+    familyCache.reset();
+    (void) matchAreaLoot(
+        additional, MC_1_16_5, shipSeed,
+        repeatedShips, repeatedBiomes, &familyCache);
+    assert(familyCache.calculations == 1);
+    assert(familyCache.hits == 1);
+
     LootRuleSet wideRules = rules;
     wideRules.rules.clear();
     wideRules.rules << itemRule(DP_LOOT_DIAMOND, 70000, 70000);

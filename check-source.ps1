@@ -22,6 +22,9 @@ $lootTestsPath = Join-Path $sourceDir "tests\lootcondition_tests.cpp"
 $noticesPath = Join-Path $sourceDir "THIRD_PARTY_NOTICES.md"
 $buildScriptPath = Join-Path $sourceDir "dev-build.ps1"
 $lootTestScriptPath = Join-Path $sourceDir "test-loot.ps1"
+$formSearchUiPath = Join-Path $sourceDir "src\formsearchcontrol.ui"
+$formSearchSourcePath = Join-Path $sourceDir "src\formsearchcontrol.cpp"
+$configSourcePath = Join-Path $sourceDir "src\config.cpp"
 
 function Assert-SourceCheck {
     param(
@@ -133,6 +136,9 @@ $projectText = Get-Content -LiteralPath $projectPath -Raw -Encoding UTF8
 $versionTestsText = Get-Content -LiteralPath $versionTestsPath -Raw -Encoding UTF8
 $lootTestsText = Get-Content -LiteralPath $lootTestsPath -Raw -Encoding UTF8
 $noticesText = Get-Content -LiteralPath $noticesPath -Raw -Encoding UTF8
+$formSearchUiText = Get-Content -LiteralPath $formSearchUiPath -Raw -Encoding UTF8
+$formSearchSourceText = Get-Content -LiteralPath $formSearchSourcePath -Raw -Encoding UTF8
+$configSourceText = Get-Content -LiteralPath $configSourcePath -Raw -Encoding UTF8
 
 Assert-SourceCheck ($scriptsText.Contains(
     'lua_setglobal(L, "getDesertPyramidLoot")'
@@ -184,6 +190,16 @@ Assert-SourceCheck ($searchText.Contains("case F_LOOT")) `
     "src/search.cpp is missing the Other loot condition."
 Assert-SourceCheck ($searchText.Contains("matchAreaLoot")) `
     "src/search.cpp is missing area-total search integration."
+Assert-SourceCheck ($lootConditionSourceText.Contains("LootSearchCacheEntry")) `
+    "src/lootcondition.cpp is missing the 48-bit family Loot cache."
+Assert-SourceCheck ($searchText.Contains("env->fastFamilyLoot")) `
+    "src/search.cpp is missing the optional family Loot cache wiring."
+Assert-SourceCheck ($formSearchUiText.Contains('name="checkLootFast"')) `
+    "formsearchcontrol.ui is missing the Loot speed-search checkbox."
+Assert-SourceCheck ($formSearchSourceText.Contains("fastFamilyLoot")) `
+    "formsearchcontrol.cpp is missing the Loot speed-search setting."
+Assert-SourceCheck ($configSourceText.Contains("#FastLoot48:")) `
+    "SearchConfig does not save the Loot speed-search setting."
 Assert-SourceCheck ($cubiomesMakefileText.Contains("loot.c")) `
     "cubiomes/makefile does not compile loot.c."
 Assert-SourceCheck ($cubiomesCmakeText.Contains("loot.c")) `

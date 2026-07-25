@@ -191,6 +191,9 @@ SearchConfig FormSearchControl::getSearchConfig()
     s.slist64path = slist64path;
     s.startseed = ui->lineStart->text().toLongLong();
     s.stoponres = ui->checkStop->isChecked();
+    s.fastFamilyLoot =
+        s.searchtype == SEARCH_BLOCKS &&
+        ui->checkLootFast->isChecked();
     s.smin = smin;
     s.smax = smax;
     return s;
@@ -211,6 +214,7 @@ bool FormSearchControl::setSearchConfig(SearchConfig s, bool quiet)
 
     ui->spinThreads->setValue(s.threads);
     ui->checkStop->setChecked(s.stoponres);
+    ui->checkLootFast->setChecked(s.fastFamilyLoot);
     smin = s.smin;
     smax = s.smax;
 
@@ -300,6 +304,7 @@ void FormSearchControl::searchLockUi(bool lock)
         ui->comboSearchType->setEnabled(false);
         ui->spinThreads->setEnabled(false);
         ui->buttonMore->setEnabled(false);
+        ui->checkLootFast->setEnabled(false);
     }
     else
     {
@@ -311,6 +316,7 @@ void FormSearchControl::searchLockUi(bool lock)
         ui->spinThreads->setEnabled(true);
         int type = ui->comboSearchType->currentData().toInt();
         ui->buttonMore->setEnabled(type == SEARCH_INC || type == SEARCH_LIST);
+        ui->checkLootFast->setEnabled(type == SEARCH_BLOCKS);
     }
     emit searchStatusChanged(lock);
 }
@@ -520,6 +526,12 @@ void FormSearchControl::on_buttonSearchHelp_clicked()
         "16-bits. This search type can be a better match for exhaustive searches "
         "and those with very restrictive structure requirements."
         "</p><p>"
+        "<b>Loot高速化（48-bit family）</b>を有効にすると、同じ下位48bit、"
+        "構造物座標、Lootに影響する構造種別のチェスト計算を再利用します。"
+        "構造物の生成可否とバイオーム条件は各64-bit Seedで通常どおり判定します。"
+        "現在対応しているJava 1.16 Lootでは、難破船の浜辺型／海中型も"
+        "別々に扱うため結果の正確性を維持します。"
+        "</p><p>"
         "Load a <b>seed list from a file</b> to search through an "
         "existing set of seeds. The seeds should be in decimal ASCII text, "
         "separated by newline characters. You can browse for a file using "
@@ -534,6 +546,7 @@ void FormSearchControl::on_comboSearchType_currentIndexChanged(int)
 {
     int type = ui->comboSearchType->currentData().toInt();
     ui->buttonMore->setEnabled(type == SEARCH_INC || type == SEARCH_LIST);
+    ui->checkLootFast->setEnabled(type == SEARCH_BLOCKS);
     searchProgressReset();
 }
 

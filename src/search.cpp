@@ -313,6 +313,8 @@ SearchThreadEnv::SearchThreadEnv()
 , stop()
 , l_states()
 , loot_rules()
+, fastFamilyLoot()
+, lootCache()
 {
     memset(&g, 0, sizeof(g));
     memset(&sn, 0, sizeof(sn));
@@ -324,12 +326,16 @@ SearchThreadEnv::~SearchThreadEnv()
         lua_close(it.second);
 }
 
-QString SearchThreadEnv::init(int mc, bool large, const ConditionTree& condtree)
+QString SearchThreadEnv::init(
+    int mc, bool large, const ConditionTree& condtree,
+    bool fastFamilyLoot)
 {
     this->condtree = condtree;
     this->mc = mc;
     this->large = large;
     this->seed = 0;
+    this->fastFamilyLoot = fastFamilyLoot;
+    this->lootCache.reset();
     this->surfdim = DIM_UNDEF;
     this->octaves = 0;
     uint32_t flags = 0;
@@ -1616,7 +1622,10 @@ L_qm_any:
                         {
                             bool lootMatch = matchStructureLoot(
                                 *lootRules, env->mc, env->seed,
-                                pc, lootBiomeId);
+                                pc, lootBiomeId,
+                                env->fastFamilyLoot
+                                    ? &env->lootCache : nullptr,
+                                cond->hash);
                             if (lootRules->instanceMode ==
                                 LootRuleSet::INSTANCE_EVERY && !lootMatch)
                             {
@@ -1655,7 +1664,10 @@ L_qm_any:
             lootRules->instanceMode == LootRuleSet::INSTANCE_TOTAL &&
             !matchAreaLoot(
                 *lootRules, env->mc, env->seed,
-                lootPositions, lootBiomes))
+                lootPositions, lootBiomes,
+                env->fastFamilyLoot
+                    ? &env->lootCache : nullptr,
+                cond->hash))
         {
             return COND_FAILED;
         }

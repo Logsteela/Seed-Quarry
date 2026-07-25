@@ -63,15 +63,17 @@ quint64 countRule(const LootAccumulator& loot, const LootRule& rule)
     return count;
 }
 
-bool matchesRules(const LootRuleSet& rules, const LootAccumulator& loot)
+bool matchesCounts(
+    const LootRuleSet& rules, const QVector<uint64_t>& counts)
 {
     if (rules.rules.isEmpty())
         return true;
 
     bool result = rules.logic == LootRuleSet::LOGIC_ALL;
-    for (const LootRule& rule : rules.rules)
+    for (int i = 0; i < rules.rules.size(); i++)
     {
-        quint64 count = countRule(loot, rule);
+        const LootRule& rule = rules.rules[i];
+        uint64_t count = i < counts.size() ? counts[i] : 0;
         bool match = count >= quint64(rule.minCount) &&
             (rule.maxCount < 0 || count <= quint64(rule.maxCount));
         if (rules.logic == LootRuleSet::LOGIC_ALL)
@@ -88,12 +90,16 @@ bool matchesRules(const LootRuleSet& rules, const LootAccumulator& loot)
     return result;
 }
 
-bool matchesRules(
-    const LootRuleSet& rules, const DesertPyramidLoot& loot)
+QVector<uint64_t> getRuleCounts(
+    const LootRuleSet& rules, const StructureLoot& loot)
 {
     LootAccumulator accumulated;
     addLoot(&accumulated, loot);
-    return matchesRules(rules, accumulated);
+    QVector<uint64_t> counts;
+    counts.reserve(rules.rules.size());
+    for (const LootRule& rule : rules.rules)
+        counts.push_back(countRule(accumulated, rule));
+    return counts;
 }
 
 bool getStructureLoot(
@@ -144,6 +150,102 @@ bool getStructureLoot(
     return false;
 }
 
+bool getCachedRuleCounts(
+    LootSearchCacheEntry *out, const LootRuleSet& rules,
+    int mc, uint64_t worldSeed, Pos pos, int biomeId,
+    LootSearchCache *cache, uint64_t cacheRuleKey)
+{
+    if (!out)
+        return false;
+
+    LootSearchCacheKey key;
+    if (cache)
+    {
+        const uint64_t familySeed = worldSeed & MASK48;
+        if (cache->familySeed != familySeed)
+        {
+            cache->familySeed = familySeed;
+            cache->entries.clear();
+        }
+        if (cacheRuleKey)
+        {
+            key.rulesHash = cacheRuleKey;
+        }
+        else
+        {
+            auto ruleHash = cache->ruleHashes.find(&rules);
+            if (ruleHash == cache->ruleHashes.end())
+            {
+                ruleHash = cache->ruleHashes.emplace(
+                    &rules,
+                    contentHash(serializeLootRuleSet(rules))).first;
+            }
+            key.rulesHash = ruleHash->second;
+        }
+        key.mc = mc;
+        key.structureType = rules.structureType;
+        key.x = pos.x;
+        key.z = pos.z;
+        // Shipwreck templates and the decorator RNG differ between the
+        // beached and ocean families. Other supported Loot tables do not
+        // depend on their biome/structure variant.
+        key.variant = rules.structureType == Shipwreck &&
+            (biomeId == beach || biomeId == snowy_beach);
+
+        auto found = cache->entries.find(key);
+        if (found != cache->entries.end())
+        {
+            cache->hits++;
+            *out = found->second;
+            return true;
+        }
+        cache->calculations++;
+    }
+
+    LootChestSet loots;
+    if (!getStructureLoot(
+            &loots, rules, mc, worldSeed, pos, biomeId))
+        return false;
+
+    LootSearchCacheEntry generated;
+    for (int chest = 0; chest < 4; chest++)
+    {
+        generated.present[chest] = loots.present[chest];
+        if (loots.present[chest])
+            generated.count[chest] =
+                getRuleCounts(rules, loots.chest[chest]);
+    }
+    *out = generated;
+    if (cache)
+        cache->entries[key] = generated;
+    return true;
+}
+
+}
+
+bool LootSearchCacheKey::operator<(
+    const LootSearchCacheKey& other) const
+{
+    if (rulesHash != other.rulesHash)
+        return rulesHash < other.rulesHash;
+    if (mc != other.mc)
+        return mc < other.mc;
+    if (structureType != other.structureType)
+        return structureType < other.structureType;
+    if (x != other.x)
+        return x < other.x;
+    if (z != other.z)
+        return z < other.z;
+    return variant < other.variant;
+}
+
+void LootSearchCache::reset()
+{
+    familySeed = ~(uint64_t)0;
+    calculations = 0;
+    hits = 0;
+    entries.clear();
+    ruleHashes.clear();
 }
 
 bool isLootSupported(int structureType, int mc)
@@ -345,24 +447,26 @@ bool lookupLootRuleSet(uint64_t hash, LootRuleSet *rules)
 
 bool matchStructureLoot(
     const LootRuleSet& rules, int mc, uint64_t worldSeed,
-    Pos structurePos, int biomeId)
+    Pos structurePos, int biomeId, LootSearchCache *cache,
+    uint64_t cacheRuleKey)
 {
-    LootChestSet loots;
-    if (!getStructureLoot(
-            &loots, rules, mc, worldSeed, structurePos, biomeId))
+    LootSearchCacheEntry counts;
+    if (!getCachedRuleCounts(
+            &counts, rules, mc, worldSeed,
+            structurePos, biomeId, cache, cacheRuleKey))
         return false;
 
     if (rules.chestMode >= LootRuleSet::CHEST_1)
     {
         int index = rules.chestMode - LootRuleSet::CHEST_1;
-        return index >= 0 && index < 4 && loots.present[index] &&
-            matchesRules(rules, loots.chest[index]);
+        return index >= 0 && index < 4 && counts.present[index] &&
+            matchesCounts(rules, counts.count[index]);
     }
     if (rules.chestMode == LootRuleSet::CHEST_ANY)
     {
         for (int i = 0; i < 4; i++)
-            if (loots.present[i] &&
-                matchesRules(rules, loots.chest[i]))
+            if (counts.present[i] &&
+                matchesCounts(rules, counts.count[i]))
                 return true;
         return false;
     }
@@ -371,43 +475,53 @@ bool matchStructureLoot(
         bool found = false;
         for (int i = 0; i < 4; i++)
         {
-            if (!loots.present[i])
+            if (!counts.present[i])
                 continue;
             found = true;
-            if (!matchesRules(rules, loots.chest[i]))
+            if (!matchesCounts(rules, counts.count[i]))
                 return false;
         }
         return found;
     }
 
-    LootAccumulator total;
+    QVector<uint64_t> total(rules.rules.size(), 0);
     for (int i = 0; i < 4; i++)
-        if (loots.present[i])
-            addLoot(&total, loots.chest[i]);
-    return matchesRules(rules, total);
+    {
+        if (!counts.present[i])
+            continue;
+        for (int rule = 0; rule < total.size(); rule++)
+            total[rule] += counts.count[i][rule];
+    }
+    return matchesCounts(rules, total);
 }
 
 bool matchAreaLoot(
     const LootRuleSet& rules, int mc, uint64_t worldSeed,
     const QVector<Pos>& structurePositions,
-    const QVector<int>& biomeIds)
+    const QVector<int>& biomeIds, LootSearchCache *cache,
+    uint64_t cacheRuleKey)
 {
     if (!biomeIds.isEmpty() &&
         biomeIds.size() != structurePositions.size())
         return false;
-    LootAccumulator total;
+    QVector<uint64_t> total(rules.rules.size(), 0);
     for (int position = 0;
          position < structurePositions.size(); position++)
     {
-        LootChestSet loots;
+        LootSearchCacheEntry counts;
         int biomeId = biomeIds.isEmpty() ? -1 : biomeIds[position];
-        if (!getStructureLoot(
-                &loots, rules, mc, worldSeed,
-                structurePositions[position], biomeId))
+        if (!getCachedRuleCounts(
+                &counts, rules, mc, worldSeed,
+                structurePositions[position], biomeId, cache,
+                cacheRuleKey))
             return false;
-        for (int i = 0; i < 4; i++)
-            if (loots.present[i])
-                addLoot(&total, loots.chest[i]);
+        for (int chest = 0; chest < 4; chest++)
+        {
+            if (!counts.present[chest])
+                continue;
+            for (int rule = 0; rule < total.size(); rule++)
+                total[rule] += counts.count[chest][rule];
+        }
     }
-    return matchesRules(rules, total);
+    return matchesCounts(rules, total);
 }

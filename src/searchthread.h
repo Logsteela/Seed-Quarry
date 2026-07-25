@@ -84,6 +84,7 @@ public:
     ConditionTree               condtree;
     int                         itemsize;   // number of seeds per search item
     int                         threadcnt;  // numbr of worker threads
+    bool                        fastFamilyLoot;
     Gen48Config                 gen48;      // 48-bit generator settings
     std::vector<uint64_t>       slist;      // candidate list
     uint64_t                    idx;        // index within candidate list

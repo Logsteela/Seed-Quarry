@@ -131,7 +131,7 @@ QPushButton:hover {
         </widget>
        </item>
        <item>
-        <widget class="QPushButton" name="buttonStart">
+       <widget class="QPushButton" name="buttonStart">
          <property name="text">
           <string>Start search</string>
          </property>
@@ -141,6 +141,29 @@ QPushButton:hover {
          </property>
          <property name="checkable">
           <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <spacer name="horizontalSpacerLootFast">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item>
+        <widget class="QCheckBox" name="checkLootFast">
+         <property name="toolTip">
+          <string>48-bit family blocks検索で、同じ下位48bit・座標・Lootに影響する構造種別の計算結果を再利用します。現在対応している1.16の構造物Lootでは結果の正確性を維持します。</string>
+         </property>
+         <property name="text">
+          <string>Loot高速化（48-bit family）</string>
          </property>
         </widget>
        </item>

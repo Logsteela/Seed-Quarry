@@ -16,7 +16,9 @@
 #include <QFontMetricsF>
 #include <QInputDialog>
 #include <QIntValidator>
+#include <QScreen>
 #include <QScrollBar>
+#include <QScrollArea>
 #include <QSpacerItem>
 #include <QStandardPaths>
 #include <QTextStream>
@@ -42,6 +44,25 @@ ConditionDialog::ConditionDialog(FormConditions *parent, MapView *mapview, Confi
 {
     memset(&cond, 0, sizeof(cond));
     ui->setupUi(this);
+
+    // The variant pages can become much taller than the screen once dynamic
+    // Loot controls are added. Keep General, Location, and the OK/Cancel
+    // buttons fixed while allowing the selected detail page to scroll.
+    QScrollArea *detailScroll = new QScrollArea(ui->layoutWidget);
+    detailScroll->setObjectName("conditionDetailScroll");
+    detailScroll->setWidgetResizable(true);
+    detailScroll->setFrameShape(QFrame::NoFrame);
+    detailScroll->setSizeAdjustPolicy(
+        QAbstractScrollArea::AdjustIgnored);
+    detailScroll->setHorizontalScrollBarPolicy(
+        Qt::ScrollBarAsNeeded);
+    detailScroll->setVerticalScrollBarPolicy(
+        Qt::ScrollBarAsNeeded);
+    QLayoutItem *stackedItem = ui->gridLayout_7->replaceWidget(
+        ui->stackedWidget, detailScroll);
+    delete stackedItem;
+    detailScroll->setWidget(ui->stackedWidget);
+    ui->gridLayout_7->setRowStretch(4, 1);
 
     structureLootEditor = new LootRuleEditor(ui->pageTemple);
     structureLootEditor->setContext(Desert_Pyramid, wi.mc);
@@ -596,7 +617,14 @@ ConditionDialog::ConditionDialog(FormConditions *parent, MapView *mapview, Confi
     onClimateLimitChanged();
     updateMode();
 
-    resize(sizeHint());
+    QSize initialSize = sizeHint();
+    if (QScreen *activeScreen = screen())
+    {
+        const QSize available =
+            activeScreen->availableGeometry().size() - QSize(40, 40);
+        initialSize = initialSize.boundedTo(available);
+    }
+    resize(initialSize);
 }
 
 LootRuleEditor *ConditionDialog::lootEditorForType(int type) const

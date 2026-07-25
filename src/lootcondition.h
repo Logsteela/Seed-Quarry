@@ -8,6 +8,8 @@
 #include <QString>
 #include <QVector>
 
+#include <map>
+
 struct LootRule
 {
     int item = DP_LOOT_DIAMOND;
@@ -48,6 +50,39 @@ struct LootRuleSet
     bool isEmpty() const { return rules.isEmpty(); }
 };
 
+struct LootSearchCacheKey
+{
+    uint64_t rulesHash = 0;
+    int mc = 0;
+    int structureType = 0;
+    int x = 0;
+    int z = 0;
+    int variant = 0;
+
+    bool operator<(const LootSearchCacheKey& other) const;
+};
+
+struct LootSearchCacheEntry
+{
+    QVector<uint64_t> count[4];
+    bool present[4] = {};
+};
+
+/**
+ * Worker-local cache used only by the optional 48-bit family Loot speed mode.
+ * Entries are discarded whenever the lower 48-bit family changes.
+ */
+struct LootSearchCache
+{
+    uint64_t familySeed = ~(uint64_t)0;
+    uint64_t calculations = 0;
+    uint64_t hits = 0;
+    std::map<LootSearchCacheKey, LootSearchCacheEntry> entries;
+    std::map<const LootRuleSet*, uint64_t> ruleHashes;
+
+    void reset();
+};
+
 bool isLootSupported(int structureType, int mc);
 QString lootSupportDescription(int structureType, int mc);
 QString validateLootRuleSet(const LootRuleSet& rules, int mc);
@@ -61,10 +96,14 @@ bool lookupLootRuleSet(uint64_t hash, LootRuleSet *rules);
 
 bool matchStructureLoot(
     const LootRuleSet& rules, int mc, uint64_t worldSeed,
-    Pos structurePos, int biomeId = -1);
+    Pos structurePos, int biomeId = -1,
+    LootSearchCache *cache = nullptr,
+    uint64_t cacheRuleKey = 0);
 bool matchAreaLoot(
     const LootRuleSet& rules, int mc, uint64_t worldSeed,
     const QVector<Pos>& structurePositions,
-    const QVector<int>& biomeIds = QVector<int>());
+    const QVector<int>& biomeIds = QVector<int>(),
+    LootSearchCache *cache = nullptr,
+    uint64_t cacheRuleKey = 0);
 
 #endif // LOOTCONDITION_H
