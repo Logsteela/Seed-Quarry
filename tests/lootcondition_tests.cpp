@@ -20,6 +20,143 @@ static LootRule itemRule(int item, int minimum, int maximum)
     return rule;
 }
 
+struct GeneratedLootCase
+{
+    int structureType = 0;
+    int conditionType = 0;
+    Pos pos = {};
+    int biomeId = -1;
+    int chestMode = LootRuleSet::CHESTS_TOTAL;
+    LootRule rule;
+};
+
+static bool firstPresentItem(
+    const StructureLoot& loot, LootRule *rule)
+{
+    for (int item = 0; item < DP_LOOT_ITEM_COUNT; item++)
+    {
+        if (loot.count[item] > 0)
+        {
+            *rule = itemRule(item, 1, -1);
+            return true;
+        }
+    }
+    return false;
+}
+
+static GeneratedLootCase findGeneratedLootCase(
+    int structureType, int conditionType, uint64_t seed,
+    Generator *generator)
+{
+    GeneratedLootCase result;
+    result.structureType = structureType;
+    result.conditionType = conditionType;
+
+    for (int regionZ = -64; regionZ <= 64; regionZ++)
+    {
+        for (int regionX = -64; regionX <= 64; regionX++)
+        {
+            Pos pos;
+            if (!getStructurePos(
+                    structureType, MC_1_16_1, seed,
+                    regionX, regionZ, &pos) ||
+                !isViableStructurePos(
+                    structureType, generator, pos.x, pos.z, 0))
+            {
+                continue;
+            }
+
+            if (structureType == Treasure)
+            {
+                result.pos = pos;
+                result.rule =
+                    itemRule(DP_LOOT_HEART_OF_THE_SEA, 1, 1);
+                return result;
+            }
+
+            if (structureType == Ruined_Portal)
+            {
+                StructureLoot loot = {};
+                if (getRuinedPortalLoot16(
+                        &loot, seed, pos.x >> 4, pos.z >> 4) &&
+                    firstPresentItem(loot, &result.rule))
+                {
+                    result.pos = pos;
+                    return result;
+                }
+                continue;
+            }
+
+            if (structureType == Shipwreck)
+            {
+                const int chunkX = pos.x >> 4;
+                const int chunkZ = pos.z >> 4;
+                const int biomeId = getBiomeAt(
+                    generator, 4, chunkX * 4 + 2, 0,
+                    chunkZ * 4 + 2);
+                StructureLoot loot[SHIPWRECK_CHEST_COUNT] = {};
+                uint8_t present[SHIPWRECK_CHEST_COUNT] = {};
+                const int beached =
+                    biomeId == beach || biomeId == snowy_beach;
+                if (!getShipwreckLoot16(
+                        loot, present, seed, chunkX, chunkZ,
+                        beached))
+                {
+                    continue;
+                }
+                for (int chest = 0;
+                     chest < SHIPWRECK_CHEST_COUNT; chest++)
+                {
+                    if (present[chest] &&
+                        firstPresentItem(
+                            loot[chest], &result.rule))
+                    {
+                        result.pos = pos;
+                        result.biomeId = biomeId;
+                        result.chestMode =
+                            LootRuleSet::CHEST_1 + chest;
+                        return result;
+                    }
+                }
+            }
+        }
+    }
+
+    assert(!"generated structure with loot was not found");
+    return result;
+}
+
+static void printConditionHex(
+    const GeneratedLootCase& generated, int mc)
+{
+    Condition condition = {};
+    condition.type = generated.conditionType;
+    condition.x1 = condition.x2 = generated.pos.x;
+    condition.z1 = condition.z2 = generated.pos.z;
+    condition.save = 1;
+    condition.count = 1;
+    condition.version = Condition::VER_CURRENT;
+    condition.flags = Condition::FLG_LOOT;
+    QByteArray base(
+        reinterpret_cast<const char*>(&condition),
+        offsetof(Condition, generated_start));
+
+    LootRuleSet rules;
+    rules.structureType = generated.structureType;
+    rules.logic = LootRuleSet::LOGIC_ALL;
+    rules.instanceMode = LootRuleSet::INSTANCE_ANY;
+    rules.chestMode = generated.chestMode;
+    rules.rules << generated.rule;
+    assert(validateLootRuleSet(rules, mc).isEmpty());
+
+    QByteArray payload =
+        serializeLootRuleSet(rules).toBase64(
+            QByteArray::Base64UrlEncoding |
+            QByteArray::OmitTrailingEquals);
+    printf("condition=%s|%s\n",
+           base.toHex().constData(), payload.constData());
+}
+
 int main(int argc, char **argv)
 {
     QCoreApplication app(argc, argv);
@@ -65,8 +202,34 @@ int main(int argc, char **argv)
         rules, MC_1_16_1, seed, generatedPyramid));
     printf("generated diamond pyramid at %d,%d\n",
            generatedPyramid.x, generatedPyramid.z);
+
+    const GeneratedLootCase generatedShipwreck =
+        findGeneratedLootCase(
+            Shipwreck, F_SHIPWRECK, seed, &generator);
+    const GeneratedLootCase generatedTreasure =
+        findGeneratedLootCase(
+            Treasure, F_TREASURE, seed, &generator);
+    const GeneratedLootCase generatedPortal =
+        findGeneratedLootCase(
+            Ruined_Portal, F_PORTAL, seed, &generator);
+    assert(matchStructureLoot(
+        LootRuleSet{
+            generatedShipwreck.structureType,
+            LootRuleSet::LOGIC_ALL,
+            LootRuleSet::INSTANCE_ANY,
+            generatedShipwreck.chestMode,
+            {generatedShipwreck.rule}},
+        MC_1_16_1, seed, generatedShipwreck.pos,
+        generatedShipwreck.biomeId));
+
     QString testArgument = argc > 1
         ? QString::fromLocal8Bit(argv[1]) : QString();
+    if (testArgument == "--shipwreck-condition-hex")
+        printConditionHex(generatedShipwreck, MC_1_16_1);
+    else if (testArgument == "--treasure-condition-hex")
+        printConditionHex(generatedTreasure, MC_1_16_1);
+    else if (testArgument == "--portal-condition-hex")
+        printConditionHex(generatedPortal, MC_1_16_1);
     if (testArgument == "--condition-hex" ||
         testArgument == "--condition-hex-fail" ||
         testArgument == "--structure-condition-hex")
@@ -131,6 +294,36 @@ int main(int argc, char **argv)
     positions << pyramid << pyramid;
     assert(matchAreaLoot(rules, MC_1_16_1, seed, positions));
 
+    LootRuleSet additional;
+    additional.logic = LootRuleSet::LOGIC_ALL;
+    additional.instanceMode = LootRuleSet::INSTANCE_ANY;
+    additional.chestMode = LootRuleSet::CHESTS_TOTAL;
+
+    additional.structureType = Treasure;
+    additional.rules << itemRule(
+        DP_LOOT_HEART_OF_THE_SEA, 1, 1);
+    assert(matchStructureLoot(
+        additional, MC_1_16_5, 123, Pos{905, -1671}));
+
+    additional.structureType = Ruined_Portal;
+    additional.rules[0] = itemRule(DP_LOOT_CLOCK, 1, 1);
+    assert(matchStructureLoot(
+        additional, MC_1_16_5, 239648, Pos{64, 112}));
+
+    additional.structureType = Shipwreck;
+    additional.chestMode = LootRuleSet::CHEST_2;
+    additional.rules[0] = itemRule(DP_LOOT_FILLED_MAP, 1, 1);
+    assert(matchStructureLoot(
+        additional, MC_1_16_5,
+        UINT64_C(2276366175191987160),
+        Pos{-31 * 16, -32 * 16}, ocean));
+    additional.chestMode = LootRuleSet::CHEST_1;
+    additional.rules[0] = itemRule(DP_LOOT_WHEAT, 18, 18);
+    assert(matchStructureLoot(
+        additional, MC_1_16_5,
+        UINT64_C(2276366175191987160),
+        Pos{-31 * 16, -32 * 16}, ocean));
+
     LootRuleSet wideRules = rules;
     wideRules.rules.clear();
     wideRules.rules << itemRule(DP_LOOT_DIAMOND, 70000, 70000);
@@ -153,6 +346,14 @@ int main(int argc, char **argv)
     assert(hash != 0 && lookupLootRuleSet(hash, &stored));
     assert(serializeLootRuleSet(stored) == encoded);
     assert(!isLootSupported(Desert_Pyramid, MC_1_20));
+    assert(isLootSupported(Shipwreck, MC_1_16_5));
+    assert(isLootSupported(Treasure, MC_1_16_1));
+    assert(isLootSupported(Ruined_Portal, MC_1_16_5));
+    assert(isLootSupported(Ruined_Portal_N, MC_1_16_1));
+    assert(structureLootItemAvailable(
+        Shipwreck, DP_LOOT_FILLED_MAP));
+    assert(!structureLootItemAvailable(
+        Treasure, DP_LOOT_FILLED_MAP));
 
     puts("loot condition tests passed");
     return 0;

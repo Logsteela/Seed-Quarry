@@ -256,7 +256,11 @@ bool Condition::readHex(const QString& hex)
             hex.mid(separator + 1).toLatin1(),
             QByteArray::Base64UrlEncoding);
         LootRuleSet rules;
-        ok = deserializeLootRuleSet(payload, &rules);
+        QString payloadError;
+        ok = deserializeLootRuleSet(payload, &rules, &payloadError);
+        if (!ok)
+            qWarning() << "Failed to decode Loot condition:"
+                       << payloadError;
         if (ok)
         {
             hash = registerLootRuleSet(rules);
@@ -358,13 +362,18 @@ QString SearchThreadEnv::init(int mc, bool large, const ConditionTree& condtree)
         }
         if ((c.flags & Condition::FLG_LOOT) || c.type == F_LOOT)
         {
-            if (c.type != F_DESERT && c.type != F_LOOT)
+            if (c.type != F_DESERT &&
+                c.type != F_SHIPWRECK &&
+                c.type != F_TREASURE &&
+                c.type != F_PORTAL &&
+                c.type != F_PORTALN &&
+                c.type != F_LOOT)
                 return QString::fromUtf8(
                     "条件 %1 はLoot検索を利用できない種類です。").arg(c.save);
             LootRuleSet rules;
             if (!lookupLootRuleSet(c.hash, &rules))
                 return QString::fromUtf8("条件 %1 のLoot設定が見つかりません。").arg(c.save);
-            if (c.type == F_DESERT &&
+            if (c.type != F_LOOT &&
                 rules.structureType != g_filterinfo.list[c.type].stype)
             {
                 return QString::fromUtf8(
@@ -1516,6 +1525,7 @@ L_qm_any:
         bool lootScanAll = evaluateLoot &&
             lootRules->instanceMode != LootRuleSet::INSTANCE_ANY;
         QVector<Pos> lootPositions;
+        QVector<int> lootBiomes;
 
         // Note "<="
         for (rz = rz1; rz <= rz2 && !*env->stop; rz++)
@@ -1563,6 +1573,18 @@ L_qm_any:
                     int id = isViableStructurePos(st, &env->g, pc.x, pc.z, 0);
                     if (!id)
                         continue;
+                    int lootBiomeId = id;
+                    if (evaluateLoot && st == Shipwreck)
+                    {
+                        int chunkX = pc.x >> 4;
+                        int chunkZ = pc.z >> 4;
+                        lootBiomeId = getBiomeAt(
+                            &env->g, 4,
+                            chunkX * 4 + 2, 0,
+                            chunkZ * 4 + 2);
+                        if (lootBiomeId < 0)
+                            continue;
+                    }
                     if (st == End_City)
                     {
                         env->prepareSurfaceNoise(DIM_END);
@@ -1588,11 +1610,13 @@ L_qm_any:
                             LootRuleSet::INSTANCE_TOTAL)
                         {
                             lootPositions.push_back(pc);
+                            lootBiomes.push_back(lootBiomeId);
                         }
                         else
                         {
                             bool lootMatch = matchStructureLoot(
-                                *lootRules, env->mc, env->seed, pc);
+                                *lootRules, env->mc, env->seed,
+                                pc, lootBiomeId);
                             if (lootRules->instanceMode ==
                                 LootRuleSet::INSTANCE_EVERY && !lootMatch)
                             {
@@ -1601,6 +1625,7 @@ L_qm_any:
                             if (!lootMatch)
                                 continue;
                             lootPositions.push_back(pc);
+                            lootBiomes.push_back(lootBiomeId);
                         }
                     }
                 }
@@ -1629,7 +1654,8 @@ L_qm_any:
         if (evaluateLoot &&
             lootRules->instanceMode == LootRuleSet::INSTANCE_TOTAL &&
             !matchAreaLoot(
-                *lootRules, env->mc, env->seed, lootPositions))
+                *lootRules, env->mc, env->seed,
+                lootPositions, lootBiomes))
         {
             return COND_FAILED;
         }

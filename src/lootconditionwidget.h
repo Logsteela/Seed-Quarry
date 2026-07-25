@@ -30,6 +30,7 @@ public:
 private:
     void addRule(const LootRule& rule = LootRule());
     void removeRule(LootRuleRow *row);
+    void updateChestModes();
     void updateEnabledState();
 
     int m_structureType;

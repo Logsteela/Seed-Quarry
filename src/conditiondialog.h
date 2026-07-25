@@ -119,6 +119,8 @@ private slots:
     void on_comboY2_currentTextChanged(const QString &text);
 
 private:
+    LootRuleEditor *lootEditorForType(int type) const;
+
     Ui::ConditionDialog *ui;
     QTextEdit *textDescription;
 
@@ -132,6 +134,9 @@ private:
     QVector<VariantCheckBox*> variantboxes;
     uint64_t luahash;
     LootRuleEditor *structureLootEditor;
+    LootRuleEditor *portalLootEditor;
+    LootRuleEditor *simpleLootEditor;
+    QWidget *simpleLootPage;
     LootRuleEditor *areaLootEditor;
     QWidget *areaLootPage;
     QComboBox *areaLootStructure;

@@ -21,9 +21,22 @@ QString itemDisplayName(int item)
         "金の馬鎧", "ダイヤモンドの馬鎧", "エンチャントの本",
         "金のリンゴ", "エンチャントされた金のリンゴ",
         "火薬", "糸", "砂",
+        "海洋の心", "TNT", "プリズマリンクリスタル",
+        "革のチェストプレート", "鉄の剣", "焼き鱈", "焼き鮭",
+        "黒曜石", "火打石", "鉄塊", "火打石と打ち金",
+        "ファイヤーチャージ", "金塊", "金の剣", "金の斧",
+        "金のクワ", "金のシャベル", "金のツルハシ", "金のブーツ",
+        "金のチェストプレート", "金のヘルメット", "金のレギンス",
+        "きらめくスイカの薄切り", "軽量用感圧板", "金のニンジン",
+        "時計", "金ブロック", "鐘",
+        "宝の地図", "コンパス", "白紙の地図", "紙", "羽根", "本",
+        "ジャガイモ", "青くなったジャガイモ", "ニンジン", "小麦",
+        "怪しげなシチュー", "石炭", "カボチャ", "竹",
+        "革の帽子", "革のズボン", "革のブーツ",
+        "エンチャントの瓶", "ラピスラズリ",
     };
     return QString::fromUtf8(japanese[item]) + " (" +
-        QString::fromLatin1(desertPyramidLootItemName(item)) + ")";
+        QString::fromLatin1(structureLootItemName(item)) + ")";
 }
 
 QString enchantmentDisplayName(int enchantment)
@@ -49,15 +62,16 @@ QString enchantmentDisplayName(int enchantment)
 class LootRuleRow : public QWidget
 {
 public:
-    explicit LootRuleRow(QWidget *parent = nullptr)
+    explicit LootRuleRow(
+        int structureType, QWidget *parent = nullptr)
         : QWidget(parent)
+        , m_structureType(structureType)
     {
         QGridLayout *layout = new QGridLayout(this);
         layout->setContentsMargins(0, 0, 0, 0);
 
         item = new QComboBox(this);
-        for (int i = 0; i < DP_LOOT_ITEM_COUNT; i++)
-            item->addItem(itemDisplayName(i), i);
+        updateItems();
         item->setMinimumContentsLength(16);
 
         minCount = new QSpinBox(this);
@@ -131,6 +145,28 @@ public:
         updateEnchantmentState();
     }
 
+    void setStructureType(int structureType)
+    {
+        if (m_structureType == structureType)
+            return;
+        m_structureType = structureType;
+        updateItems();
+        updateEnchantmentState();
+    }
+
+    void updateItems()
+    {
+        int oldItem = item->currentData().toInt();
+        item->clear();
+        for (int i = 0; i < DP_LOOT_ITEM_COUNT; i++)
+        {
+            if (structureLootItemAvailable(m_structureType, i))
+                item->addItem(itemDisplayName(i), i);
+        }
+        int index = item->findData(oldItem);
+        item->setCurrentIndex(index >= 0 ? index : 0);
+    }
+
     void updateEnchantmentState()
     {
         bool book = item->currentData().toInt() ==
@@ -156,6 +192,7 @@ public:
     QSpinBox *minLevel;
     QSpinBox *maxLevel;
     QPushButton *remove;
+    int m_structureType;
 };
 
 LootRuleEditor::LootRuleEditor(QWidget *parent)
@@ -192,21 +229,7 @@ LootRuleEditor::LootRuleEditor(QWidget *parent)
     options->addRow(QString::fromUtf8("複数の構造物"), m_instanceMode);
 
     m_chestMode = new QComboBox(this);
-    m_chestMode->addItem(
-        QString::fromUtf8("構造物内の全チェストを合計"),
-        LootRuleSet::CHESTS_TOTAL);
-    m_chestMode->addItem(
-        QString::fromUtf8("いずれか1個のチェストが満たす"),
-        LootRuleSet::CHEST_ANY);
-    m_chestMode->addItem(
-        QString::fromUtf8("各チェストがそれぞれ満たす"),
-        LootRuleSet::CHEST_EVERY);
-    for (int i = 0; i < 4; i++)
-    {
-        m_chestMode->addItem(
-            QString::fromUtf8("生成順チェスト %1").arg(i + 1),
-            LootRuleSet::CHEST_1 + i);
-    }
+    updateChestModes();
     options->addRow(QString::fromUtf8("構造物内の集計"), m_chestMode);
     outer->addLayout(options);
 
@@ -241,8 +264,15 @@ LootRuleEditor::LootRuleEditor(QWidget *parent)
 
 void LootRuleEditor::setContext(int structureType, int mc)
 {
+    bool changed = m_structureType != structureType;
     m_structureType = structureType;
     m_mc = mc;
+    if (changed)
+    {
+        for (LootRuleRow *row : m_rows)
+            row->setStructureType(structureType);
+        updateChestModes();
+    }
     updateEnabledState();
 }
 
@@ -261,9 +291,9 @@ void LootRuleEditor::setAreaTotalMode(bool areaTotal)
 void LootRuleEditor::setRuleSet(
     const LootRuleSet& rules, bool enabled)
 {
+    setContext(rules.structureType, m_mc);
     while (!m_rows.isEmpty())
         removeRule(m_rows.last());
-    m_structureType = rules.structureType;
     m_logic->setCurrentIndex(m_logic->findData(rules.logic));
     m_instanceMode->setCurrentIndex(
         m_instanceMode->findData(rules.instanceMode));
@@ -299,7 +329,8 @@ LootRuleSet LootRuleEditor::ruleSet() const
 
 void LootRuleEditor::addRule(const LootRule& rule)
 {
-    LootRuleRow *row = new LootRuleRow(m_rowsWidget);
+    LootRuleRow *row =
+        new LootRuleRow(m_structureType, m_rowsWidget);
     row->setValue(rule);
     m_rows.insert(m_rows.size(), row);
     m_rowsLayout->insertWidget(m_rowsLayout->count() - 1, row);
@@ -312,6 +343,51 @@ void LootRuleEditor::removeRule(LootRuleRow *row)
     m_rows.removeOne(row);
     m_rowsLayout->removeWidget(row);
     delete row;
+}
+
+void LootRuleEditor::updateChestModes()
+{
+    int oldMode = m_chestMode->currentData().toInt();
+    m_chestMode->clear();
+    m_chestMode->addItem(
+        QString::fromUtf8("構造物内の全チェストを合計"),
+        LootRuleSet::CHESTS_TOTAL);
+    m_chestMode->addItem(
+        QString::fromUtf8("いずれか1個のチェストが満たす"),
+        LootRuleSet::CHEST_ANY);
+    m_chestMode->addItem(
+        QString::fromUtf8("各チェストがそれぞれ満たす"),
+        LootRuleSet::CHEST_EVERY);
+
+    if (m_structureType == Desert_Pyramid)
+    {
+        for (int i = 0; i < 4; i++)
+        {
+            m_chestMode->addItem(
+                QString::fromUtf8("生成順チェスト %1").arg(i + 1),
+                LootRuleSet::CHEST_1 + i);
+        }
+    }
+    else if (m_structureType == Shipwreck)
+    {
+        m_chestMode->addItem(
+            QString::fromUtf8("物資チェスト"),
+            LootRuleSet::CHEST_1);
+        m_chestMode->addItem(
+            QString::fromUtf8("地図チェスト"),
+            LootRuleSet::CHEST_2);
+        m_chestMode->addItem(
+            QString::fromUtf8("宝物チェスト"),
+            LootRuleSet::CHEST_3);
+    }
+    else
+    {
+        m_chestMode->addItem(
+            QString::fromUtf8("唯一のチェスト"),
+            LootRuleSet::CHEST_1);
+    }
+    int index = m_chestMode->findData(oldMode);
+    m_chestMode->setCurrentIndex(index >= 0 ? index : 0);
 }
 
 void LootRuleEditor::updateEnabledState()

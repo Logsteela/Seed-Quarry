@@ -23,6 +23,12 @@ struct LootAccumulator
     quint64 enchantedBook[DP_ENCH_COUNT][DP_ENCH_MAX_LEVEL + 1] = {};
 };
 
+struct LootChestSet
+{
+    StructureLoot chest[4] = {};
+    bool present[4] = {};
+};
+
 quint64 contentHash(const QByteArray& data)
 {
     quint64 hash = UINT64_C(14695981039346656037);
@@ -90,26 +96,51 @@ bool matchesRules(
     return matchesRules(rules, accumulated);
 }
 
-bool getDesertLoot(
-    DesertPyramidLoot chest[4], int mc, uint64_t worldSeed, Pos pos)
+bool getStructureLoot(
+    LootChestSet *out, const LootRuleSet& rules,
+    int mc, uint64_t worldSeed, Pos pos, int biomeId)
 {
-    if (!isLootSupported(Desert_Pyramid, mc))
+    if (!out || !isLootSupported(rules.structureType, mc))
         return false;
     int chunkX = pos.x >> 4;
     int chunkZ = pos.z >> 4;
-    for (int i = 0; i < 4; i++)
-        if (!getDesertPyramidLoot16(
-                &chest[i], worldSeed, chunkX, chunkZ, i))
-            return false;
-    return true;
-}
-
-bool getStructureLoot(
-    DesertPyramidLoot chest[4], const LootRuleSet& rules,
-    int mc, uint64_t worldSeed, Pos pos)
-{
     if (rules.structureType == Desert_Pyramid)
-        return getDesertLoot(chest, mc, worldSeed, pos);
+    {
+        for (int i = 0; i < 4; i++)
+        {
+            if (!getDesertPyramidLoot16(
+                    &out->chest[i], worldSeed, chunkX, chunkZ, i))
+                return false;
+            out->present[i] = true;
+        }
+        return true;
+    }
+    if (rules.structureType == Treasure)
+    {
+        out->present[0] = getBuriedTreasureLoot16(
+            &out->chest[0], worldSeed, chunkX, chunkZ);
+        return out->present[0];
+    }
+    if (rules.structureType == Ruined_Portal ||
+        rules.structureType == Ruined_Portal_N)
+    {
+        out->present[0] = getRuinedPortalLoot16(
+            &out->chest[0], worldSeed, chunkX, chunkZ);
+        return out->present[0];
+    }
+    if (rules.structureType == Shipwreck)
+    {
+        if (biomeId < 0)
+            return false;
+        uint8_t present[SHIPWRECK_CHEST_COUNT] = {};
+        if (!getShipwreckLoot16(
+                out->chest, present, worldSeed, chunkX, chunkZ,
+                biomeId == beach || biomeId == snowy_beach))
+            return false;
+        for (int i = 0; i < SHIPWRECK_CHEST_COUNT; i++)
+            out->present[i] = present[i];
+        return true;
+    }
     return false;
 }
 
@@ -117,7 +148,13 @@ bool getStructureLoot(
 
 bool isLootSupported(int structureType, int mc)
 {
-    return structureType == Desert_Pyramid &&
+    bool structureSupported =
+        structureType == Desert_Pyramid ||
+        structureType == Shipwreck ||
+        structureType == Treasure ||
+        structureType == Ruined_Portal ||
+        structureType == Ruined_Portal_N;
+    return structureSupported &&
         (mc == MC_1_16_1 || mc == MC_1_16_5);
 }
 
@@ -125,9 +162,17 @@ QString lootSupportDescription(int structureType, int mc)
 {
     if (isLootSupported(structureType, mc))
         return QString();
-    if (structureType != Desert_Pyramid)
-        return QString::fromUtf8("現在、チェスト内容の検索に対応している構造物は砂漠のピラミッドだけです。");
-    return QString::fromUtf8("砂漠のピラミッドのチェスト検索は Java 1.16.1 / 1.16.5 専用です。");
+    if (structureType != Desert_Pyramid &&
+        structureType != Shipwreck &&
+        structureType != Treasure &&
+        structureType != Ruined_Portal &&
+        structureType != Ruined_Portal_N)
+    {
+        return QString::fromUtf8(
+            "この構造物のチェスト内容計算にはまだ対応していません。");
+    }
+    return QString::fromUtf8(
+        "このチェスト検索は Java 1.16.1 / 1.16.5 専用です。");
 }
 
 QString validateLootRuleSet(const LootRuleSet& rules, int mc)
@@ -144,6 +189,20 @@ QString validateLootRuleSet(const LootRuleSet& rules, int mc)
     if (rules.chestMode < LootRuleSet::CHESTS_TOTAL ||
         rules.chestMode > LootRuleSet::CHEST_4)
         return QString::fromUtf8("チェストの集計方法が不正です。");
+    if ((rules.structureType == Treasure ||
+         rules.structureType == Ruined_Portal ||
+         rules.structureType == Ruined_Portal_N) &&
+        rules.chestMode > LootRuleSet::CHEST_1)
+    {
+        return QString::fromUtf8(
+            "この構造物には指定したチェストがありません。");
+    }
+    if (rules.structureType == Shipwreck &&
+        rules.chestMode > LootRuleSet::CHEST_3)
+    {
+        return QString::fromUtf8(
+            "難破船には4番目のチェスト種別がありません。");
+    }
     if (rules.rules.isEmpty())
         return QString::fromUtf8("アイテム条件を1個以上追加してください。");
 
@@ -151,6 +210,12 @@ QString validateLootRuleSet(const LootRuleSet& rules, int mc)
     {
         if (rule.item < 0 || rule.item >= DP_LOOT_ITEM_COUNT)
             return QString::fromUtf8("アイテムの指定が不正です。");
+        if (!structureLootItemAvailable(
+                rules.structureType, rule.item))
+        {
+            return QString::fromUtf8(
+                "この構造物のチェストには指定したアイテムがありません。");
+        }
         if (rule.minCount < 0 || rule.maxCount < -1 ||
             (rule.maxCount >= 0 && rule.minCount > rule.maxCount))
             return QString::fromUtf8("アイテム数の範囲が不正です。");
@@ -279,50 +344,70 @@ bool lookupLootRuleSet(uint64_t hash, LootRuleSet *rules)
 }
 
 bool matchStructureLoot(
-    const LootRuleSet& rules, int mc, uint64_t worldSeed, Pos structurePos)
+    const LootRuleSet& rules, int mc, uint64_t worldSeed,
+    Pos structurePos, int biomeId)
 {
-    DesertPyramidLoot chest[4];
-    if (!getStructureLoot(chest, rules, mc, worldSeed, structurePos))
+    LootChestSet loots;
+    if (!getStructureLoot(
+            &loots, rules, mc, worldSeed, structurePos, biomeId))
         return false;
 
     if (rules.chestMode >= LootRuleSet::CHEST_1)
     {
         int index = rules.chestMode - LootRuleSet::CHEST_1;
-        return matchesRules(rules, chest[index]);
+        return index >= 0 && index < 4 && loots.present[index] &&
+            matchesRules(rules, loots.chest[index]);
     }
     if (rules.chestMode == LootRuleSet::CHEST_ANY)
     {
-        for (const DesertPyramidLoot& loot : chest)
-            if (matchesRules(rules, loot))
+        for (int i = 0; i < 4; i++)
+            if (loots.present[i] &&
+                matchesRules(rules, loots.chest[i]))
                 return true;
         return false;
     }
     if (rules.chestMode == LootRuleSet::CHEST_EVERY)
     {
-        for (const DesertPyramidLoot& loot : chest)
-            if (!matchesRules(rules, loot))
+        bool found = false;
+        for (int i = 0; i < 4; i++)
+        {
+            if (!loots.present[i])
+                continue;
+            found = true;
+            if (!matchesRules(rules, loots.chest[i]))
                 return false;
-        return true;
+        }
+        return found;
     }
 
     LootAccumulator total;
-    for (const DesertPyramidLoot& loot : chest)
-        addLoot(&total, loot);
+    for (int i = 0; i < 4; i++)
+        if (loots.present[i])
+            addLoot(&total, loots.chest[i]);
     return matchesRules(rules, total);
 }
 
 bool matchAreaLoot(
     const LootRuleSet& rules, int mc, uint64_t worldSeed,
-    const QVector<Pos>& structurePositions)
+    const QVector<Pos>& structurePositions,
+    const QVector<int>& biomeIds)
 {
+    if (!biomeIds.isEmpty() &&
+        biomeIds.size() != structurePositions.size())
+        return false;
     LootAccumulator total;
-    for (Pos pos : structurePositions)
+    for (int position = 0;
+         position < structurePositions.size(); position++)
     {
-        DesertPyramidLoot chest[4];
-        if (!getStructureLoot(chest, rules, mc, worldSeed, pos))
+        LootChestSet loots;
+        int biomeId = biomeIds.isEmpty() ? -1 : biomeIds[position];
+        if (!getStructureLoot(
+                &loots, rules, mc, worldSeed,
+                structurePositions[position], biomeId))
             return false;
-        for (const DesertPyramidLoot& loot : chest)
-            addLoot(&total, loot);
+        for (int i = 0; i < 4; i++)
+            if (loots.present[i])
+                addLoot(&total, loots.chest[i]);
     }
     return matchesRules(rules, total);
 }

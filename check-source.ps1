@@ -142,10 +142,24 @@ Assert-SourceCheck ($scriptsText.Contains(
 )) "The desert-pyramid loot Lua function is missing syntax highlighting."
 Assert-SourceCheck ($lootHeaderText.Contains("getDesertPyramidLoot16")) `
     "cubiomes/loot.h is missing the public desert-pyramid API."
+foreach ($api in @(
+    "getBuriedTreasureLoot16",
+    "getRuinedPortalLoot16",
+    "getShipwreckLoot16"
+)) {
+    Assert-SourceCheck ($lootHeaderText.Contains($api)) `
+        "cubiomes/loot.h is missing $api."
+}
 Assert-SourceCheck ($lootHeaderText.Contains("desertPyramidEnchantmentName")) `
     "cubiomes/loot.h is missing the enchantment API."
 Assert-SourceCheck ($lootSourceText.Contains("DP_DECORATION_SALT_16 = 40003")) `
     "cubiomes/loot.c is missing the Java 1.16 decoration salt."
+Assert-SourceCheck ($lootSourceText.Contains("BURIED_DECORATION_SALT_16 = 30001")) `
+    "cubiomes/loot.c is missing the buried-treasure decoration salt."
+Assert-SourceCheck ($lootSourceText.Contains("PORTAL_DECORATION_SALT_16 = 40005")) `
+    "cubiomes/loot.c is missing the ruined-portal decoration salt."
+Assert-SourceCheck ($lootSourceText.Contains("SHIPWRECK_DECORATION_SALT_16 = 40006")) `
+    "cubiomes/loot.c is missing the shipwreck decoration salt."
 Assert-SourceCheck ($lootSourceText.Contains("out->enchantedBook")) `
     "cubiomes/loot.c is missing enchanted-book details."
 Assert-SourceCheck ($lootConditionHeaderText.Contains("struct LootRuleSet")) `
@@ -162,6 +176,10 @@ Assert-SourceCheck ($dialogText.Contains("structureLootEditor")) `
     "conditiondialog.cpp is missing structure loot controls."
 Assert-SourceCheck ($dialogText.Contains("areaLootEditor")) `
     "conditiondialog.cpp is missing Other/area-total loot controls."
+Assert-SourceCheck ($dialogText.Contains("portalLootEditor")) `
+    "conditiondialog.cpp is missing ruined-portal loot controls."
+Assert-SourceCheck ($dialogText.Contains("simpleLootEditor")) `
+    "conditiondialog.cpp is missing shipwreck/buried-treasure loot controls."
 Assert-SourceCheck ($searchText.Contains("case F_LOOT")) `
     "src/search.cpp is missing the Other loot condition."
 Assert-SourceCheck ($searchText.Contains("matchAreaLoot")) `
@@ -199,5 +217,5 @@ Write-Host "Source checks passed:"
 Write-Host "  UTF-8 and conditiondialog.ui XML"
 Write-Host "  unique Qt object names and C++ UI references"
 Write-Host "  structure-variant dependency wiring"
-Write-Host "  desert-pyramid loot source, enchantments, GUI, search, Lua API, tests, and attribution"
+Write-Host "  1.16 structure loot source, GUI, search, Lua API, tests, and attribution"
 Write-Host "  dev-build.ps1 and test-loot.ps1 syntax"

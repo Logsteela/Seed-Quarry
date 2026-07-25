@@ -60,9 +60,11 @@ uint64_t registerLootRuleSet(const LootRuleSet& rules);
 bool lookupLootRuleSet(uint64_t hash, LootRuleSet *rules);
 
 bool matchStructureLoot(
-    const LootRuleSet& rules, int mc, uint64_t worldSeed, Pos structurePos);
+    const LootRuleSet& rules, int mc, uint64_t worldSeed,
+    Pos structurePos, int biomeId = -1);
 bool matchAreaLoot(
     const LootRuleSet& rules, int mc, uint64_t worldSeed,
-    const QVector<Pos>& structurePositions);
+    const QVector<Pos>& structurePositions,
+    const QVector<int>& biomeIds = QVector<int>());
 
 #endif // LOOTCONDITION_H

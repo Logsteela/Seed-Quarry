@@ -233,6 +233,47 @@ static void assertDesertPyramidLoot(void)
     assert(desertPyramidEnchantmentName(DP_ENCH_COUNT) == NULL);
 }
 
+static void assertAdditionalStructureLoot(void)
+{
+    StructureLoot loot;
+    assert(getBuriedTreasureLoot16(&loot, 123ULL, 56, -105));
+    assert(loot.count[DP_LOOT_HEART_OF_THE_SEA] == 1);
+    assert(loot.count[DP_LOOT_IRON_INGOT] == 5);
+    assert(loot.count[DP_LOOT_GOLD_INGOT] == 6);
+    assert(loot.count[DP_LOOT_PRISMARINE_CRYSTALS] == 3);
+    assert(loot.count[DP_LOOT_IRON_SWORD] == 1);
+    assert(loot.count[DP_LOOT_COOKED_COD] == 7);
+
+    assert(getRuinedPortalLoot16(&loot, 239648ULL, 4, 7));
+    assert(loot.count[DP_LOOT_CLOCK] == 1);
+    assert(loot.count[DP_LOOT_FLINT_AND_STEEL] == 1);
+    assert(loot.count[DP_LOOT_GOLDEN_LEGGINGS] == 1);
+    assert(loot.count[DP_LOOT_GOLDEN_SWORD] == 1);
+
+    StructureLoot ship[SHIPWRECK_CHEST_COUNT];
+    uint8_t present[SHIPWRECK_CHEST_COUNT];
+    assert(getShipwreckLoot16(
+        ship, present, 2276366175191987160ULL, -31, -32, 0));
+    assert(present[SHIPWRECK_CHEST_SUPPLY]);
+    assert(present[SHIPWRECK_CHEST_MAP]);
+    assert(present[SHIPWRECK_CHEST_TREASURE]);
+    assert(ship[SHIPWRECK_CHEST_SUPPLY].count[DP_LOOT_COAL] == 11);
+    assert(ship[SHIPWRECK_CHEST_SUPPLY].count[DP_LOOT_PAPER] == 12);
+    assert(ship[SHIPWRECK_CHEST_SUPPLY].count[
+        DP_LOOT_POISONOUS_POTATO] == 2);
+    assert(ship[SHIPWRECK_CHEST_SUPPLY].count[
+        DP_LOOT_SUSPICIOUS_STEW] == 2);
+    assert(ship[SHIPWRECK_CHEST_SUPPLY].count[DP_LOOT_WHEAT] == 18);
+    assert(ship[SHIPWRECK_CHEST_MAP].count[DP_LOOT_FILLED_MAP] == 1);
+    assert(ship[SHIPWRECK_CHEST_MAP].count[DP_LOOT_CLOCK] == 1);
+    assert(ship[SHIPWRECK_CHEST_MAP].count[DP_LOOT_FEATHER] == 2);
+    assert(ship[SHIPWRECK_CHEST_MAP].count[DP_LOOT_PAPER] == 6);
+    assert(ship[SHIPWRECK_CHEST_TREASURE].count[
+        DP_LOOT_IRON_INGOT] == 8);
+    assert(ship[SHIPWRECK_CHEST_TREASURE].count[
+        DP_LOOT_IRON_NUGGET] == 17);
+}
+
 int main(void)
 {
     static const char *stable[] = {
@@ -362,6 +403,7 @@ int main(void)
 
     assertStructureVariants();
     assertDesertPyramidLoot();
+    assertAdditionalStructureLoot();
 
     puts("stable version, biome, and structure tests passed");
     return 0;

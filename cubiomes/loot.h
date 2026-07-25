@@ -10,6 +10,7 @@ extern "C"
 
 enum DesertPyramidLootItem
 {
+    /* Keep the original desert-pyramid values stable for saved GUI rules. */
     DP_LOOT_DIAMOND,
     DP_LOOT_IRON_INGOT,
     DP_LOOT_GOLD_INGOT,
@@ -27,6 +28,60 @@ enum DesertPyramidLootItem
     DP_LOOT_GUNPOWDER,
     DP_LOOT_STRING,
     DP_LOOT_SAND,
+
+    /* Buried treasure. */
+    DP_LOOT_HEART_OF_THE_SEA,
+    DP_LOOT_TNT,
+    DP_LOOT_PRISMARINE_CRYSTALS,
+    DP_LOOT_LEATHER_CHESTPLATE,
+    DP_LOOT_IRON_SWORD,
+    DP_LOOT_COOKED_COD,
+    DP_LOOT_COOKED_SALMON,
+
+    /* Ruined portal. */
+    DP_LOOT_OBSIDIAN,
+    DP_LOOT_FLINT,
+    DP_LOOT_IRON_NUGGET,
+    DP_LOOT_FLINT_AND_STEEL,
+    DP_LOOT_FIRE_CHARGE,
+    DP_LOOT_GOLD_NUGGET,
+    DP_LOOT_GOLDEN_SWORD,
+    DP_LOOT_GOLDEN_AXE,
+    DP_LOOT_GOLDEN_HOE,
+    DP_LOOT_GOLDEN_SHOVEL,
+    DP_LOOT_GOLDEN_PICKAXE,
+    DP_LOOT_GOLDEN_BOOTS,
+    DP_LOOT_GOLDEN_CHESTPLATE,
+    DP_LOOT_GOLDEN_HELMET,
+    DP_LOOT_GOLDEN_LEGGINGS,
+    DP_LOOT_GLISTERING_MELON_SLICE,
+    DP_LOOT_LIGHT_WEIGHTED_PRESSURE_PLATE,
+    DP_LOOT_GOLDEN_CARROT,
+    DP_LOOT_CLOCK,
+    DP_LOOT_GOLD_BLOCK,
+    DP_LOOT_BELL,
+
+    /* Shipwreck. */
+    DP_LOOT_FILLED_MAP,
+    DP_LOOT_COMPASS,
+    DP_LOOT_MAP,
+    DP_LOOT_PAPER,
+    DP_LOOT_FEATHER,
+    DP_LOOT_BOOK,
+    DP_LOOT_POTATO,
+    DP_LOOT_POISONOUS_POTATO,
+    DP_LOOT_CARROT,
+    DP_LOOT_WHEAT,
+    DP_LOOT_SUSPICIOUS_STEW,
+    DP_LOOT_COAL,
+    DP_LOOT_PUMPKIN,
+    DP_LOOT_BAMBOO,
+    DP_LOOT_LEATHER_HELMET,
+    DP_LOOT_LEATHER_LEGGINGS,
+    DP_LOOT_LEATHER_BOOTS,
+    DP_LOOT_EXPERIENCE_BOTTLE,
+    DP_LOOT_LAPIS_LAZULI,
+
     DP_LOOT_ITEM_COUNT
 };
 
@@ -81,6 +136,17 @@ typedef struct DesertPyramidLoot
     uint16_t enchantedBook[DP_ENCH_COUNT][DP_ENCH_MAX_LEVEL + 1];
 } DesertPyramidLoot;
 
+/* The original type name remains source-compatible. */
+typedef DesertPyramidLoot StructureLoot;
+
+enum ShipwreckLootChest
+{
+    SHIPWRECK_CHEST_SUPPLY,
+    SHIPWRECK_CHEST_MAP,
+    SHIPWRECK_CHEST_TREASURE,
+    SHIPWRECK_CHEST_COUNT
+};
+
 /**
  * Calculates the combined, non-indexed contents of one desert-pyramid chest
  * for Minecraft Java 1.16.x.
@@ -92,9 +158,26 @@ typedef struct DesertPyramidLoot
 int getDesertPyramidLoot16(DesertPyramidLoot *out, uint64_t worldSeed,
                            int chunkX, int chunkZ, int chestIndex);
 
+/**
+ * Java 1.16.x structure loot implemented from the pinned SeedFinding/MineMap
+ * sources. Shipwreck output is indexed by enum ShipwreckLootChest; present[i]
+ * is zero when that ship template has no chest of that type.
+ */
+int getBuriedTreasureLoot16(StructureLoot *out, uint64_t worldSeed,
+                           int chunkX, int chunkZ);
+int getRuinedPortalLoot16(StructureLoot *out, uint64_t worldSeed,
+                         int chunkX, int chunkZ);
+int getShipwreckLoot16(StructureLoot out[SHIPWRECK_CHEST_COUNT],
+                       uint8_t present[SHIPWRECK_CHEST_COUNT],
+                       uint64_t worldSeed, int chunkX, int chunkZ,
+                       int isBeached);
+
 const char *desertPyramidLootItemName(int item);
 const char *desertPyramidEnchantmentName(int enchantment);
 int desertPyramidEnchantmentMaxLevel(int enchantment);
+
+const char *structureLootItemName(int item);
+int structureLootItemAvailable(int structureType, int item);
 
 #ifdef __cplusplus
 }

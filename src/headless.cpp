@@ -99,7 +99,10 @@ bool Headless::loadSession(QString sessionpath, bool reset)
     }
 
     QTextStream stream(&file);
-    if (!session.load(nullptr, stream, false))
+    // A headless process cannot answer QMessageBox-style console prompts.
+    // Parse strictly so an invalid session exits instead of repeatedly reading
+    // EOF and flooding the console with "Invalid option".
+    if (!session.load(nullptr, stream, true))
     {
         return false;
     }
@@ -252,5 +255,4 @@ void Headless::progressTimeout()
     }
     qOut().flush();
 }
-
 

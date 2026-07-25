@@ -29,6 +29,9 @@ ConditionDialog::ConditionDialog(FormConditions *parent, MapView *mapview, Confi
     , ui(new Ui::ConditionDialog)
     , luahash()
     , structureLootEditor()
+    , portalLootEditor()
+    , simpleLootEditor()
+    , simpleLootPage()
     , areaLootEditor()
     , areaLootPage()
     , areaLootStructure()
@@ -45,6 +48,19 @@ ConditionDialog::ConditionDialog(FormConditions *parent, MapView *mapview, Confi
     ui->gridLayoutTemple->addWidget(
         structureLootEditor, ui->gridLayoutTemple->rowCount(), 0);
 
+    portalLootEditor = new LootRuleEditor(ui->pagePortal);
+    portalLootEditor->setContext(Ruined_Portal, wi.mc);
+    ui->gridLayoutPortal->addWidget(
+        portalLootEditor, ui->gridLayoutPortal->rowCount(), 0);
+
+    simpleLootPage = new QWidget(ui->stackedWidget);
+    QVBoxLayout *simpleLootLayout = new QVBoxLayout(simpleLootPage);
+    simpleLootEditor = new LootRuleEditor(simpleLootPage);
+    simpleLootEditor->setContext(Shipwreck, wi.mc);
+    simpleLootLayout->addWidget(simpleLootEditor);
+    simpleLootLayout->addStretch();
+    ui->stackedWidget->addWidget(simpleLootPage);
+
     areaLootPage = new QWidget(ui->stackedWidget);
     QVBoxLayout *areaLootLayout = new QVBoxLayout(areaLootPage);
     QHBoxLayout *areaStructureLayout = new QHBoxLayout();
@@ -53,6 +69,16 @@ ConditionDialog::ConditionDialog(FormConditions *parent, MapView *mapview, Confi
     areaLootStructure = new QComboBox(areaLootPage);
     areaLootStructure->addItem(
         QString::fromUtf8("砂漠のピラミッド"), Desert_Pyramid);
+    areaLootStructure->addItem(
+        QString::fromUtf8("難破船"), Shipwreck);
+    areaLootStructure->addItem(
+        QString::fromUtf8("埋もれた宝"), Treasure);
+    areaLootStructure->addItem(
+        QString::fromUtf8("荒廃したポータル（オーバーワールド）"),
+        Ruined_Portal);
+    areaLootStructure->addItem(
+        QString::fromUtf8("荒廃したポータル（ネザー）"),
+        Ruined_Portal_N);
     areaStructureLayout->addWidget(areaLootStructure, 1);
     areaLootLayout->addLayout(areaStructureLayout);
     areaLootEditor = new LootRuleEditor(areaLootPage);
@@ -61,6 +87,14 @@ ConditionDialog::ConditionDialog(FormConditions *parent, MapView *mapview, Confi
     areaLootLayout->addWidget(areaLootEditor);
     areaLootLayout->addStretch();
     ui->stackedWidget->addWidget(areaLootPage);
+    connect(
+        areaLootStructure,
+        qOverload<int>(&QComboBox::currentIndexChanged),
+        this,
+        [this, wi] {
+            areaLootEditor->setContext(
+                areaLootStructure->currentData().toInt(), wi.mc);
+        });
 
     connect(ui->buttonBox, &QDialogButtonBox::accepted, this, &ConditionDialog::onAccept);
     connect(ui->buttonBox, &QDialogButtonBox::rejected, this, &ConditionDialog::onReject);
@@ -359,10 +393,9 @@ ConditionDialog::ConditionDialog(FormConditions *parent, MapView *mapview, Confi
                         lootRules.structureType));
                 areaLootEditor->setRuleSet(lootRules, true);
             }
-            else
-            {
-                structureLootEditor->setRuleSet(lootRules, true);
-            }
+            else if (LootRuleEditor *editor =
+                         lootEditorForType(cond.type))
+                editor->setRuleSet(lootRules, true);
         }
 
         ui->checkEnabled->setChecked(!(cond.meta & Condition::DISABLED));
@@ -566,6 +599,17 @@ ConditionDialog::ConditionDialog(FormConditions *parent, MapView *mapview, Confi
     resize(sizeHint());
 }
 
+LootRuleEditor *ConditionDialog::lootEditorForType(int type) const
+{
+    if (type == F_DESERT || type == F_JUNGLE || type == F_HUT)
+        return structureLootEditor;
+    if (type == F_PORTAL || type == F_PORTALN)
+        return portalLootEditor;
+    if (type == F_SHIPWRECK || type == F_TREASURE)
+        return simpleLootEditor;
+    return nullptr;
+}
+
 ConditionDialog::~ConditionDialog()
 {
     if (item)
@@ -754,6 +798,7 @@ void ConditionDialog::updateMode()
         ui->checkPortalMirrored->setEnabled(wi.mc >= MC_1_16_1);
         ui->comboPortalCategory->setEnabled(wi.mc >= MC_1_16_1);
         ui->comboPortalRotation->setEnabled(wi.mc >= MC_1_16_1);
+        portalLootEditor->setContext(ft.stype, wi.mc);
     }
     else if (filterindex == F_ENDCITY)
     {
@@ -780,6 +825,12 @@ void ConditionDialog::updateMode()
         ui->stackedWidget->setCurrentWidget(ui->pageTemple);
         ui->comboTempleOrientation->setEnabled(wi.mc > MC_1_19);
         structureLootEditor->setContext(ft.stype, wi.mc);
+    }
+    else if (filterindex == F_SHIPWRECK ||
+             filterindex == F_TREASURE)
+    {
+        ui->stackedWidget->setCurrentWidget(simpleLootPage);
+        simpleLootEditor->setContext(ft.stype, wi.mc);
     }
     else if (filterindex == F_LOOT)
     {
@@ -1382,10 +1433,10 @@ void ConditionDialog::onAccept()
         useLoot = true;
         c.count = 1;
     }
-    else if (structureLootEditor->lootEnabled() &&
-             c.type == F_DESERT)
+    else if (LootRuleEditor *editor = lootEditorForType(c.type);
+             editor && editor->lootEnabled())
     {
-        lootRules = structureLootEditor->ruleSet();
+        lootRules = editor->ruleSet();
         lootRules.structureType = ft.stype;
         useLoot = true;
     }

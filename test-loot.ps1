@@ -108,6 +108,15 @@ try {
     Test-HeadlessSession `
         "tests\loot_integration_fail_session.txt" `
         @()
+    Test-HeadlessSession `
+        "tests\loot_shipwreck_integration_session.txt" `
+        @("3515201313347228787")
+    Test-HeadlessSession `
+        "tests\loot_treasure_integration_session.txt" `
+        @("3515201313347228787")
+    Test-HeadlessSession `
+        "tests\loot_portal_integration_session.txt" `
+        @("3515201313347228787")
 }
 finally {
     Pop-Location

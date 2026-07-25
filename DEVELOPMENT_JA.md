@@ -157,7 +157,25 @@ function check(seed, at, branches)
 end
 ```
 
-### 砂漠の寺院のチェスト（Java 1.16.1 / 1.16.5）
+### 構造物のチェスト条件（Java 1.16.1 / 1.16.5）
+
+GUIの各構造物条件では、次の4種類について`チェスト内容の条件`を有効に
+できます。
+
+- 砂漠のピラミッド
+- 難破船
+- 埋もれた宝
+- 荒廃したポータル（オーバーワールド / ネザー）
+
+難破船は、浜辺型か海中型か、テンプレート、回転、実際のチェストが属する
+チャンクまで計算します。チェストは`物資`、`地図`、`宝物`から選択できます。
+構造によって存在しない種類のチェストは、その構造物では不成立になります。
+埋もれた宝と荒廃したポータルは1チェストです。
+
+Otherの`範囲内の構造物Loot合計`でも4種類を選択でき、Location内の全構造物を
+合計した個数、いずれかの構造物、各構造物それぞれ、AND / ORを指定できます。
+
+### Lua: 砂漠の寺院のチェスト
 
 `getDesertPyramidLoot(x, z [, chest])`で、指定した砂漠の寺院のチェスト内容を
 取得できます。`x, z`は構造物のブロック座標です。
@@ -222,7 +240,7 @@ end
 すでにアプリをビルド済みで、Lootテスト側だけを再実行するなら
 `.\test-loot.ps1 -SkipAppBuild`を使えます。
 
-`tests\loot_integration_session.txt`と
-`tests\loot_structure_integration_session.txt`は、固定Seedを実際の検索スレッドへ
-通す結合テスト用セッションです。`loot_integration_fail_session.txt`は
-ダイヤ999個という不成立条件で、同じSeedが除外されることを確認します。
+`tests\loot_integration_session.txt`と各`loot_*_integration_session.txt`は、
+固定Seedを実際の検索スレッドへ通す結合テスト用セッションです。
+`loot_integration_fail_session.txt`はダイヤ999個という不成立条件で、
+同じSeedが除外されることを確認します。
