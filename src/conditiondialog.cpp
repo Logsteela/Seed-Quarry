@@ -31,6 +31,8 @@ ConditionDialog::ConditionDialog(FormConditions *parent, MapView *mapview, Confi
     , ui(new Ui::ConditionDialog)
     , luahash()
     , structureLootEditor()
+    , villageLootEditor()
+    , bastionLootEditor()
     , portalLootEditor()
     , simpleLootEditor()
     , simpleLootPage()
@@ -69,6 +71,16 @@ ConditionDialog::ConditionDialog(FormConditions *parent, MapView *mapview, Confi
     ui->gridLayoutTemple->addWidget(
         structureLootEditor, ui->gridLayoutTemple->rowCount(), 0);
 
+    villageLootEditor = new LootRuleEditor(ui->pageVillage);
+    villageLootEditor->setContext(Village, wi.mc);
+    ui->gridLayoutVillage->addWidget(
+        villageLootEditor, ui->gridLayoutVillage->rowCount(), 0);
+
+    bastionLootEditor = new LootRuleEditor(ui->pageBastion);
+    bastionLootEditor->setContext(Bastion, wi.mc);
+    ui->gridLayoutBasion->addWidget(
+        bastionLootEditor, ui->gridLayoutBasion->rowCount(), 0);
+
     portalLootEditor = new LootRuleEditor(ui->pagePortal);
     portalLootEditor->setContext(Ruined_Portal, wi.mc);
     ui->gridLayoutPortal->addWidget(
@@ -100,6 +112,12 @@ ConditionDialog::ConditionDialog(FormConditions *parent, MapView *mapview, Confi
     areaLootStructure->addItem(
         QString::fromUtf8("荒廃したポータル（ネザー）"),
         Ruined_Portal_N);
+    areaLootStructure->addItem(
+        QString::fromUtf8("村（Java 1.16.1）"),
+        Village);
+    areaLootStructure->addItem(
+        QString::fromUtf8("砦の遺跡"),
+        Bastion);
     areaStructureLayout->addWidget(areaLootStructure, 1);
     areaLootLayout->addLayout(areaStructureLayout);
     areaLootEditor = new LootRuleEditor(areaLootPage);
@@ -631,6 +649,10 @@ LootRuleEditor *ConditionDialog::lootEditorForType(int type) const
 {
     if (type == F_DESERT || type == F_JUNGLE || type == F_HUT)
         return structureLootEditor;
+    if (type == F_VILLAGE)
+        return villageLootEditor;
+    if (type == F_BASTION)
+        return bastionLootEditor;
     if (type == F_PORTAL || type == F_PORTALN)
         return portalLootEditor;
     if (type == F_SHIPWRECK || type == F_TREASURE)
@@ -804,6 +826,7 @@ void ConditionDialog::updateMode()
         ui->checkStartPieces->setEnabled(wi.mc >= MC_1_14);
         ui->checkAbandoned->setEnabled(filterindex == F_VILLAGE && wi.mc >= MC_1_10);
         ui->comboVillageRotation->setEnabled(wi.mc >= MC_1_14);
+        villageLootEditor->setContext(Village, wi.mc);
     }
     else if (filterindex == F_FORTRESS)
     {
@@ -815,6 +838,7 @@ void ConditionDialog::updateMode()
         ui->stackedWidget->setCurrentWidget(ui->pageBastion);
         ui->checkStartBastion->setEnabled(wi.mc >= MC_1_16_1);
         ui->comboBastionRotation->setEnabled(wi.mc >= MC_1_16_1);
+        bastionLootEditor->setContext(Bastion, wi.mc);
     }
     else if (filterindex == F_PORTAL || filterindex == F_PORTALN)
     {

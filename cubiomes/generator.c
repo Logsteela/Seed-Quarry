@@ -766,6 +766,182 @@ int mapApproxHeight(float *y, int *ids, const Generator *g, const SurfaceNoise *
     return 0;
 }
 
+static int floorDivMod4(int value, int *mod)
+{
+    int div = value / 4;
+    int rem = value % 4;
+    if (rem < 0)
+    {
+        rem += 4;
+        div -= 1;
+    }
+    *mod = rem;
+    return div;
+}
+
+static int getBiomeDepthScale116(int id, float *depth, float *scale)
+{
+    double d, s;
+    if (!getBiomeDepthAndScale(id, &d, &s, NULL))
+        return 0;
+
+    /*
+     * Biome depth and scale are floats in Java. Casting the cubiomes table
+     * restores that rounding. These two source values have more precision
+     * than the older approximation table retains.
+     */
+    *depth = (float) d;
+    *scale = (float) s;
+    if (id == ice_spikes)
+        *scale = 0.45000002F;
+    else if (id == shattered_savanna_plateau)
+        *scale = 1.2125001F;
+    return 1;
+}
+
+static int fillNoiseColumn116(double column[33], const int *biomes,
+    int biomeStride, int cornerX, int cornerZ, const SurfaceNoise *sn,
+    int noiseX, int noiseZ)
+{
+    /*
+     * These are the exact float results of
+     * 10.0F / sqrt((float)(x*x + z*z) + 0.2F), laid out as x + z*5.
+     */
+    static const float biomeWeights[25] = {
+        3.49215150F, 4.38529015F, 4.87950039F, 4.38529015F, 3.49215150F,
+        4.38529015F, 6.74199820F, 9.12870884F, 6.74199820F, 4.38529015F,
+        4.87950039F, 9.12870884F, 22.3606796F, 9.12870884F, 4.87950039F,
+        4.38529015F, 6.74199820F, 9.12870884F, 6.74199820F, 4.38529015F,
+        3.49215150F, 4.38529015F, 4.87950039F, 4.38529015F, 3.49215150F,
+    };
+
+    float centerDepth, ignoredScale;
+    int center = (cornerZ + 2) * biomeStride + cornerX + 2;
+    if (!getBiomeDepthScale116(
+            biomes[center], &centerDepth, &ignoredScale))
+        return 0;
+
+    float weightedScale = 0.0F;
+    float weightedDepth = 0.0F;
+    float totalWeight = 0.0F;
+    int rx, rz;
+    for (rx = -2; rx <= 2; rx++)
+    {
+        for (rz = -2; rz <= 2; rz++)
+        {
+            int index = (cornerZ + rz + 2) * biomeStride
+                + cornerX + rx + 2;
+            float depth, scale;
+            if (!getBiomeDepthScale116(biomes[index], &depth, &scale))
+                return 0;
+
+            float depthForWeight = depth;
+            float scaleForWeight = scale;
+            float halfWeight = depth > centerDepth ? 0.5F : 1.0F;
+            float weight = halfWeight
+                * biomeWeights[(rz + 2) * 5 + rx + 2]
+                / (depthForWeight + 2.0F);
+            weightedScale += scaleForWeight * weight;
+            weightedDepth += depthForWeight * weight;
+            totalWeight += weight;
+        }
+    }
+
+    float meanDepth = weightedDepth / totalWeight;
+    float meanScale = weightedScale / totalWeight;
+    double depthOffset = (meanDepth * 0.5F - 0.125F) * 0.265625;
+    double densityScale = 96.0 / (meanScale * 0.9F + 0.1F);
+
+    double randomDensity = sampleOctaveAmp(
+        &sn->octdepth, noiseX * 200.0, 10.0, noiseZ * 200.0, 1.0, 0.0, 1);
+    randomDensity = randomDensity < 0.0
+        ? -randomDensity * 0.3
+        : randomDensity;
+    randomDensity = randomDensity * 24.575625 - 2.0;
+    randomDensity = randomDensity < 0.0
+        ? randomDensity * 0.009486607142857142
+        : fmin(randomDensity, 1.0) * 0.006640625;
+
+    int noiseY;
+    for (noiseY = 0; noiseY <= 32; noiseY++)
+    {
+        double density = sampleSurfaceNoise(sn, noiseX, noiseY, noiseZ);
+        double falloff = 1.0 - noiseY * 2.0 / 32.0 + randomDensity;
+        falloff = falloff - 0.46875;
+        double shaped = (falloff + depthOffset) * densityScale;
+        density += shaped > 0.0 ? shaped * 4.0 : shaped;
+
+        /* Normal Overworld top slide: target=-10, size=3, offset=0. */
+        double slide = (32.0 - noiseY) / 3.0;
+        column[noiseY] = clampedLerp(slide, -10.0, density);
+    }
+    return 1;
+}
+
+int getFirstFreeHeight116(const Generator *g, const SurfaceNoise *sn,
+    int blockX, int blockZ)
+{
+    if (!g || !sn || g->dim != DIM_OVERWORLD ||
+        g->mc < MC_1_16_1 || g->mc > MC_1_16_5)
+        return -1;
+
+    int cellOffsetX, cellOffsetZ;
+    int cellX = floorDivMod4(blockX, &cellOffsetX);
+    int cellZ = floorDivMod4(blockZ, &cellOffsetZ);
+
+    /*
+     * Four adjacent terrain-noise columns need a shared 5x5 biome
+     * neighbourhood. Their union is this 6x6 area at biome scale 1:4.
+     */
+    Range range = {4, cellX - 2, cellZ - 2, 6, 6, 0, 1};
+    int *biomes = allocCache(g, range);
+    if (!biomes)
+        return -1;
+    if (genBiomes(g, biomes, range) != 0)
+    {
+        free(biomes);
+        return -1;
+    }
+
+    double columns[4][33];
+    int ok =
+        fillNoiseColumn116(columns[0], biomes, 6, 0, 0, sn,
+            cellX, cellZ) &&
+        fillNoiseColumn116(columns[1], biomes, 6, 0, 1, sn,
+            cellX, cellZ + 1) &&
+        fillNoiseColumn116(columns[2], biomes, 6, 1, 0, sn,
+            cellX + 1, cellZ) &&
+        fillNoiseColumn116(columns[3], biomes, 6, 1, 1, sn,
+            cellX + 1, cellZ + 1);
+    free(biomes);
+    if (!ok)
+        return -1;
+
+    double fractionX = cellOffsetX / 4.0;
+    double fractionZ = cellOffsetZ / 4.0;
+    int cellY;
+    for (cellY = 31; cellY >= 0; cellY--)
+    {
+        int localY;
+        for (localY = 7; localY >= 0; localY--)
+        {
+            double fractionY = localY / 8.0;
+            double density = lerp3(
+                fractionY, fractionX, fractionZ,
+                columns[0][cellY], columns[0][cellY + 1],
+                columns[2][cellY], columns[2][cellY + 1],
+                columns[1][cellY], columns[1][cellY + 1],
+                columns[3][cellY], columns[3][cellY + 1]);
+            int y = cellY * 8 + localY;
+
+            /* generateBaseState(): stone for positive density, else water
+             * below sea level 63, else air. WORLD_SURFACE_WG is NOT_AIR. */
+            if (density > 0.0 || y < 63)
+                return y + 1;
+        }
+    }
+    return 0;
+}
 
 
 

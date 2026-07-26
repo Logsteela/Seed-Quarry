@@ -14,6 +14,8 @@ $lootConditionHeaderPath = Join-Path $sourceDir "src\lootcondition.h"
 $lootConditionSourcePath = Join-Path $sourceDir "src\lootcondition.cpp"
 $lootWidgetHeaderPath = Join-Path $sourceDir "src\lootconditionwidget.h"
 $lootWidgetSourcePath = Join-Path $sourceDir "src\lootconditionwidget.cpp"
+$villageStructureSourcePath = Join-Path $sourceDir "src\villagestructure.cpp"
+$villageLootSeedSourcePath = Join-Path $sourceDir "src\villagelootseed.cpp"
 $cubiomesMakefilePath = Join-Path $sourceDir "cubiomes\makefile"
 $cubiomesCmakePath = Join-Path $sourceDir "cubiomes\CMakeLists.txt"
 $projectPath = Join-Path $sourceDir "seed-atlas.pro"
@@ -132,6 +134,8 @@ $lootConditionHeaderText = Get-Content -LiteralPath $lootConditionHeaderPath -Ra
 $lootConditionSourceText = Get-Content -LiteralPath $lootConditionSourcePath -Raw -Encoding UTF8
 $lootWidgetHeaderText = Get-Content -LiteralPath $lootWidgetHeaderPath -Raw -Encoding UTF8
 $lootWidgetSourceText = Get-Content -LiteralPath $lootWidgetSourcePath -Raw -Encoding UTF8
+$villageStructureSourceText = Get-Content -LiteralPath $villageStructureSourcePath -Raw -Encoding UTF8
+$villageLootSeedSourceText = Get-Content -LiteralPath $villageLootSeedSourcePath -Raw -Encoding UTF8
 $cubiomesMakefileText = Get-Content -LiteralPath $cubiomesMakefilePath -Raw -Encoding UTF8
 $cubiomesCmakeText = Get-Content -LiteralPath $cubiomesCmakePath -Raw -Encoding UTF8
 $projectText = Get-Content -LiteralPath $projectPath -Raw -Encoding UTF8
@@ -198,6 +202,10 @@ Assert-SourceCheck ($lootConditionSourceText.Contains("LootSearchCacheEntry")) `
     "src/lootcondition.cpp is missing the 48-bit Loot cache."
 Assert-SourceCheck ($lootConditionSourceText.Contains("canMatchStructureLoot48")) `
     "src/lootcondition.cpp is missing the conservative 48-bit Loot precheck."
+Assert-SourceCheck ($villageStructureSourceText.Contains("generateVillageLayout16")) `
+    "src/villagestructure.cpp is missing exact Java 1.16.1 Village layout generation."
+Assert-SourceCheck ($villageLootSeedSourceText.Contains("assignVillageLootSeedsSingleStart16")) `
+    "src/villagelootseed.cpp is missing Village LootTableSeed assignment."
 Assert-SourceCheck ($searchText.Contains("env->fastFamilyLoot")) `
     "src/search.cpp is missing the optional 48-bit Loot precheck wiring."
 Assert-SourceCheck ($formSearchUiText.Contains('name="checkLootFast"')) `
@@ -225,10 +233,16 @@ Assert-SourceCheck ($projectText.Contains('src/lootcondition.cpp')) `
     "seed-atlas.pro does not compile src/lootcondition.cpp."
 Assert-SourceCheck ($projectText.Contains('src/lootconditionwidget.cpp')) `
     "seed-atlas.pro does not compile src/lootconditionwidget.cpp."
+Assert-SourceCheck ($projectText.Contains('src/villagestructure.cpp')) `
+    "seed-atlas.pro does not compile src/villagestructure.cpp."
+Assert-SourceCheck ($projectText.Contains('src/villagelootseed.cpp')) `
+    "seed-atlas.pro does not compile src/villagelootseed.cpp."
 Assert-SourceCheck ($versionTestsText.Contains("3515201313347228787ULL")) `
     "The MineMap desert-pyramid golden-vector test is missing."
 Assert-SourceCheck ($lootTestsText.Contains("widePositions.fill(pyramid, 70000)")) `
     "The wide area-total regression test is missing."
+Assert-SourceCheck ($lootTestsText.Contains("SEM_NOGPFAULTERRORBOX")) `
+    "Loot tests may still open a modal Windows crash dialog."
 Assert-SourceCheck ($noticesText.Contains("SeedFinding Java libraries")) `
     "The SeedFinding attribution is missing from THIRD_PARTY_NOTICES.md."
 

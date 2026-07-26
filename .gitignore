@@ -1,5 +1,17 @@
 /build-dev-*/
 /build-tests/
+/build-structure-data/
+/build-bastion-probe/
+/build-village-probe/
+/build-village-loot-probe/
+__pycache__/
+*.pyc
+/.reference-bastion-generator/
+/.reference-client-mappings.txt
+/.reference-seedmapper/
+/.reference-mc-terrain-java/
+/.reference-seed-checker/
+/.reference-seed-checker-1.16.1/
 /desktop-shortcuts/
 /tests/.qmake.stash
 /tests/Makefile*

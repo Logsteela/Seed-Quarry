@@ -1,0 +1,59 @@
+#ifndef VILLAGELOOTSEED_H
+#define VILLAGELOOTSEED_H
+
+#include "villagestructure.h"
+
+#include <QString>
+#include <QVector>
+
+#include <stdint.h>
+
+enum VillageLootSeedQuality16
+{
+    VILLAGE_LOOT_SEED_EXACT,
+    VILLAGE_LOOT_SEED_UNRESOLVED_FEATURE,
+    VILLAGE_LOOT_SEED_UNRESOLVED_OVERLAP,
+};
+
+/**
+ * A loot-table-bearing Village container and the seed assigned while its
+ * structure piece is placed in Java 1.16.1.
+ *
+ * lootTableSeed is meaningful only when quality is
+ * VILLAGE_LOOT_SEED_EXACT. Position and piece metadata remain exact for the
+ * unresolved qualities.
+ */
+struct VillageLootChestSeed16
+{
+    VillageContainer16 container;
+    uint64_t lootTableSeed = 0;
+    int quality = VILLAGE_LOOT_SEED_EXACT;
+
+    bool isExact() const
+    {
+        return quality == VILLAGE_LOOT_SEED_EXACT;
+    }
+};
+
+/**
+ * Assign Village LootTableSeed values for the common single-start case.
+ *
+ * The routine walks pieces in their saved order independently for every
+ * chest chunk. It advances through containers without a LootTable as vanilla
+ * does. Sweet-berry, taiga-grass, and plains-flower feature elements are
+ * reproduced exactly. A preceding tree, pile, cactus, or unknown feature
+ * makes only the later containers in that chunk unresolved.
+ *
+ * Set anotherVillageMayReferenceAChestChunk when another Village start may
+ * be present in any output chest's chunk. In that case positions are still
+ * returned, but every seed is marked UNRESOLVED_OVERLAP.
+ *
+ * Only containers with a non-empty lootTable are returned.
+ */
+bool assignVillageLootSeedsSingleStart16(
+    QVector<VillageLootChestSeed16> *out,
+    const VillageLayout16& layout, uint64_t worldSeed,
+    bool anotherVillageMayReferenceAChestChunk,
+    QString *error = nullptr);
+
+#endif

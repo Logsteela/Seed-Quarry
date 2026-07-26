@@ -1,10 +1,15 @@
 #include "lootcondition.h"
 
+#include "bastionstructure.h"
+#include "villagelootseed.h"
+#include "villagestructure.h"
+
 #include <QDataStream>
 #include <QHash>
 #include <QIODevice>
 #include <QMutex>
 #include <QMutexLocker>
+#include <QSet>
 
 #include <algorithm>
 #include <limits>
@@ -12,7 +17,8 @@
 namespace {
 
 const quint32 LOOT_RULE_MAGIC = 0x31524c53; // "SLR1"
-const quint16 LOOT_RULE_VERSION = 1;
+const quint16 LOOT_RULE_VERSION_LEGACY = 1;
+const quint16 LOOT_RULE_VERSION_POSITION = 2;
 
 QMutex g_lootRuleMutex;
 QHash<quint64, QByteArray> g_lootRuleData;
@@ -24,11 +30,174 @@ struct LootAccumulator
     quint64 enchantedBook[DP_ENCH_COUNT][DP_ENCH_MAX_LEVEL + 1] = {};
 };
 
+struct GeneratedLootChest
+{
+    StructureLoot loot = {};
+    bool present = false;
+    bool contentsKnown = true;
+    Pos3 pos = {};
+    int table = -1;
+    QString piece;
+};
+
 struct LootChestSet
 {
-    StructureLoot chest[4] = {};
-    bool present[4] = {};
+    QVector<GeneratedLootChest> chests;
 };
+
+qint64 blockChunkKey(int blockX, int blockZ)
+{
+    const int chunkX = floordiv(blockX, 16);
+    const int chunkZ = floordiv(blockZ, 16);
+    return qint64(
+        (quint64(quint32(chunkX)) << 32) |
+        quint64(quint32(chunkZ)));
+}
+
+int chunkXFromKey(qint64 key)
+{
+    return qint32(quint64(key) >> 32);
+}
+
+int chunkZFromKey(qint64 key)
+{
+    return qint32(quint32(key));
+}
+
+bool hasVillageItemContentRule(const LootRuleSet& rules)
+{
+    for (const LootRule& rule : rules.rules)
+    {
+        if (rule.item != DP_LOOT_ANY_CONTAINER)
+            return true;
+    }
+    return false;
+}
+
+bool villageLootChunksHaveAnotherRngStart(
+    const VillageLayout16& target, uint64_t worldSeed,
+    int targetStartChunkX, int targetStartChunkZ)
+{
+    QSet<qint64> chestChunks;
+    for (const VillageContainer16& container :
+         target.containers)
+    {
+        if (!container.lootTable.isEmpty())
+        {
+            chestChunks.insert(blockChunkKey(
+                container.pos.x, container.pos.z));
+        }
+    }
+    if (chestChunks.isEmpty())
+        return false;
+
+    QSet<qint64> candidateStarts;
+    for (qint64 chestKey : chestChunks)
+    {
+        const int chestChunkX = chunkXFromKey(chestKey);
+        const int chestChunkZ = chunkZFromKey(chestKey);
+        const int minRegionX =
+            floordiv(chestChunkX - 8, 32);
+        const int maxRegionX =
+            floordiv(chestChunkX + 8, 32);
+        const int minRegionZ =
+            floordiv(chestChunkZ - 8, 32);
+        const int maxRegionZ =
+            floordiv(chestChunkZ + 8, 32);
+        for (int regionZ = minRegionZ;
+             regionZ <= maxRegionZ; regionZ++)
+        {
+            for (int regionX = minRegionX;
+                 regionX <= maxRegionX; regionX++)
+            {
+                Pos start;
+                if (!getStructurePos(
+                        Village, MC_1_16_1, worldSeed,
+                        regionX, regionZ, &start))
+                {
+                    continue;
+                }
+                const int startChunkX =
+                    floordiv(start.x, 16);
+                const int startChunkZ =
+                    floordiv(start.z, 16);
+                if (startChunkX == targetStartChunkX &&
+                    startChunkZ == targetStartChunkZ)
+                {
+                    continue;
+                }
+                candidateStarts.insert(qint64(
+                    (quint64(quint32(startChunkX)) << 32) |
+                    quint64(quint32(startChunkZ))));
+            }
+        }
+    }
+
+    Generator generator;
+    setupGenerator(&generator, MC_1_16_1, 0);
+    applySeed(&generator, DIM_OVERWORLD, worldSeed);
+    for (qint64 startKey : candidateStarts)
+    {
+        const int startChunkX =
+            chunkXFromKey(startKey);
+        const int startChunkZ =
+            chunkZFromKey(startKey);
+
+        bool nearTargetChest = false;
+        for (qint64 chestKey : chestChunks)
+        {
+            if (qAbs(startChunkX -
+                     chunkXFromKey(chestKey)) <= 8 &&
+                qAbs(startChunkZ -
+                     chunkZFromKey(chestKey)) <= 8)
+            {
+                nearTargetChest = true;
+                break;
+            }
+        }
+        if (!nearTargetChest)
+            continue;
+
+        const Pos start = {
+            startChunkX * 16, startChunkZ * 16,
+        };
+        const int biomeId = isViableStructurePos(
+            Village, &generator, start.x, start.z, 0);
+        if (!biomeId)
+            continue;
+
+        VillageLayout16 neighbor;
+        if (!generateVillageLayout16(
+                &neighbor, worldSeed, startChunkX,
+                startChunkZ, biomeId))
+        {
+            // A failed proof must not be treated as a safe single-start
+            // placement.
+            return true;
+        }
+
+        for (const VillagePiece16& piece : neighbor.pieces)
+        {
+            if (piece.elementType != VillagePiece16::FEATURE)
+                continue;
+            if (chestChunks.contains(blockChunkKey(
+                    piece.pos.x, piece.pos.z)))
+            {
+                return true;
+            }
+        }
+        for (const VillageContainer16& container :
+             neighbor.containers)
+        {
+            if (chestChunks.contains(blockChunkKey(
+                    container.pos.x, container.pos.z)))
+            {
+                return true;
+            }
+        }
+    }
+    return false;
+}
 
 quint64 contentHash(const QByteArray& data)
 {
@@ -53,6 +222,8 @@ void addLoot(LootAccumulator *dst, const DesertPyramidLoot& src)
 
 quint64 countRule(const LootAccumulator& loot, const LootRule& rule)
 {
+    if (rule.item == DP_LOOT_ANY_CONTAINER)
+        return 1;
     if (rule.item != DP_LOOT_ENCHANTED_BOOK || rule.enchantment < 0)
         return loot.count[rule.item];
 
@@ -64,31 +235,77 @@ quint64 countRule(const LootAccumulator& loot, const LootRule& rule)
     return count;
 }
 
-bool matchesCounts(
-    const LootRuleSet& rules, const QVector<uint64_t>& counts)
+LootMatchStatus matchesCountsStatus(
+    const LootRuleSet& rules, const QVector<uint64_t>& counts,
+    const QVector<bool>& known)
 {
     if (rules.rules.isEmpty())
-        return true;
+        return LOOT_MATCH_YES;
 
-    bool result = rules.logic == LootRuleSet::LOGIC_ALL;
+    bool sawUnknown = false;
     for (int i = 0; i < rules.rules.size(); i++)
     {
         const LootRule& rule = rules.rules[i];
         uint64_t count = i < counts.size() ? counts[i] : 0;
-        bool match = count >= quint64(rule.minCount) &&
-            (rule.maxCount < 0 || count <= quint64(rule.maxCount));
+        const bool countKnown = i < known.size() ? known[i] : true;
+        LootMatchStatus status;
+        if (countKnown)
+        {
+            const bool match = count >= quint64(rule.minCount) &&
+                (rule.maxCount < 0 ||
+                 count <= quint64(rule.maxCount));
+            status = match ? LOOT_MATCH_YES : LOOT_MATCH_NO;
+        }
+        else if (rule.maxCount >= 0 &&
+                 count > quint64(rule.maxCount))
+        {
+            // Unknown containers can only add non-negative item counts.
+            status = LOOT_MATCH_NO;
+        }
+        else if (rule.maxCount < 0 &&
+                 count >= quint64(rule.minCount))
+        {
+            // With no upper bound, already meeting the minimum cannot be
+            // invalidated by the unresolved containers.
+            status = LOOT_MATCH_YES;
+        }
+        else
+        {
+            status = LOOT_MATCH_UNKNOWN;
+        }
+
         if (rules.logic == LootRuleSet::LOGIC_ALL)
         {
-            if (!match)
-                return false;
+            if (status == LOOT_MATCH_NO)
+                return LOOT_MATCH_NO;
         }
-        else if (match)
+        else if (status == LOOT_MATCH_YES)
         {
-            return true;
+            return LOOT_MATCH_YES;
         }
-        result = match;
+        sawUnknown = sawUnknown ||
+            status == LOOT_MATCH_UNKNOWN;
     }
-    return result;
+    if (sawUnknown)
+        return LOOT_MATCH_UNKNOWN;
+    return rules.logic == LootRuleSet::LOGIC_ALL
+        ? LOOT_MATCH_YES : LOOT_MATCH_NO;
+}
+
+LootMatchStatus matchesChest(
+    const LootRuleSet& rules, const LootSearchCacheChest& chest)
+{
+    if (!chest.present)
+        return LOOT_MATCH_NO;
+    QVector<bool> known;
+    known.reserve(rules.rules.size());
+    for (const LootRule& rule : rules.rules)
+    {
+        known.push_back(
+            chest.contentsKnown ||
+            rule.item == DP_LOOT_ANY_CONTAINER);
+    }
+    return matchesCountsStatus(rules, chest.counts, known);
 }
 
 QVector<uint64_t> getRuleCounts(
@@ -103,49 +320,158 @@ QVector<uint64_t> getRuleCounts(
     return counts;
 }
 
+bool chestPositionMatches(
+    const LootRuleSet& rules, const GeneratedLootChest& chest,
+    Pos structurePos)
+{
+    if (rules.chestPositionMode ==
+        LootRuleSet::CHEST_POSITION_ANY)
+    {
+        return true;
+    }
+    if (rules.structureType != Bastion &&
+        rules.structureType != Village)
+        return false;
+
+    int x = chest.pos.x;
+    int y = chest.pos.y;
+    int z = chest.pos.z;
+    if (rules.chestPositionMode ==
+        LootRuleSet::CHEST_POSITION_RELATIVE)
+    {
+        if (rules.structureType != Bastion)
+            return false;
+        x -= (structurePos.x >> 4) << 4;
+        y -= 32;
+        z -= (structurePos.z >> 4) << 4;
+    }
+    return x >= rules.chestMinX && x <= rules.chestMaxX &&
+        y >= rules.chestMinY && y <= rules.chestMaxY &&
+        z >= rules.chestMinZ && z <= rules.chestMaxZ;
+}
+
 bool getStructureLoot(
     LootChestSet *out, const LootRuleSet& rules,
     int mc, uint64_t worldSeed, Pos pos, int biomeId)
 {
     if (!out || !isLootSupported(rules.structureType, mc))
         return false;
+    out->chests.clear();
+
     int chunkX = pos.x >> 4;
     int chunkZ = pos.z >> 4;
     if (rules.structureType == Desert_Pyramid)
     {
-        for (int i = 0; i < 4; i++)
+        out->chests.resize(4);
+        for (int i = 0; i < out->chests.size(); i++)
         {
+            GeneratedLootChest& chest = out->chests[i];
             if (!getDesertPyramidLoot16(
-                    &out->chest[i], worldSeed, chunkX, chunkZ, i))
+                    &chest.loot, worldSeed, chunkX, chunkZ, i))
                 return false;
-            out->present[i] = true;
+            chest.present = true;
         }
         return true;
     }
     if (rules.structureType == Treasure)
     {
-        out->present[0] = getBuriedTreasureLoot16(
-            &out->chest[0], worldSeed, chunkX, chunkZ);
-        return out->present[0];
+        out->chests.resize(1);
+        GeneratedLootChest& chest = out->chests[0];
+        chest.present = getBuriedTreasureLoot16(
+            &chest.loot, worldSeed, chunkX, chunkZ);
+        return chest.present;
     }
     if (rules.structureType == Ruined_Portal ||
         rules.structureType == Ruined_Portal_N)
     {
-        out->present[0] = getRuinedPortalLoot16(
-            &out->chest[0], worldSeed, chunkX, chunkZ);
-        return out->present[0];
+        out->chests.resize(1);
+        GeneratedLootChest& chest = out->chests[0];
+        chest.present = getRuinedPortalLoot16(
+            &chest.loot, worldSeed, chunkX, chunkZ);
+        return chest.present;
     }
     if (rules.structureType == Shipwreck)
     {
         if (biomeId < 0)
             return false;
+        StructureLoot loot[SHIPWRECK_CHEST_COUNT] = {};
         uint8_t present[SHIPWRECK_CHEST_COUNT] = {};
         if (!getShipwreckLoot16(
-                out->chest, present, worldSeed, chunkX, chunkZ,
+                loot, present, worldSeed, chunkX, chunkZ,
                 biomeId == beach || biomeId == snowy_beach))
             return false;
+        out->chests.resize(SHIPWRECK_CHEST_COUNT);
         for (int i = 0; i < SHIPWRECK_CHEST_COUNT; i++)
-            out->present[i] = present[i];
+        {
+            out->chests[i].loot = loot[i];
+            out->chests[i].present = present[i];
+        }
+        return true;
+    }
+    if (rules.structureType == Bastion)
+    {
+        BastionLayout16 layout;
+        if (!generateBastionLayout16(
+                &layout, worldSeed, chunkX, chunkZ))
+            return false;
+        out->chests.reserve(layout.chests.size());
+        for (const BastionLootChest16& generated :
+             layout.chests)
+        {
+            GeneratedLootChest chest;
+            chest.present = generateStructureLootTable16(
+                &chest.loot, generated.table,
+                generated.lootTableSeed);
+            if (!chest.present)
+                return false;
+            chest.pos = generated.pos;
+            chest.table = generated.table;
+            chest.piece = generated.piece;
+            out->chests.push_back(chest);
+        }
+        return true;
+    }
+    if (rules.structureType == Village)
+    {
+        if (biomeId < 0)
+            return false;
+        VillageLayout16 layout;
+        if (!generateVillageLayout16(
+                &layout, worldSeed, chunkX, chunkZ, biomeId))
+        {
+            return false;
+        }
+
+        QVector<VillageLootChestSeed16> generatedChests;
+        const bool overlappingRngStart =
+            hasVillageItemContentRule(rules) &&
+            villageLootChunksHaveAnotherRngStart(
+                layout, worldSeed, chunkX, chunkZ);
+        if (!assignVillageLootSeedsSingleStart16(
+                &generatedChests, layout, worldSeed,
+                overlappingRngStart))
+        {
+            return false;
+        }
+        out->chests.reserve(generatedChests.size());
+        for (const VillageLootChestSeed16& generated :
+             generatedChests)
+        {
+            GeneratedLootChest chest;
+            chest.present = true;
+            chest.contentsKnown = generated.isExact();
+            if (chest.contentsKnown &&
+                !generateStructureLootTable16(
+                    &chest.loot, generated.container.table,
+                    generated.lootTableSeed))
+            {
+                return false;
+            }
+            chest.pos = generated.container.pos;
+            chest.table = generated.container.table;
+            chest.piece = generated.container.piece;
+            out->chests.push_back(chest);
+        }
         return true;
     }
     return false;
@@ -158,6 +484,11 @@ bool getCachedRuleCounts(
 {
     if (!out)
         return false;
+
+    // Village terrain, Jigsaw collisions, and therefore its chest list can
+    // change between the 65536 full seeds in one lower-48 family.
+    if (rules.structureType == Village)
+        cache = nullptr;
 
     LootSearchCacheKey key;
     if (cache)
@@ -209,12 +540,20 @@ bool getCachedRuleCounts(
         return false;
 
     LootSearchCacheEntry generated;
-    for (int chest = 0; chest < 4; chest++)
+    generated.chests.reserve(loots.chests.size());
+    for (const GeneratedLootChest& lootChest : loots.chests)
     {
-        generated.present[chest] = loots.present[chest];
-        if (loots.present[chest])
-            generated.count[chest] =
-                getRuleCounts(rules, loots.chest[chest]);
+        LootSearchCacheChest cachedChest;
+        cachedChest.present = lootChest.present &&
+            chestPositionMatches(rules, lootChest, pos);
+        cachedChest.contentsKnown = lootChest.contentsKnown;
+        cachedChest.pos = lootChest.pos;
+        cachedChest.table = lootChest.table;
+        cachedChest.piece = lootChest.piece;
+        if (lootChest.present)
+            cachedChest.counts =
+                getRuleCounts(rules, lootChest.loot);
+        generated.chests.push_back(cachedChest);
     }
     *out = generated;
     if (cache)
@@ -223,18 +562,27 @@ bool getCachedRuleCounts(
 }
 
 QVector<uint64_t> totalRuleCounts(
-    const LootSearchCacheEntry& entry, int ruleCount)
+    const LootRuleSet& rules, const LootSearchCacheEntry& entry,
+    QVector<bool> *known)
 {
+    const int ruleCount = rules.rules.size();
     QVector<uint64_t> total(ruleCount, 0);
-    for (int chest = 0; chest < 4; chest++)
+    if (known)
+        known->fill(true, ruleCount);
+    for (const LootSearchCacheChest& chest : entry.chests)
     {
-        if (!entry.present[chest])
+        if (!chest.present)
             continue;
         for (int rule = 0;
-             rule < ruleCount && rule < entry.count[chest].size();
+             rule < ruleCount && rule < chest.counts.size();
              rule++)
         {
-            total[rule] += entry.count[chest][rule];
+            total[rule] += chest.counts[rule];
+            if (known && !chest.contentsKnown &&
+                rules.rules[rule].item != DP_LOOT_ANY_CONTAINER)
+            {
+                (*known)[rule] = false;
+            }
         }
     }
     return total;
@@ -276,25 +624,56 @@ void LootSearchCache::reset()
 
 bool isLootSupported(int structureType, int mc)
 {
-    bool structureSupported =
+    const bool fixedStructureSupported =
         structureType == Desert_Pyramid ||
         structureType == Shipwreck ||
         structureType == Treasure ||
         structureType == Ruined_Portal ||
         structureType == Ruined_Portal_N;
-    return structureSupported &&
-        (mc == MC_1_16_1 || mc == MC_1_16_5);
+    if (fixedStructureSupported)
+        return mc == MC_1_16_1 || mc == MC_1_16_5;
+    if (structureType == Bastion)
+        return mc == MC_1_16_1 &&
+            isBastionStructureData16Available();
+    if (structureType == Village)
+        return mc == MC_1_16_1 &&
+            isVillageStructureData16Available();
+    return false;
 }
 
 QString lootSupportDescription(int structureType, int mc)
 {
     if (isLootSupported(structureType, mc))
         return QString();
+    if (structureType == Bastion)
+    {
+        if (mc != MC_1_16_1)
+        {
+            return QString::fromUtf8(
+                "砦の遺跡の正確なチェスト検索は、現在Java 1.16.1専用です。");
+        }
+        QString error;
+        isBastionStructureData16Available(&error);
+        return error;
+    }
+    if (structureType == Village)
+    {
+        if (mc != MC_1_16_1)
+        {
+            return QString::fromUtf8(
+                "村の正確なピース・チェスト位置検索は、"
+                "現在Java 1.16.1専用です。");
+        }
+        QString error;
+        isVillageStructureData16Available(&error);
+        return error;
+    }
     if (structureType != Desert_Pyramid &&
         structureType != Shipwreck &&
         structureType != Treasure &&
         structureType != Ruined_Portal &&
-        structureType != Ruined_Portal_N)
+        structureType != Ruined_Portal_N &&
+        structureType != Bastion)
     {
         return QString::fromUtf8(
             "この構造物のチェスト内容計算にはまだ対応していません。");
@@ -317,6 +696,14 @@ QString validateLootRuleSet(const LootRuleSet& rules, int mc)
     if (rules.chestMode < LootRuleSet::CHESTS_TOTAL ||
         rules.chestMode > LootRuleSet::CHEST_4)
         return QString::fromUtf8("チェストの集計方法が不正です。");
+    if ((rules.structureType == Bastion ||
+         rules.structureType == Village) &&
+        rules.chestMode >= LootRuleSet::CHEST_1)
+    {
+        return QString::fromUtf8(
+            "この構造物はコンテナ数が変動するため、"
+            "合計・いずれか・各コンテナのいずれかを選んでください。");
+    }
     if ((rules.structureType == Treasure ||
          rules.structureType == Ruined_Portal ||
          rules.structureType == Ruined_Portal_N) &&
@@ -330,6 +717,39 @@ QString validateLootRuleSet(const LootRuleSet& rules, int mc)
     {
         return QString::fromUtf8(
             "難破船には4番目のチェスト種別がありません。");
+    }
+    if (rules.chestPositionMode <
+            LootRuleSet::CHEST_POSITION_ANY ||
+        rules.chestPositionMode >
+            LootRuleSet::CHEST_POSITION_RELATIVE)
+    {
+        return QString::fromUtf8(
+            "チェスト座標の指定方法が不正です。");
+    }
+    if (rules.chestPositionMode !=
+            LootRuleSet::CHEST_POSITION_ANY &&
+        rules.structureType != Bastion &&
+        rules.structureType != Village)
+    {
+        return QString::fromUtf8(
+            "チェスト座標による絞り込みは、現在は村と砦の遺跡に対応しています。");
+    }
+    if (rules.chestPositionMode ==
+            LootRuleSet::CHEST_POSITION_RELATIVE &&
+        rules.structureType != Bastion)
+    {
+        return QString::fromUtf8(
+            "開始位置からの相対チェスト座標は、現在は砦の遺跡に対応しています。"
+            "村ではワールド絶対座標を選んでください。");
+    }
+    if (rules.chestPositionMode !=
+            LootRuleSet::CHEST_POSITION_ANY &&
+        (rules.chestMinX > rules.chestMaxX ||
+         rules.chestMinY > rules.chestMaxY ||
+         rules.chestMinZ > rules.chestMaxZ))
+    {
+        return QString::fromUtf8(
+            "チェスト座標の最小値が最大値を超えています。");
     }
     if (rules.rules.isEmpty())
         return QString::fromUtf8("アイテム条件を1個以上追加してください。");
@@ -369,7 +789,12 @@ QByteArray serializeLootRuleSet(const LootRuleSet& rules)
     QDataStream stream(&data, QIODevice::WriteOnly);
     stream.setByteOrder(QDataStream::LittleEndian);
     stream.setVersion(QDataStream::Qt_5_15);
-    stream << LOOT_RULE_MAGIC << LOOT_RULE_VERSION
+    const quint16 version =
+        rules.chestPositionMode ==
+            LootRuleSet::CHEST_POSITION_ANY
+        ? LOOT_RULE_VERSION_LEGACY
+        : LOOT_RULE_VERSION_POSITION;
+    stream << LOOT_RULE_MAGIC << version
            << qint16(rules.structureType)
            << quint8(rules.logic)
            << quint8(rules.instanceMode)
@@ -383,6 +808,16 @@ QByteArray serializeLootRuleSet(const LootRuleSet& rules)
                << qint16(rule.enchantment)
                << qint16(rule.minLevel)
                << qint16(rule.maxLevel);
+    }
+    if (version >= LOOT_RULE_VERSION_POSITION)
+    {
+        stream << quint8(rules.chestPositionMode)
+               << qint32(rules.chestMinX)
+               << qint32(rules.chestMaxX)
+               << qint32(rules.chestMinY)
+               << qint32(rules.chestMaxY)
+               << qint32(rules.chestMinZ)
+               << qint32(rules.chestMaxZ);
     }
     return data;
 }
@@ -403,7 +838,9 @@ bool deserializeLootRuleSet(
     stream >> magic >> version >> structureType
            >> logic >> instanceMode >> chestMode >> count;
     if (stream.status() != QDataStream::Ok ||
-        magic != LOOT_RULE_MAGIC || version != LOOT_RULE_VERSION ||
+        magic != LOOT_RULE_MAGIC ||
+        (version != LOOT_RULE_VERSION_LEGACY &&
+         version != LOOT_RULE_VERSION_POSITION) ||
         count > 100000)
     {
         if (error)
@@ -438,6 +875,29 @@ bool deserializeLootRuleSet(
         rule.maxLevel = maxLevel;
         decoded.rules.push_back(rule);
     }
+    if (version >= LOOT_RULE_VERSION_POSITION)
+    {
+        quint8 positionMode;
+        qint32 minX, maxX, minY, maxY, minZ, maxZ;
+        stream >> positionMode
+               >> minX >> maxX
+               >> minY >> maxY
+               >> minZ >> maxZ;
+        if (stream.status() != QDataStream::Ok)
+        {
+            if (error)
+                *error = QString::fromUtf8(
+                    "Loot条件のチェスト座標データが途中で切れています。");
+            return false;
+        }
+        decoded.chestPositionMode = positionMode;
+        decoded.chestMinX = minX;
+        decoded.chestMaxX = maxX;
+        decoded.chestMinY = minY;
+        decoded.chestMaxY = maxY;
+        decoded.chestMinZ = minZ;
+        decoded.chestMaxZ = maxZ;
+    }
     if (!stream.atEnd())
     {
         if (error)
@@ -471,7 +931,7 @@ bool lookupLootRuleSet(uint64_t hash, LootRuleSet *rules)
     return true;
 }
 
-bool matchStructureLoot(
+LootMatchStatus matchStructureLootStatus(
     const LootRuleSet& rules, int mc, uint64_t worldSeed,
     Pos structurePos, int biomeId, LootSearchCache *cache,
     uint64_t cacheRuleKey)
@@ -480,48 +940,59 @@ bool matchStructureLoot(
     if (!getCachedRuleCounts(
             &counts, rules, mc, worldSeed,
             structurePos, biomeId, cache, cacheRuleKey))
-        return false;
+        return LOOT_MATCH_NO;
 
     if (rules.chestMode >= LootRuleSet::CHEST_1)
     {
         int index = rules.chestMode - LootRuleSet::CHEST_1;
-        return index >= 0 && index < 4 && counts.present[index] &&
-            matchesCounts(rules, counts.count[index]);
+        if (index < 0 || index >= counts.chests.size())
+            return LOOT_MATCH_NO;
+        return matchesChest(rules, counts.chests[index]);
     }
     if (rules.chestMode == LootRuleSet::CHEST_ANY)
     {
-        for (int i = 0; i < 4; i++)
-            if (counts.present[i] &&
-                matchesCounts(rules, counts.count[i]))
-                return true;
-        return false;
+        bool sawUnknown = false;
+        for (const LootSearchCacheChest& chest : counts.chests)
+        {
+            const LootMatchStatus status =
+                matchesChest(rules, chest);
+            if (status == LOOT_MATCH_YES)
+                return LOOT_MATCH_YES;
+            sawUnknown = sawUnknown ||
+                status == LOOT_MATCH_UNKNOWN;
+        }
+        return sawUnknown
+            ? LOOT_MATCH_UNKNOWN : LOOT_MATCH_NO;
     }
     if (rules.chestMode == LootRuleSet::CHEST_EVERY)
     {
         bool found = false;
-        for (int i = 0; i < 4; i++)
+        bool sawUnknown = false;
+        for (const LootSearchCacheChest& chest : counts.chests)
         {
-            if (!counts.present[i])
+            if (!chest.present)
                 continue;
             found = true;
-            if (!matchesCounts(rules, counts.count[i]))
-                return false;
+            const LootMatchStatus status =
+                matchesChest(rules, chest);
+            if (status == LOOT_MATCH_NO)
+                return LOOT_MATCH_NO;
+            sawUnknown = sawUnknown ||
+                status == LOOT_MATCH_UNKNOWN;
         }
-        return found;
+        if (!found)
+            return LOOT_MATCH_NO;
+        return sawUnknown
+            ? LOOT_MATCH_UNKNOWN : LOOT_MATCH_YES;
     }
 
-    QVector<uint64_t> total(rules.rules.size(), 0);
-    for (int i = 0; i < 4; i++)
-    {
-        if (!counts.present[i])
-            continue;
-        for (int rule = 0; rule < total.size(); rule++)
-            total[rule] += counts.count[i][rule];
-    }
-    return matchesCounts(rules, total);
+    QVector<bool> known;
+    const QVector<uint64_t> total =
+        totalRuleCounts(rules, counts, &known);
+    return matchesCountsStatus(rules, total, known);
 }
 
-bool matchAreaLoot(
+LootMatchStatus matchAreaLootStatus(
     const LootRuleSet& rules, int mc, uint64_t worldSeed,
     const QVector<Pos>& structurePositions,
     const QVector<int>& biomeIds, LootSearchCache *cache,
@@ -529,8 +1000,9 @@ bool matchAreaLoot(
 {
     if (!biomeIds.isEmpty() &&
         biomeIds.size() != structurePositions.size())
-        return false;
+        return LOOT_MATCH_NO;
     QVector<uint64_t> total(rules.rules.size(), 0);
+    QVector<bool> known(rules.rules.size(), true);
     for (int position = 0;
          position < structurePositions.size(); position++)
     {
@@ -540,16 +1012,45 @@ bool matchAreaLoot(
                 &counts, rules, mc, worldSeed,
                 structurePositions[position], biomeId, cache,
                 cacheRuleKey))
-            return false;
-        for (int chest = 0; chest < 4; chest++)
+            return LOOT_MATCH_NO;
+        for (const LootSearchCacheChest& chest : counts.chests)
         {
-            if (!counts.present[chest])
+            if (!chest.present)
                 continue;
             for (int rule = 0; rule < total.size(); rule++)
-                total[rule] += counts.count[chest][rule];
+            {
+                total[rule] += chest.counts[rule];
+                if (!chest.contentsKnown &&
+                    rules.rules[rule].item !=
+                        DP_LOOT_ANY_CONTAINER)
+                {
+                    known[rule] = false;
+                }
+            }
         }
     }
-    return matchesCounts(rules, total);
+    return matchesCountsStatus(rules, total, known);
+}
+
+bool matchStructureLoot(
+    const LootRuleSet& rules, int mc, uint64_t worldSeed,
+    Pos structurePos, int biomeId, LootSearchCache *cache,
+    uint64_t cacheRuleKey)
+{
+    return matchStructureLootStatus(
+        rules, mc, worldSeed, structurePos, biomeId,
+        cache, cacheRuleKey) == LOOT_MATCH_YES;
+}
+
+bool matchAreaLoot(
+    const LootRuleSet& rules, int mc, uint64_t worldSeed,
+    const QVector<Pos>& structurePositions,
+    const QVector<int>& biomeIds, LootSearchCache *cache,
+    uint64_t cacheRuleKey)
+{
+    return matchAreaLootStatus(
+        rules, mc, worldSeed, structurePositions, biomeIds,
+        cache, cacheRuleKey) == LOOT_MATCH_YES;
 }
 
 bool canMatchStructureLoot48(
@@ -557,6 +1058,14 @@ bool canMatchStructureLoot48(
     Pos structurePos, LootSearchCache *cache,
     uint64_t cacheRuleKey)
 {
+    /*
+     * A village's start pool and exact Y layout need the biome and the full
+     * 64-bit terrain seed.  The lower-48 pass may therefore keep it as a
+     * candidate, but must not reject it from an invented variant/layout.
+     */
+    if (rules.structureType == Village)
+        return true;
+
     if (rules.structureType != Shipwreck)
     {
         return matchStructureLoot(
@@ -586,6 +1095,8 @@ bool canMatchAreaLoot48(
     minimumInstances = qMax(0, minimumInstances);
     if (candidatePositions.size() < minimumInstances)
         return false;
+    if (rules.structureType == Village)
+        return true;
 
     const int ruleCount = rules.rules.size();
     QVector<uint64_t> maximum(ruleCount, 0);
@@ -602,7 +1113,7 @@ bool canMatchAreaLoot48(
             return false;
         }
         QVector<uint64_t> low =
-            totalRuleCounts(first, ruleCount);
+            totalRuleCounts(rules, first, nullptr);
         QVector<uint64_t> high = low;
 
         if (rules.structureType == Shipwreck)
@@ -615,7 +1126,7 @@ bool canMatchAreaLoot48(
                 return false;
             }
             QVector<uint64_t> other =
-                totalRuleCounts(beached, ruleCount);
+                totalRuleCounts(rules, beached, nullptr);
             for (int rule = 0; rule < ruleCount; rule++)
             {
                 low[rule] = qMin(low[rule], other[rule]);

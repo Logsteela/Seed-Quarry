@@ -82,6 +82,108 @@ enum DesertPyramidLootItem
     DP_LOOT_EXPERIENCE_BOTTLE,
     DP_LOOT_LAPIS_LAZULI,
 
+    /*
+     * Village (Java 1.16.1).
+     *
+     * New values must only ever be appended here. The numeric values above
+     * are stored in Seed Atlas condition files and therefore form a
+     * compatibility boundary.
+     */
+    DP_LOOT_BREAD,
+    DP_LOOT_IRON_HELMET,
+    DP_LOOT_PORKCHOP,
+    DP_LOOT_BEEF,
+    DP_LOOT_MUTTON,
+    DP_LOOT_STICK,
+    DP_LOOT_CLAY_BALL,
+    DP_LOOT_GREEN_DYE,
+    DP_LOOT_CACTUS,
+    DP_LOOT_COD,
+    DP_LOOT_SALMON,
+    DP_LOOT_WATER_BUCKET,
+    DP_LOOT_BARREL,
+    DP_LOOT_WHEAT_SEEDS,
+    DP_LOOT_ARROW,
+    DP_LOOT_EGG,
+    DP_LOOT_FLOWER_POT,
+    DP_LOOT_STONE,
+    DP_LOOT_STONE_BRICKS,
+    DP_LOOT_YELLOW_DYE,
+    DP_LOOT_SMOOTH_STONE,
+    DP_LOOT_DANDELION,
+    DP_LOOT_POPPY,
+    DP_LOOT_APPLE,
+    DP_LOOT_OAK_SAPLING,
+    DP_LOOT_GRASS,
+    DP_LOOT_TALL_GRASS,
+    DP_LOOT_ACACIA_SAPLING,
+    DP_LOOT_TORCH,
+    DP_LOOT_BUCKET,
+    DP_LOOT_WHITE_WOOL,
+    DP_LOOT_BLACK_WOOL,
+    DP_LOOT_GRAY_WOOL,
+    DP_LOOT_BROWN_WOOL,
+    DP_LOOT_LIGHT_GRAY_WOOL,
+    DP_LOOT_SHEARS,
+    DP_LOOT_BLUE_ICE,
+    DP_LOOT_SNOW_BLOCK,
+    DP_LOOT_BEETROOT_SEEDS,
+    DP_LOOT_BEETROOT_SOUP,
+    DP_LOOT_FURNACE,
+    DP_LOOT_SNOWBALL,
+    DP_LOOT_FERN,
+    DP_LOOT_LARGE_FERN,
+    DP_LOOT_SWEET_BERRIES,
+    DP_LOOT_PUMPKIN_SEEDS,
+    DP_LOOT_PUMPKIN_PIE,
+    DP_LOOT_SPRUCE_SAPLING,
+    DP_LOOT_SPRUCE_SIGN,
+    DP_LOOT_SPRUCE_LOG,
+    DP_LOOT_LEATHER,
+    DP_LOOT_REDSTONE,
+    DP_LOOT_IRON_PICKAXE,
+    DP_LOOT_IRON_SHOVEL,
+    DP_LOOT_IRON_CHESTPLATE,
+    DP_LOOT_IRON_LEGGINGS,
+    DP_LOOT_IRON_BOOTS,
+
+    /* Bastion remnant (Java 1.16.1). */
+    DP_LOOT_LODESTONE,
+    DP_LOOT_CROSSBOW,
+    DP_LOOT_SPECTRAL_ARROW,
+    DP_LOOT_GILDED_BLACKSTONE,
+    DP_LOOT_CRYING_OBSIDIAN,
+    DP_LOOT_DIAMOND_SHOVEL,
+    DP_LOOT_NETHERITE_SCRAP,
+    DP_LOOT_ANCIENT_DEBRIS,
+    DP_LOOT_GLOWSTONE,
+    DP_LOOT_SOUL_SAND,
+    DP_LOOT_CRIMSON_NYLIUM,
+    DP_LOOT_COOKED_PORKCHOP,
+    DP_LOOT_CRIMSON_FUNGUS,
+    DP_LOOT_CRIMSON_ROOTS,
+    DP_LOOT_PIGLIN_BANNER_PATTERN,
+    DP_LOOT_MUSIC_DISC_PIGSTEP,
+    DP_LOOT_CHAIN,
+    DP_LOOT_MAGMA_CREAM,
+    DP_LOOT_BONE_BLOCK,
+    DP_LOOT_NETHERITE_INGOT,
+    DP_LOOT_DIAMOND_SWORD,
+    DP_LOOT_DIAMOND_CHESTPLATE,
+    DP_LOOT_DIAMOND_HELMET,
+    DP_LOOT_DIAMOND_LEGGINGS,
+    DP_LOOT_DIAMOND_BOOTS,
+    DP_LOOT_QUARTZ,
+    DP_LOOT_DEAD_BUSH,
+
+    /*
+     * Seed Atlas virtual item. This is not present in a Minecraft Loot table;
+     * it counts one for every generated randomizable container and enables
+     * position-only/chest-count filters without guessing the chest contents.
+     * Keep it appended so existing serialized item numbers remain stable.
+     */
+    DP_LOOT_ANY_CONTAINER,
+
     DP_LOOT_ITEM_COUNT
 };
 
@@ -124,6 +226,8 @@ enum DesertPyramidEnchantment
     DP_ENCH_PIERCING,
     DP_ENCH_MENDING,
     DP_ENCH_VANISHING_CURSE,
+    /* Appended to keep all pre-existing saved enchantment ids stable. */
+    DP_ENCH_SOUL_SPEED,
     DP_ENCH_COUNT
 };
 
@@ -145,6 +249,35 @@ enum ShipwreckLootChest
     SHIPWRECK_CHEST_MAP,
     SHIPWRECK_CHEST_TREASURE,
     SHIPWRECK_CHEST_COUNT
+};
+
+/**
+ * Loot table ids are deliberately independent of cubiomes StructureType:
+ * villages and bastions each contain several different chest tables.
+ */
+enum StructureLootTable16
+{
+    LOOT_TABLE16_VILLAGE_ARMORER,
+    LOOT_TABLE16_VILLAGE_BUTCHER,
+    LOOT_TABLE16_VILLAGE_CARTOGRAPHER,
+    LOOT_TABLE16_VILLAGE_DESERT_HOUSE,
+    LOOT_TABLE16_VILLAGE_FISHER,
+    LOOT_TABLE16_VILLAGE_FLETCHER,
+    LOOT_TABLE16_VILLAGE_MASON,
+    LOOT_TABLE16_VILLAGE_PLAINS_HOUSE,
+    LOOT_TABLE16_VILLAGE_SAVANNA_HOUSE,
+    LOOT_TABLE16_VILLAGE_SHEPHERD,
+    LOOT_TABLE16_VILLAGE_SNOWY_HOUSE,
+    LOOT_TABLE16_VILLAGE_TAIGA_HOUSE,
+    LOOT_TABLE16_VILLAGE_TANNERY,
+    LOOT_TABLE16_VILLAGE_TEMPLE,
+    LOOT_TABLE16_VILLAGE_TOOLSMITH,
+    LOOT_TABLE16_VILLAGE_WEAPONSMITH,
+    LOOT_TABLE16_BASTION_BRIDGE,
+    LOOT_TABLE16_BASTION_HOGLIN_STABLE,
+    LOOT_TABLE16_BASTION_OTHER,
+    LOOT_TABLE16_BASTION_TREASURE,
+    LOOT_TABLE16_COUNT
 };
 
 /**
@@ -171,6 +304,17 @@ int getShipwreckLoot16(StructureLoot out[SHIPWRECK_CHEST_COUNT],
                        uint8_t present[SHIPWRECK_CHEST_COUNT],
                        uint64_t worldSeed, int chunkX, int chunkZ,
                        int isBeached);
+
+/**
+ * Generates the combined (non-slot-indexed) contents of one Java 1.16.1
+ * village or bastion loot table from the LootTableSeed stored on that chest.
+ *
+ * lootTableSeed is the 64-bit NBT LootTableSeed value, not the world seed.
+ * Returns zero for a null output pointer or an invalid table id.
+ */
+int generateStructureLootTable16(StructureLoot *out, int table,
+                                 uint64_t lootTableSeed);
+const char *structureLootTable16Name(int table);
 
 const char *desertPyramidLootItemName(int item);
 const char *desertPyramidEnchantmentName(int enchantment);

@@ -1,9 +1,36 @@
 #include "src/search.h"
+#include "src/villagelootseed.h"
+#include "src/villagestructure.h"
 
 #include <QCoreApplication>
 
 #include <assert.h>
 #include <stdio.h>
+#include <stdlib.h>
+
+#ifdef Q_OS_WIN
+#include <windows.h>
+#endif
+
+/*
+ * The CRT assert handler can open a modal "unknown software exception"
+ * dialog on Windows.  These are command-line tests, so report the failed
+ * expression in the terminal and return a normal non-zero exit code instead.
+ */
+static void testAssertionFailed(
+    const char *expression, const char *file, int line)
+{
+    fprintf(
+        stderr, "CHECK failed: %s (%s:%d)\n",
+        expression, file, line);
+    fflush(stderr);
+    exit(3);
+}
+
+#undef assert
+#define assert(expression) \
+    ((expression) ? (void)0 : \
+        testAssertionFailed(#expression, __FILE__, __LINE__))
 
 extern "C" int getStructureConfig_override(
     int stype, int mc, StructureConfig *sconf)
@@ -159,6 +186,21 @@ static void printConditionHex(
 
 int main(int argc, char **argv)
 {
+#ifdef Q_OS_WIN
+    // Keep failed assertions in the invoking terminal instead of opening a
+    // modal Windows crash dialog on the user's desktop.
+    SetErrorMode(
+        SEM_FAILCRITICALERRORS |
+        SEM_NOGPFAULTERRORBOX |
+        SEM_NOOPENFILEERRORBOX);
+#endif
+
+    static_assert(LootRuleSet::CHESTS_TOTAL == 0, "saved chest mode changed");
+    static_assert(LootRuleSet::CHEST_ANY == 1, "saved chest mode changed");
+    static_assert(LootRuleSet::CHEST_EVERY == 2, "saved chest mode changed");
+    static_assert(LootRuleSet::CHEST_1 == 3, "saved chest mode changed");
+    static_assert(LootRuleSet::CHEST_4 == 6, "saved chest mode changed");
+
     QCoreApplication app(argc, argv);
     const uint64_t seed = UINT64_C(3515201313347228787);
     const Pos pyramid = {17 * 16, -9 * 16};
@@ -170,7 +212,75 @@ int main(int argc, char **argv)
     rules.chestMode = LootRuleSet::CHESTS_TOTAL;
     rules.rules << itemRule(DP_LOOT_DIAMOND, 1, 1);
     assert(validateLootRuleSet(rules, MC_1_16_1).isEmpty());
+    assert(serializeLootRuleSet(rules).toHex() ==
+        QByteArray(
+            "534c52310100010000000001000000000001000000"
+            "01000000ffff01000500"));
     assert(matchStructureLoot(rules, MC_1_16_1, seed, pyramid));
+
+    LootSearchCacheEntry variableChestEntry;
+    variableChestEntry.chests.resize(7);
+    for (int i = 0; i < variableChestEntry.chests.size(); i++)
+    {
+        variableChestEntry.chests[i].present = i % 2 == 0;
+        variableChestEntry.chests[i].counts.push_back(uint64_t(i));
+    }
+    assert(variableChestEntry.chests.size() == 7);
+    assert(variableChestEntry.chests[6].present);
+    assert(variableChestEntry.chests[6].counts[0] == 6);
+
+    LootRuleSet allChests = rules;
+    allChests.rules[0] = itemRule(DP_LOOT_DIAMOND, 0, -1);
+    allChests.chestMode = LootRuleSet::CHEST_ANY;
+    assert(matchStructureLoot(
+        allChests, MC_1_16_1, seed, pyramid));
+    allChests.chestMode = LootRuleSet::CHEST_EVERY;
+    assert(matchStructureLoot(
+        allChests, MC_1_16_1, seed, pyramid));
+
+    LootRuleSet positionOnly = rules;
+    positionOnly.rules[0] =
+        itemRule(DP_LOOT_ANY_CONTAINER, 4, 4);
+    assert(matchStructureLoot(
+        positionOnly, MC_1_16_1, seed, pyramid));
+
+    VillageLayout16 villageLayout;
+    QString villageError;
+    assert(generateVillageLayout16(
+        &villageLayout, 0, -25, 21, taiga,
+        &villageError));
+    assert(villageLayout.pieceCount == 62);
+    QVector<VillageLootChestSeed16> villageChests;
+    assert(assignVillageLootSeedsSingleStart16(
+        &villageChests, villageLayout, 0, false,
+        &villageError));
+    assert(villageChests.size() == 2);
+    assert(villageChests[0].isExact());
+
+    LootRuleSet villagePosition;
+    villagePosition.structureType = Village;
+    villagePosition.logic = LootRuleSet::LOGIC_ALL;
+    villagePosition.instanceMode = LootRuleSet::INSTANCE_ANY;
+    villagePosition.chestMode = LootRuleSet::CHESTS_TOTAL;
+    villagePosition.rules <<
+        itemRule(DP_LOOT_ANY_CONTAINER, 1, 1);
+    villagePosition.chestPositionMode =
+        LootRuleSet::CHEST_POSITION_ABSOLUTE;
+    villagePosition.chestMinX =
+        villagePosition.chestMaxX =
+            villageChests[0].container.pos.x;
+    villagePosition.chestMinY =
+        villagePosition.chestMaxY =
+            villageChests[0].container.pos.y;
+    villagePosition.chestMinZ =
+        villagePosition.chestMaxZ =
+            villageChests[0].container.pos.z;
+    assert(validateLootRuleSet(
+        villagePosition, MC_1_16_1).isEmpty());
+    assert(matchStructureLootStatus(
+        villagePosition, MC_1_16_1, 0,
+        Pos{-25 * 16, 21 * 16}, taiga) ==
+        LOOT_MATCH_YES);
 
     Generator generator;
     setupGenerator(&generator, MC_1_16_1, 0);
@@ -425,6 +535,8 @@ int main(int argc, char **argv)
     assert(isLootSupported(Treasure, MC_1_16_1));
     assert(isLootSupported(Ruined_Portal, MC_1_16_5));
     assert(isLootSupported(Ruined_Portal_N, MC_1_16_1));
+    assert(isLootSupported(Village, MC_1_16_1));
+    assert(!isLootSupported(Village, MC_1_16_5));
     assert(structureLootItemAvailable(
         Shipwreck, DP_LOOT_FILLED_MAP));
     assert(!structureLootItemAvailable(

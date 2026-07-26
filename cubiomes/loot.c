@@ -18,7 +18,8 @@ enum
     PORTAL_DECORATION_SALT_16 = 40005,
     SHIPWRECK_DECORATION_SALT_16 = 40006,
     DP_PRIMARY_WEIGHT = 232,
-    DP_BOOK_ENCHANTMENTS_16 = DP_ENCH_COUNT,
+    /* Soul Speed is not discoverable and is excluded from the old tables. */
+    DP_BOOK_ENCHANTMENTS_16 = DP_ENCH_SOUL_SPEED,
     DP_WORLD_BORDER_CHUNKS = 1875000,
 };
 
@@ -44,6 +45,40 @@ typedef struct LootEntry16
     uint8_t maxCount;
     uint8_t function;
 } LootEntry16;
+
+enum LootTableFlags16
+{
+    LT16_NONE = 0,
+    LT16_EMPTY = 1 << 0,
+    LT16_DAMAGE = 1 << 1,
+    LT16_ENCHANT = 1 << 2,
+    LT16_SOUL_SPEED = 1 << 3,
+};
+
+typedef struct LootTableEntry16
+{
+    int16_t item;
+    uint16_t weight;
+    uint8_t minCount;
+    uint8_t maxCount;
+    uint8_t flags;
+} LootTableEntry16;
+
+typedef struct LootTablePool16
+{
+    uint8_t minRolls;
+    uint8_t maxRolls;
+    uint16_t firstEntry;
+    uint16_t entryCount;
+} LootTablePool16;
+
+typedef struct LootTableDefinition16
+{
+    uint8_t firstPool;
+    uint8_t poolCount;
+} LootTableDefinition16;
+
+#include "loot_tables_1_16_1.inc"
 
 typedef struct ShipTemplate16
 {
@@ -137,7 +172,8 @@ static int lootUniform(uint64_t *rng, int low, int high)
     return low >= high ? low : low + nextInt(rng, high - low + 1);
 }
 
-static void consumeRandomEnchantment(uint64_t *rng, int item)
+static int selectRandomEnchantment16(
+    uint64_t *rng, int item, int *level)
 {
     static const uint8_t sword[] = {
         DP_ENCH_SHARPNESS, DP_ENCH_SMITE, DP_ENCH_BANE_OF_ARTHROPODS,
@@ -180,40 +216,72 @@ static void consumeRandomEnchantment(uint64_t *rng, int item)
         DP_ENCH_BINDING_CURSE, DP_ENCH_UNBREAKING, DP_ENCH_MENDING,
         DP_ENCH_VANISHING_CURSE,
     };
+    static const uint8_t crossbow[] = {
+        DP_ENCH_UNBREAKING, DP_ENCH_MULTISHOT, DP_ENCH_QUICK_CHARGE,
+        DP_ENCH_PIERCING, DP_ENCH_MENDING, DP_ENCH_VANISHING_CURSE,
+    };
 
     const uint8_t *applicable = 0;
     int count = 0;
     switch (item)
     {
+    case DP_LOOT_ENCHANTED_BOOK:
+        /*
+         * The pre-Soul-Speed ids are deliberately in the same order as the
+         * 1.16.1 enchantment registry after the non-discoverable Soul Speed
+         * entry is filtered out.
+         */
+        {
+            int enchantment = nextInt(rng, DP_BOOK_ENCHANTMENTS_16);
+            int maxLevel = DP_BOOK_MAX_LEVEL_16[enchantment];
+            *level = maxLevel > 1 ? 1 + nextInt(rng, maxLevel) : 1;
+            return enchantment;
+        }
     case DP_LOOT_GOLDEN_SWORD:
     case DP_LOOT_IRON_SWORD:
+    case DP_LOOT_DIAMOND_SWORD:
         applicable = sword; count = sizeof(sword); break;
     case DP_LOOT_GOLDEN_AXE:
         applicable = axe; count = sizeof(axe); break;
     case DP_LOOT_GOLDEN_HOE:
     case DP_LOOT_GOLDEN_SHOVEL:
     case DP_LOOT_GOLDEN_PICKAXE:
+    case DP_LOOT_DIAMOND_SHOVEL:
         applicable = digger; count = sizeof(digger); break;
     case DP_LOOT_GOLDEN_BOOTS:
     case DP_LOOT_LEATHER_BOOTS:
+    case DP_LOOT_DIAMOND_BOOTS:
         applicable = boots; count = sizeof(boots); break;
     case DP_LOOT_GOLDEN_CHESTPLATE:
     case DP_LOOT_LEATHER_CHESTPLATE:
+    case DP_LOOT_DIAMOND_CHESTPLATE:
         applicable = chestplate; count = sizeof(chestplate); break;
     case DP_LOOT_GOLDEN_HELMET:
     case DP_LOOT_LEATHER_HELMET:
+    case DP_LOOT_DIAMOND_HELMET:
         applicable = helmet; count = sizeof(helmet); break;
     case DP_LOOT_GOLDEN_LEGGINGS:
     case DP_LOOT_LEATHER_LEGGINGS:
+    case DP_LOOT_DIAMOND_LEGGINGS:
         applicable = leggings; count = sizeof(leggings); break;
+    case DP_LOOT_CROSSBOW:
+        applicable = crossbow; count = sizeof(crossbow); break;
     }
     if (count > 0)
     {
         int enchantment = applicable[nextInt(rng, count)];
         int maxLevel = DP_BOOK_MAX_LEVEL_16[enchantment];
-        if (maxLevel > 1)
-            nextInt(rng, maxLevel);
+        *level = maxLevel > 1 ? 1 + nextInt(rng, maxLevel) : 1;
+        return enchantment;
     }
+    *level = 0;
+    return -1;
+}
+
+static void consumeRandomEnchantment(uint64_t *rng, int item)
+{
+    int level;
+    selectRandomEnchantment16(rng, item, &level);
 }
 
 static void consumeStewEffect(uint64_t *rng)
@@ -738,6 +806,106 @@ int getShipwreckLoot16(
     return 1;
 }
 
+int generateStructureLootTable16(
+    StructureLoot *out, int table, uint64_t lootTableSeed)
+{
+    if (!out || table < 0 || table >= LOOT_TABLE16_COUNT)
+        return 0;
+
+    memset(out, 0, sizeof(*out));
+    uint64_t rng;
+    setSeed(&rng, lootTableSeed);
+
+    const LootTableDefinition16 *definition =
+        STRUCTURE_LOOT_TABLES_16 + table;
+    for (int poolIndex = 0;
+         poolIndex < definition->poolCount; poolIndex++)
+    {
+        const LootTablePool16 *pool =
+            STRUCTURE_LOOT_POOLS_16 +
+            definition->firstPool + poolIndex;
+        int rolls = lootUniform(
+            &rng, pool->minRolls, pool->maxRolls);
+        int totalWeight = 0;
+        for (int entryIndex = 0;
+             entryIndex < pool->entryCount; entryIndex++)
+        {
+            totalWeight += STRUCTURE_LOOT_ENTRIES_16[
+                pool->firstEntry + entryIndex].weight;
+        }
+
+        for (int roll = 0; roll < rolls; roll++)
+        {
+            int selected = 0;
+            if (pool->entryCount > 1)
+            {
+                int value = nextInt(&rng, totalWeight);
+                for (selected = 0;
+                     selected < pool->entryCount - 1; selected++)
+                {
+                    const LootTableEntry16 *candidate =
+                        STRUCTURE_LOOT_ENTRIES_16 +
+                        pool->firstEntry + selected;
+                    if (value < candidate->weight)
+                        break;
+                    value -= candidate->weight;
+                }
+            }
+            const LootTableEntry16 *entry =
+                STRUCTURE_LOOT_ENTRIES_16 +
+                pool->firstEntry + selected;
+            if (entry->flags & LT16_EMPTY)
+                continue;
+
+            /*
+             * All 1.16.1 tables generated by the pinned extractor use either
+             * set_damage -> enchant_randomly or a (possibly constant)
+             * set_count -> enchant_randomly sequence.
+             */
+            if (entry->flags & LT16_DAMAGE)
+                (void) nextFloat(&rng);
+            int count = lootUniform(
+                &rng, entry->minCount, entry->maxCount);
+
+            int enchantment = -1;
+            int level = 0;
+            if (entry->flags & LT16_ENCHANT)
+            {
+                if (entry->flags & LT16_SOUL_SPEED)
+                {
+                    /*
+                     * Vanilla still calls nextInt(1) when a one-element
+                     * explicit enchantment list is supplied.
+                     */
+                    (void) nextInt(&rng, 1);
+                    enchantment = DP_ENCH_SOUL_SPEED;
+                    level = 1 + nextInt(&rng, 3);
+                }
+                else
+                {
+                    enchantment = selectRandomEnchantment16(
+                        &rng, entry->item, &level);
+                }
+            }
+
+            out->count[entry->item] += count;
+            if (entry->item == DP_LOOT_ENCHANTED_BOOK &&
+                enchantment >= 0 && level > 0)
+            {
+                out->enchantedBook[enchantment][level] += count;
+            }
+        }
+    }
+    return 1;
+}
+
+const char *structureLootTable16Name(int table)
+{
+    if (table < 0 || table >= LOOT_TABLE16_COUNT)
+        return 0;
+    return STRUCTURE_LOOT_TABLE_NAMES_16[table];
+}
+
 const char *desertPyramidLootItemName(int item)
 {
     return structureLootItemName(item);
@@ -810,18 +978,138 @@ const char *structureLootItemName(int item)
         "leather_boots",
         "experience_bottle",
         "lapis_lazuli",
+        "bread",
+        "iron_helmet",
+        "porkchop",
+        "beef",
+        "mutton",
+        "stick",
+        "clay_ball",
+        "green_dye",
+        "cactus",
+        "cod",
+        "salmon",
+        "water_bucket",
+        "barrel",
+        "wheat_seeds",
+        "arrow",
+        "egg",
+        "flower_pot",
+        "stone",
+        "stone_bricks",
+        "yellow_dye",
+        "smooth_stone",
+        "dandelion",
+        "poppy",
+        "apple",
+        "oak_sapling",
+        "grass",
+        "tall_grass",
+        "acacia_sapling",
+        "torch",
+        "bucket",
+        "white_wool",
+        "black_wool",
+        "gray_wool",
+        "brown_wool",
+        "light_gray_wool",
+        "shears",
+        "blue_ice",
+        "snow_block",
+        "beetroot_seeds",
+        "beetroot_soup",
+        "furnace",
+        "snowball",
+        "fern",
+        "large_fern",
+        "sweet_berries",
+        "pumpkin_seeds",
+        "pumpkin_pie",
+        "spruce_sapling",
+        "spruce_sign",
+        "spruce_log",
+        "leather",
+        "redstone",
+        "iron_pickaxe",
+        "iron_shovel",
+        "iron_chestplate",
+        "iron_leggings",
+        "iron_boots",
+        "lodestone",
+        "crossbow",
+        "spectral_arrow",
+        "gilded_blackstone",
+        "crying_obsidian",
+        "diamond_shovel",
+        "netherite_scrap",
+        "ancient_debris",
+        "glowstone",
+        "soul_sand",
+        "crimson_nylium",
+        "cooked_porkchop",
+        "crimson_fungus",
+        "crimson_roots",
+        "piglin_banner_pattern",
+        "music_disc_pigstep",
+        "chain",
+        "magma_cream",
+        "bone_block",
+        "netherite_ingot",
+        "diamond_sword",
+        "diamond_chestplate",
+        "diamond_helmet",
+        "diamond_leggings",
+        "diamond_boots",
+        "quartz",
+        "dead_bush",
+        "any_container",
     };
     if (item < 0 || item >= DP_LOOT_ITEM_COUNT)
         return 0;
     return name[item];
 }
 
+static int lootTableRangeHasItem16(
+    int firstTable, int endTable, int item)
+{
+    for (int table = firstTable; table < endTable; table++)
+    {
+        const LootTableDefinition16 *definition =
+            STRUCTURE_LOOT_TABLES_16 + table;
+        for (int poolIndex = 0;
+             poolIndex < definition->poolCount; poolIndex++)
+        {
+            const LootTablePool16 *pool =
+                STRUCTURE_LOOT_POOLS_16 +
+                definition->firstPool + poolIndex;
+            for (int entryIndex = 0;
+                 entryIndex < pool->entryCount; entryIndex++)
+            {
+                if (STRUCTURE_LOOT_ENTRIES_16[
+                        pool->firstEntry + entryIndex].item == item)
+                    return 1;
+            }
+        }
+    }
+    return 0;
+}
+
 int structureLootItemAvailable(int structureType, int item)
 {
     if (item < 0 || item >= DP_LOOT_ITEM_COUNT)
         return 0;
+    if (item == DP_LOOT_ANY_CONTAINER)
+        return 1;
     switch (structureType)
     {
+    case Village:
+        return lootTableRangeHasItem16(
+            LOOT_TABLE16_VILLAGE_ARMORER,
+            LOOT_TABLE16_BASTION_BRIDGE, item);
+    case Bastion:
+        return lootTableRangeHasItem16(
+            LOOT_TABLE16_BASTION_BRIDGE,
+            LOOT_TABLE16_COUNT, item);
     case Desert_Pyramid:
         return item <= DP_LOOT_SAND;
     case Treasure:
@@ -953,6 +1241,7 @@ const char *desertPyramidEnchantmentName(int enchantment)
         "piercing",
         "mending",
         "vanishing_curse",
+        "soul_speed",
     };
     if (enchantment < 0 || enchantment >= DP_ENCH_COUNT)
         return 0;
@@ -963,5 +1252,7 @@ int desertPyramidEnchantmentMaxLevel(int enchantment)
 {
     if (enchantment < 0 || enchantment >= DP_ENCH_COUNT)
         return 0;
+    if (enchantment == DP_ENCH_SOUL_SPEED)
+        return 3;
     return DP_BOOK_MAX_LEVEL_16[enchantment];
 }

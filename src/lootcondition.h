@@ -40,12 +40,24 @@ struct LootRuleSet
         CHEST_3,
         CHEST_4,
     };
+    enum ChestPositionMode {
+        CHEST_POSITION_ANY,
+        CHEST_POSITION_ABSOLUTE,
+        CHEST_POSITION_RELATIVE,
+    };
 
     int structureType = Desert_Pyramid;
     int logic = LOGIC_ALL;
     int instanceMode = INSTANCE_ANY;
     int chestMode = CHESTS_TOTAL;
     QVector<LootRule> rules;
+    int chestPositionMode = CHEST_POSITION_ANY;
+    int chestMinX = -30000000;
+    int chestMaxX = 30000000;
+    int chestMinY = -64;
+    int chestMaxY = 320;
+    int chestMinZ = -30000000;
+    int chestMaxZ = 30000000;
 
     bool isEmpty() const { return rules.isEmpty(); }
 };
@@ -62,10 +74,26 @@ struct LootSearchCacheKey
     bool operator<(const LootSearchCacheKey& other) const;
 };
 
+/**
+ * Cached rule counts for one generated chest.
+ *
+ * Keeping the per-chest data in its own value type lets future structure
+ * generators attach metadata such as Pos3 and Loot table type without
+ * reintroducing parallel fixed-size arrays.
+ */
+struct LootSearchCacheChest
+{
+    QVector<uint64_t> counts;
+    bool present = false;
+    bool contentsKnown = true;
+    Pos3 pos = {};
+    int table = -1;
+    QString piece;
+};
+
 struct LootSearchCacheEntry
 {
-    QVector<uint64_t> count[4];
-    bool present[4] = {};
+    QVector<LootSearchCacheChest> chests;
 };
 
 /**
@@ -100,6 +128,31 @@ bool matchStructureLoot(
     LootSearchCache *cache = nullptr,
     uint64_t cacheRuleKey = 0);
 bool matchAreaLoot(
+    const LootRuleSet& rules, int mc, uint64_t worldSeed,
+    const QVector<Pos>& structurePositions,
+    const QVector<int>& biomeIds = QVector<int>(),
+    LootSearchCache *cache = nullptr,
+    uint64_t cacheRuleKey = 0);
+
+enum LootMatchStatus
+{
+    LOOT_MATCH_NO,
+    LOOT_MATCH_UNKNOWN,
+    LOOT_MATCH_YES,
+};
+
+/**
+ * Tri-state variants used when an exact container position is known but a
+ * world-state-dependent Village feature prevents the later LootTableSeed
+ * from being reconstructed safely. The bool wrappers above return true only
+ * for LOOT_MATCH_YES.
+ */
+LootMatchStatus matchStructureLootStatus(
+    const LootRuleSet& rules, int mc, uint64_t worldSeed,
+    Pos structurePos, int biomeId = -1,
+    LootSearchCache *cache = nullptr,
+    uint64_t cacheRuleKey = 0);
+LootMatchStatus matchAreaLootStatus(
     const LootRuleSet& rules, int mc, uint64_t worldSeed,
     const QVector<Pos>& structurePositions,
     const QVector<int>& biomeIds = QVector<int>(),

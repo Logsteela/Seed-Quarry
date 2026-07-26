@@ -135,10 +135,23 @@ int genArea(const Layer *layer, int *out, int areaX, int areaZ, int areaWidth, i
 int mapApproxHeight(float *y, int *ids, const Generator *g,
     const SurfaceNoise *sn, int x, int z, int w, int h);
 
+/**
+ * Gets Java 1.16.1's first free WORLD_SURFACE_WG height for a block column.
+ *
+ * This is the exact block-column equivalent of
+ * ChunkGenerator::getFirstFreeHeight() for the normal Overworld generator,
+ * not the continuous approximation returned by mapApproxHeight(). The
+ * SurfaceNoise must have been initialized for DIM_OVERWORLD and g->seed.
+ *
+ * Returns a height in [0, 256], or -1 when the generator is incompatible or
+ * biome generation fails.
+ */
+int getFirstFreeHeight116(const Generator *g, const SurfaceNoise *sn,
+    int blockX, int blockZ);
+
 
 #ifdef __cplusplus
 }
 #endif
 
 #endif /* GENERATOR_H_ */
-

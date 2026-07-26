@@ -109,6 +109,18 @@ if (-not (Test-Path $exe)) {
     throw "Build completed but the executable was not found: $exe"
 }
 
+$structureManifest = Join-Path $sourceDir "build-structure-data\jigsaw-1.16.1.json"
+if (Test-Path $structureManifest) {
+    Copy-Item -LiteralPath $structureManifest `
+        -Destination (Split-Path $exe -Parent) -Force
+}
+else {
+    Write-Warning @"
+The generated 1.16.1 jigsaw manifest was not found.
+Bastion and village chest-layout filters will remain disabled.
+"@
+}
+
 $deploy = Join-Path $qtBin "windeployqt.exe"
 if (-not $SkipDeploy) {
     if (-not (Test-Path $deploy)) {

@@ -134,6 +134,8 @@ private:
     QVector<VariantCheckBox*> variantboxes;
     uint64_t luahash;
     LootRuleEditor *structureLootEditor;
+    LootRuleEditor *villageLootEditor;
+    LootRuleEditor *bastionLootEditor;
     LootRuleEditor *portalLootEditor;
     LootRuleEditor *simpleLootEditor;
     QWidget *simpleLootPage;

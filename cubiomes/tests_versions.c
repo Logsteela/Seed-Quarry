@@ -28,6 +28,46 @@ static void assertStructurePos(int stype, int mc, uint64_t seed,
     assert(pos.x == x && pos.z == z);
 }
 
+static void assertVillageBastionLootTables(void)
+{
+    StructureLoot loot;
+
+    assert(generateStructureLootTable16(
+        &loot, LOOT_TABLE16_VILLAGE_WEAPONSMITH, 123456789ULL));
+    assert(loot.count[DP_LOOT_DIAMOND] == 3);
+    assert(loot.count[DP_LOOT_IRON_PICKAXE] == 1);
+    assert(loot.count[DP_LOOT_OBSIDIAN] == 6);
+    assert(loot.count[DP_LOOT_SADDLE] == 1);
+
+    assert(generateStructureLootTable16(
+        &loot, LOOT_TABLE16_BASTION_BRIDGE, 123456789ULL));
+    assert(loot.count[DP_LOOT_ARROW] == 28);
+    assert(loot.count[DP_LOOT_CROSSBOW] == 1);
+    assert(loot.count[DP_LOOT_IRON_INGOT] == 2);
+    assert(loot.count[DP_LOOT_LODESTONE] == 1);
+
+    assert(generateStructureLootTable16(
+        &loot, LOOT_TABLE16_BASTION_OTHER, 123456789ULL));
+    assert(loot.count[DP_LOOT_ARROW] == 12);
+    assert(loot.count[DP_LOOT_GOLD_NUGGET] == 3);
+    assert(loot.count[DP_LOOT_GOLDEN_BOOTS] == 1);
+    assert(loot.count[DP_LOOT_GOLDEN_CHESTPLATE] == 1);
+    assert(loot.count[DP_LOOT_IRON_NUGGET] == 3);
+    assert(loot.count[DP_LOOT_MAGMA_CREAM] == 4);
+
+    assert(generateStructureLootTable16(
+        &loot, LOOT_TABLE16_BASTION_TREASURE, 123456789ULL));
+    assert(loot.count[DP_LOOT_CRYING_OBSIDIAN] == 7);
+    assert(loot.count[DP_LOOT_DIAMOND_HELMET] == 1);
+    assert(loot.count[DP_LOOT_NETHERITE_INGOT] == 1);
+
+    /* One-element Soul Speed lists still consume nextInt(1). */
+    assert(generateStructureLootTable16(
+        &loot, LOOT_TABLE16_BASTION_OTHER, 15ULL));
+    assert(loot.count[DP_LOOT_ENCHANTED_BOOK] == 1);
+    assert(loot.enchantedBook[DP_ENCH_SOUL_SPEED][2] == 1);
+}
+
 static int templateOrientation(const StructureVariant *sv)
 {
     if (sv->mirror)
@@ -404,6 +444,7 @@ int main(void)
     assertStructureVariants();
     assertDesertPyramidLoot();
     assertAdditionalStructureLoot();
+    assertVillageBastionLootTables();
 
     puts("stable version, biome, and structure tests passed");
     return 0;

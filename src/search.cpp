@@ -1332,6 +1332,12 @@ testCondAt(
         case Ruined_Portal_N:
             structureInfo = &g_filterinfo.list[F_PORTALN];
             break;
+        case Village:
+            structureInfo = &g_filterinfo.list[F_VILLAGE];
+            break;
+        case Bastion:
+            structureInfo = &g_filterinfo.list[F_BASTION];
+            break;
         }
     }
     if (st > 0)
@@ -1575,12 +1581,17 @@ L_qm_any:
         bool evaluateLoot = lootRules &&
             (env->searchpass == PASS_FULL_64 ||
              (env->searchpass == PASS_FULL_48 &&
-              env->fastFamilyLoot && !structureDepends64));
+              !structureDepends64));
         bool lootScanAll =
             (evaluateLoot &&
              lootRules->instanceMode != LootRuleSet::INSTANCE_ANY) ||
             (preliminaryOnly &&
-             lootRules->instanceMode == LootRuleSet::INSTANCE_TOTAL);
+             lootRules->instanceMode == LootRuleSet::INSTANCE_TOTAL) ||
+            (evaluateLoot &&
+             lootRules->structureType == Village);
+        bool lootUncertain = false;
+        int unknownLootInstances = 0;
+        Pos firstUnknownLootPos = {};
         QVector<Pos> lootPositions;
         QVector<int> lootBiomes;
         QVector<Pos> lootCandidatePositions;
@@ -1710,18 +1721,32 @@ L_qm_any:
                         }
                         else
                         {
-                            bool lootMatch = matchStructureLoot(
+                            LootMatchStatus lootStatus =
+                                matchStructureLootStatus(
                                 *lootRules, env->mc, env->seed,
                                 pc, lootBiomeId,
                                 env->fastFamilyLoot
                                     ? &env->lootCache : nullptr,
                                 cond->hash);
                             if (lootRules->instanceMode ==
-                                LootRuleSet::INSTANCE_EVERY && !lootMatch)
+                                    LootRuleSet::INSTANCE_EVERY &&
+                                lootStatus == LOOT_MATCH_NO)
                             {
                                 return COND_FAILED;
                             }
-                            if (!lootMatch)
+                            if (lootStatus == LOOT_MATCH_UNKNOWN)
+                            {
+                                if (lootRules->instanceMode ==
+                                    LootRuleSet::INSTANCE_ANY)
+                                {
+                                    if (unknownLootInstances == 0)
+                                        firstUnknownLootPos = pc;
+                                    unknownLootInstances++;
+                                    continue;
+                                }
+                                lootUncertain = true;
+                            }
+                            if (lootStatus == LOOT_MATCH_NO)
                                 continue;
                             lootPositions.push_back(pc);
                             lootBiomes.push_back(lootBiomeId);
@@ -1761,15 +1786,19 @@ L_qm_any:
             return COND_FAILED;
         }
         if (evaluateLoot &&
-            lootRules->instanceMode == LootRuleSet::INSTANCE_TOTAL &&
-            !matchAreaLoot(
-                *lootRules, env->mc, env->seed,
-                lootPositions, lootBiomes,
-                env->fastFamilyLoot
-                    ? &env->lootCache : nullptr,
-                cond->hash))
+            lootRules->instanceMode == LootRuleSet::INSTANCE_TOTAL)
         {
-            return COND_FAILED;
+            const LootMatchStatus areaStatus =
+                matchAreaLootStatus(
+                    *lootRules, env->mc, env->seed,
+                    lootPositions, lootBiomes,
+                    env->fastFamilyLoot
+                        ? &env->lootCache : nullptr,
+                    cond->hash);
+            if (areaStatus == LOOT_MATCH_NO)
+                return COND_FAILED;
+            lootUncertain =
+                areaStatus == LOOT_MATCH_UNKNOWN;
         }
         if (preliminaryOnly &&
             cond->count <= 0 &&
@@ -1791,7 +1820,14 @@ L_qm_any:
             cent->z = (z1 + z2) >> 1;
             if (imax) *imax = 1;
             if (icnt == 0)
+            {
+                if (unknownLootInstances > 0 ||
+                    lootUncertain)
+                {
+                    return COND_MAYBE_POS_VALID;
+                }
                 return COND_OK;
+            }
             else
             {
                 if (env->searchpass == PASS_FULL_64)
@@ -1816,6 +1852,8 @@ L_qm_any:
                 cent->z = zt / icnt;
             }
 
+            if (lootUncertain)
+                return COND_MAYBE_POS_VALID;
             if (env->searchpass == PASS_FULL_64)
                 return COND_OK;
             if (env->searchpass == PASS_FULL_48 &&
@@ -1825,6 +1863,14 @@ L_qm_any:
             // have known center positions with 48-bit seeds
             if (cond->count != (1+rx2-rx1) * (1+rz2-rz1))
                 return COND_MAYBE_POS_INVAL;
+            return COND_MAYBE_POS_VALID;
+        }
+        if (unknownLootInstances > 0 &&
+            icnt + unknownLootInstances >= cond->count)
+        {
+            cent[0] = firstUnknownLootPos;
+            if (imax)
+                *imax = 1;
             return COND_MAYBE_POS_VALID;
         }
         return COND_FAILED;

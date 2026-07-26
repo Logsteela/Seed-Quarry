@@ -116,6 +116,7 @@ SOURCES += \
         $$LUAPATH/lzio.c \
         src/aboutdialog.cpp \
         src/biomecolordialog.cpp \
+        src/bastionstructure.cpp \
         src/conditiondialog.cpp \
         src/config.cpp \
         src/configdialog.cpp \
@@ -144,6 +145,8 @@ SOURCES += \
         src/mainwindow.cpp \
         src/main.cpp \
         src/util.cpp \
+        src/villagelootseed.cpp \
+        src/villagestructure.cpp \
         src/widgets.cpp \
         src/world.cpp
 
@@ -185,6 +188,7 @@ HEADERS += \
         $$LUAPATH/lzio.h \
         src/aboutdialog.h \
         src/biomecolordialog.h \
+        src/bastionstructure.h \
         src/conditiondialog.h \
         src/config.h \
         src/configdialog.h \
@@ -214,6 +218,8 @@ HEADERS += \
         src/tabstructures.h \
         src/mainwindow.h \
         src/util.h \
+        src/villagelootseed.h \
+        src/villagestructure.h \
         src/widgets.h \
         src/world.h
 
