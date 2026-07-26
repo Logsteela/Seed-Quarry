@@ -1,5 +1,6 @@
 /build-dev-*/
 /build-tests/
+/desktop-shortcuts/
 /tests/.qmake.stash
 /tests/Makefile*
 /tests/debug/

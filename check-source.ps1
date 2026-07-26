@@ -22,6 +22,8 @@ $lootTestsPath = Join-Path $sourceDir "tests\lootcondition_tests.cpp"
 $noticesPath = Join-Path $sourceDir "THIRD_PARTY_NOTICES.md"
 $buildScriptPath = Join-Path $sourceDir "dev-build.ps1"
 $lootTestScriptPath = Join-Path $sourceDir "test-loot.ps1"
+$shortcutScriptPath = Join-Path $sourceDir "make-desktop-shortcuts.ps1"
+$rebuildRunScriptPath = Join-Path $sourceDir "rebuild-and-run.ps1"
 $formSearchUiPath = Join-Path $sourceDir "src\formsearchcontrol.ui"
 $formSearchSourcePath = Join-Path $sourceDir "src\formsearchcontrol.cpp"
 $configSourcePath = Join-Path $sourceDir "src\config.cpp"
@@ -230,7 +232,12 @@ Assert-SourceCheck ($lootTestsText.Contains("widePositions.fill(pyramid, 70000)"
 Assert-SourceCheck ($noticesText.Contains("SeedFinding Java libraries")) `
     "The SeedFinding attribution is missing from THIRD_PARTY_NOTICES.md."
 
-foreach ($scriptPath in @($buildScriptPath, $lootTestScriptPath)) {
+foreach ($scriptPath in @(
+    $buildScriptPath,
+    $lootTestScriptPath,
+    $shortcutScriptPath,
+    $rebuildRunScriptPath
+)) {
     $tokens = $null
     $parseErrors = $null
     [System.Management.Automation.Language.Parser]::ParseFile(
@@ -247,4 +254,4 @@ Write-Host "  UTF-8 and conditiondialog.ui XML"
 Write-Host "  unique Qt object names and C++ UI references"
 Write-Host "  structure-variant dependency wiring"
 Write-Host "  1.16 structure loot source, GUI, search, Lua API, tests, and attribution"
-Write-Host "  dev-build.ps1 and test-loot.ps1 syntax"
+Write-Host "  build, test, and shortcut PowerShell syntax"
