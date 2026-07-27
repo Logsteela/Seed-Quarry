@@ -314,6 +314,24 @@ int main(int argc, char **argv)
     assert(decodedVillagePosition.chestPositionMode ==
         LootRuleSet::CHEST_POSITION_LOCATION_REFERENCE);
 
+    LootRuleSet rejectedVillageLoot = villagePosition;
+    rejectedVillageLoot.chestPositionMode =
+        LootRuleSet::CHEST_POSITION_ANY;
+    rejectedVillageLoot.rules[0] =
+        itemRule(DP_LOOT_ANY_CONTAINER, 999, -1);
+    Condition villageLootCondition = {};
+    villageLootCondition.type = F_VILLAGE;
+    villageLootCondition.x1 =
+        villageLootCondition.x2 = -25 * 16;
+    villageLootCondition.z1 =
+        villageLootCondition.z2 = 21 * 16;
+    villageLootCondition.save = 1;
+    villageLootCondition.count = 1;
+    villageLootCondition.version = Condition::VER_CURRENT;
+    villageLootCondition.flags = Condition::FLG_LOOT;
+    villageLootCondition.hash =
+        registerLootRuleSet(rejectedVillageLoot);
+
     Generator generator;
     setupGenerator(&generator, MC_1_16_1, 0);
     applySeed(&generator, DIM_OVERWORLD, seed);
@@ -372,6 +390,22 @@ int main(int argc, char **argv)
         printConditionHex(generatedTreasure, MC_1_16_1);
     else if (testArgument == "--portal-condition-hex")
         printConditionHex(generatedPortal, MC_1_16_1);
+    else if (testArgument ==
+             "--village-family-condition-hex")
+    {
+        QByteArray base(
+            reinterpret_cast<const char*>(
+                &villageLootCondition),
+            offsetof(Condition, generated_start));
+        QByteArray payload =
+            serializeLootRuleSet(
+                rejectedVillageLoot).toBase64(
+                QByteArray::Base64UrlEncoding |
+                QByteArray::OmitTrailingEquals);
+        printf("condition=%s|%s\n",
+               base.toHex().constData(),
+               payload.constData());
+    }
     if (testArgument == "--condition-hex" ||
         testArgument == "--condition-hex-fail" ||
         testArgument == "--structure-condition-hex")

@@ -314,6 +314,8 @@ SearchThreadEnv::SearchThreadEnv()
 , l_states()
 , loot_rules()
 , fastFamilyLoot()
+, hasVillageLoot()
+, ignoreVillageLoot()
 , lootCache()
 {
     memset(&g, 0, sizeof(g));
@@ -335,6 +337,8 @@ QString SearchThreadEnv::init(
     this->large = large;
     this->seed = 0;
     this->fastFamilyLoot = fastFamilyLoot;
+    this->hasVillageLoot = false;
+    this->ignoreVillageLoot = false;
     this->lootCache.reset();
     this->surfdim = DIM_UNDEF;
     this->octaves = 0;
@@ -391,6 +395,8 @@ QString SearchThreadEnv::init(
             if (!error.isEmpty())
                 return QString::fromUtf8("条件 %1: %2").arg(c.save).arg(error);
             loot_rules[c.hash] = rules;
+            if (rules.structureType == Village)
+                hasVillageLoot = true;
         }
     }
     return "";
@@ -1341,6 +1347,14 @@ testCondAt(
             structureInfo = &g_filterinfo.list[F_BASTION];
             break;
         }
+    }
+    if (env->ignoreVillageLoot && lootRules &&
+        lootRules->structureType == Village)
+    {
+        // Keep the Village structure/location test, but temporarily remove
+        // its Loot clause. SEARCH_BLOCKS uses this to find the first upper
+        // 16-bit seed whose non-Loot conditions pass before sampling Loot.
+        lootRules = nullptr;
     }
     if (st > 0)
     {

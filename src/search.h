@@ -744,6 +744,8 @@ struct SearchThreadEnv
     std::map<uint64_t, lua_State*> l_states;
     std::map<uint64_t, LootRuleSet> loot_rules;
     bool fastFamilyLoot;
+    bool hasVillageLoot;
+    bool ignoreVillageLoot;
     LootSearchCache lootCache;
 
     SearchThreadEnv();

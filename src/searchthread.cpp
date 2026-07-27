@@ -142,6 +142,7 @@ SearchMaster::SearchMaster(QWidget *parent)
     , itemsize()
     , threadcnt()
     , fastFamilyLoot()
+    , fastVillageFamilySkip()
     , gen48()
     , slist()
     , idx()
@@ -314,6 +315,17 @@ bool SearchMaster::set(QWidget *widget, const Session& s)
         (s.sc.searchtype == SEARCH_BLOCKS ||
          s.sc.searchtype == SEARCH_48ONLY) &&
         s.sc.fastFamilyLoot;
+    this->fastVillageFamilySkip =
+        s.sc.searchtype == SEARCH_BLOCKS &&
+        this->fastFamilyLoot &&
+        env.hasVillageLoot;
+    if (this->fastVillageFamilySkip)
+    {
+        // A whole lower-48 family must stay in one work item. Otherwise
+        // another worker could already be checking the same family's upper
+        // bits when the representative Village Loot sample rejects it.
+        this->itemsize = 0x10000;
+    }
     this->slist = s.slist;
     this->gen48 = s.gen48;
     this->idx = 0;
@@ -784,7 +796,7 @@ bool SearchMaster::requestItem(SearchWorker *item)
     // check if we should adjust the item size
     uint64_t nsec = itemtimer.nsecsElapsed();
     count++;
-    if (nsec > 0.1e9)
+    if (!fastVillageFamilySkip && nsec > 0.1e9)
     {
         if (count < 1e2 && itemsize > 1)
             itemsize /= 2;
@@ -855,10 +867,17 @@ bool SearchMaster::requestItem(SearchWorker *item)
 
     if (searchtype == SEARCH_BLOCKS)
     {
+        const uint64_t initialHigh = (seed >> 48) & 0xffff;
+        const uint64_t remainingInFamily =
+            UINT64_C(0x10000) - initialHigh;
+        if (uint64_t(item->scnt) > remainingInFamily)
+        {
+            prog -= uint64_t(item->scnt) - remainingInFamily;
+            item->scnt = int(remainingInFamily);
+        }
         if (!slist.empty())
         {
-            uint64_t high = (seed >> 48) & 0xffff;
-            high += itemsize;
+            uint64_t high = initialHigh + item->scnt;
             if (high >= 0x10000)
             {
                 high = 0;
@@ -872,29 +891,34 @@ bool SearchMaster::requestItem(SearchWorker *item)
         else
         {
             Pos origin = {0,0};
-            uint64_t high = (seed >> 48) & 0xffff;
+            uint64_t high = initialHigh + item->scnt;
             uint64_t low = seed & MASK48;
-            high += itemsize;
             if (high >= 0x10000)
             {
-                item->scnt -= 0x10000 - high;
                 high = 0;
-                low++;
-
-                for (; low <= MASK48 && !stop; low++)
+                if (low == MASK48)
                 {
-                    env.setSeed(low);
-                    if (testTreeAt(origin, &env, PASS_FAST_48, nullptr)
-                        != COND_FAILED)
-                    {
-                        break;
-                    }
-                    // update progress for skipped block
-                    seed = low;
-                    prog += 0x10000;
-                }
-                if (low > MASK48)
                     isdone = true;
+                }
+                else
+                {
+                    low++;
+                    for (; low <= MASK48 && !stop; low++)
+                    {
+                        env.setSeed(low);
+                        if (testTreeAt(
+                                origin, &env, PASS_FAST_48,
+                                nullptr) != COND_FAILED)
+                        {
+                            break;
+                        }
+                        // update progress for skipped block
+                        seed = low;
+                        prog += 0x10000;
+                    }
+                    if (low > MASK48)
+                        isdone = true;
+                }
             }
             seed = (high << 48) | low;
         }
@@ -1093,7 +1117,39 @@ void SearchWorker::run()
                 seed = (high << 48) | low;
 
                 env.setSeed(seed);
-                if (testTreeAt(origin, &env, PASS_FULL_64, nullptr) == COND_OK)
+                if (master->fastVillageFamilySkip)
+                {
+                    env.ignoreVillageLoot = true;
+                    const int withoutVillageLoot =
+                        testTreeAt(
+                            origin, &env, PASS_FULL_64, nullptr);
+                    env.ignoreVillageLoot = false;
+
+                    if (withoutVillageLoot != COND_OK)
+                    {
+                        if (++high >= 0x10000)
+                            break;
+                        continue;
+                    }
+
+                    const int withVillageLoot =
+                        testTreeAt(
+                            origin, &env, PASS_FULL_64, nullptr);
+                    if (withVillageLoot == COND_OK)
+                    {
+                        if (!*env.stop)
+                            emit result(seed);
+                    }
+                    else if (withVillageLoot == COND_FAILED)
+                    {
+                        // Non-exhaustive speed mode: one representative that
+                        // passes every other condition rejected this family.
+                        break;
+                    }
+                }
+                else if (testTreeAt(
+                             origin, &env, PASS_FULL_64,
+                             nullptr) == COND_OK)
                 {
                     if (!*env.stop)
                         emit result(seed);
@@ -1106,4 +1162,3 @@ void SearchWorker::run()
         break;
     }
 }
-

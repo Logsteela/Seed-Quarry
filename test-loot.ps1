@@ -37,10 +37,9 @@ try {
     if ($LASTEXITCODE -ne 0) {
         throw "Loot test qmake failed (exit $LASTEXITCODE)"
     }
-    $jobs = [Math]::Max(
-        1,
-        [Math]::Min(2, [Environment]::ProcessorCount)
-    )
+    # Village layout sources are large enough that parallel MinGW compiles
+    # can exhaust memory on this machine.
+    $jobs = 1
     & $make.FullName "-j$jobs"
     if ($LASTEXITCODE -ne 0) {
         throw "Loot test build failed (exit $LASTEXITCODE)"
@@ -161,6 +160,9 @@ try {
         @("141804184556659")
     Test-Headless48Session `
         "tests\loot_integration_fail_session.txt" `
+        @()
+    Test-HeadlessSession `
+        "tests\loot_village_family_skip_session.txt" `
         @()
 }
 finally {
