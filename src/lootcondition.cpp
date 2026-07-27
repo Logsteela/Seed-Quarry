@@ -334,7 +334,7 @@ QVector<uint64_t> getRuleCounts(
 
 bool chestPositionMatches(
     const LootRuleSet& rules, const GeneratedLootChest& chest,
-    Pos structurePos)
+    Pos structurePos, Pos locationReference)
 {
     if (rules.chestPositionMode ==
         LootRuleSet::CHEST_POSITION_ANY)
@@ -356,6 +356,12 @@ bool chestPositionMatches(
         x -= (structurePos.x >> 4) << 4;
         y -= 32;
         z -= (structurePos.z >> 4) << 4;
+    }
+    else if (rules.chestPositionMode ==
+             LootRuleSet::CHEST_POSITION_LOCATION_REFERENCE)
+    {
+        x -= locationReference.x;
+        z -= locationReference.z;
     }
     return x >= rules.chestMinX && x <= rules.chestMaxX &&
         y >= rules.chestMinY && y <= rules.chestMaxY &&
@@ -495,7 +501,8 @@ bool getStructureLoot(
 bool getCachedRuleCounts(
     LootSearchCacheEntry *out, const LootRuleSet& rules,
     int mc, uint64_t worldSeed, Pos pos, int biomeId,
-    LootSearchCache *cache, uint64_t cacheRuleKey)
+    LootSearchCache *cache, uint64_t cacheRuleKey,
+    Pos locationReference)
 {
     if (!out)
         return false;
@@ -538,6 +545,12 @@ bool getCachedRuleCounts(
         // depend on their biome/structure variant.
         key.variant = rules.structureType == Shipwreck &&
             (biomeId == beach || biomeId == snowy_beach);
+        if (rules.chestPositionMode ==
+            LootRuleSet::CHEST_POSITION_LOCATION_REFERENCE)
+        {
+            key.referenceX = locationReference.x;
+            key.referenceZ = locationReference.z;
+        }
 
         auto found = cache->entries.find(key);
         if (found != cache->entries.end())
@@ -560,7 +573,8 @@ bool getCachedRuleCounts(
     {
         LootSearchCacheChest cachedChest;
         cachedChest.present = lootChest.present &&
-            chestPositionMatches(rules, lootChest, pos);
+            chestPositionMatches(
+                rules, lootChest, pos, locationReference);
         cachedChest.contentsKnown = lootChest.contentsKnown;
         cachedChest.pos = lootChest.pos;
         cachedChest.table = lootChest.table;
@@ -625,7 +639,11 @@ bool LootSearchCacheKey::operator<(
         return x < other.x;
     if (z != other.z)
         return z < other.z;
-    return variant < other.variant;
+    if (variant != other.variant)
+        return variant < other.variant;
+    if (referenceX != other.referenceX)
+        return referenceX < other.referenceX;
+    return referenceZ < other.referenceZ;
 }
 
 void LootSearchCache::reset()
@@ -736,7 +754,7 @@ QString validateLootRuleSet(const LootRuleSet& rules, int mc)
     if (rules.chestPositionMode <
             LootRuleSet::CHEST_POSITION_ANY ||
         rules.chestPositionMode >
-            LootRuleSet::CHEST_POSITION_RELATIVE)
+            LootRuleSet::CHEST_POSITION_LOCATION_REFERENCE)
     {
         return QString::fromUtf8(
             "チェスト座標の指定方法が不正です。");
@@ -754,8 +772,8 @@ QString validateLootRuleSet(const LootRuleSet& rules, int mc)
         rules.structureType != Bastion)
     {
         return QString::fromUtf8(
-            "開始位置からの相対チェスト座標は、現在は砦の遺跡に対応しています。"
-            "村ではワールド絶対座標を選んでください。");
+            "砦の開始チャンク原点からの相対座標は砦専用です。"
+            "村では「Location基準点との差」を選んでください。");
     }
     if (rules.chestPositionMode !=
             LootRuleSet::CHEST_POSITION_ANY &&
@@ -949,12 +967,13 @@ bool lookupLootRuleSet(uint64_t hash, LootRuleSet *rules)
 LootMatchStatus matchStructureLootStatus(
     const LootRuleSet& rules, int mc, uint64_t worldSeed,
     Pos structurePos, int biomeId, LootSearchCache *cache,
-    uint64_t cacheRuleKey)
+    uint64_t cacheRuleKey, Pos locationReference)
 {
     LootSearchCacheEntry counts;
     if (!getCachedRuleCounts(
             &counts, rules, mc, worldSeed,
-            structurePos, biomeId, cache, cacheRuleKey))
+            structurePos, biomeId, cache, cacheRuleKey,
+            locationReference))
         return LOOT_MATCH_NO;
 
     if (rules.chestMode >= LootRuleSet::CHEST_1)
@@ -1011,7 +1030,7 @@ LootMatchStatus matchAreaLootStatus(
     const LootRuleSet& rules, int mc, uint64_t worldSeed,
     const QVector<Pos>& structurePositions,
     const QVector<int>& biomeIds, LootSearchCache *cache,
-    uint64_t cacheRuleKey)
+    uint64_t cacheRuleKey, Pos locationReference)
 {
     if (!biomeIds.isEmpty() &&
         biomeIds.size() != structurePositions.size())
@@ -1026,7 +1045,7 @@ LootMatchStatus matchAreaLootStatus(
         if (!getCachedRuleCounts(
                 &counts, rules, mc, worldSeed,
                 structurePositions[position], biomeId, cache,
-                cacheRuleKey))
+                cacheRuleKey, locationReference))
             return LOOT_MATCH_NO;
         for (const LootSearchCacheChest& chest : counts.chests)
         {
@@ -1050,28 +1069,30 @@ LootMatchStatus matchAreaLootStatus(
 bool matchStructureLoot(
     const LootRuleSet& rules, int mc, uint64_t worldSeed,
     Pos structurePos, int biomeId, LootSearchCache *cache,
-    uint64_t cacheRuleKey)
+    uint64_t cacheRuleKey, Pos locationReference)
 {
     return matchStructureLootStatus(
         rules, mc, worldSeed, structurePos, biomeId,
-        cache, cacheRuleKey) == LOOT_MATCH_YES;
+        cache, cacheRuleKey,
+        locationReference) == LOOT_MATCH_YES;
 }
 
 bool matchAreaLoot(
     const LootRuleSet& rules, int mc, uint64_t worldSeed,
     const QVector<Pos>& structurePositions,
     const QVector<int>& biomeIds, LootSearchCache *cache,
-    uint64_t cacheRuleKey)
+    uint64_t cacheRuleKey, Pos locationReference)
 {
     return matchAreaLootStatus(
         rules, mc, worldSeed, structurePositions, biomeIds,
-        cache, cacheRuleKey) == LOOT_MATCH_YES;
+        cache, cacheRuleKey,
+        locationReference) == LOOT_MATCH_YES;
 }
 
 bool canMatchStructureLoot48(
     const LootRuleSet& rules, int mc, uint64_t structureSeed,
     Pos structurePos, LootSearchCache *cache,
-    uint64_t cacheRuleKey)
+    uint64_t cacheRuleKey, Pos locationReference)
 {
     /*
      * A village's start pool and exact Y layout need the biome and the full
@@ -1085,7 +1106,7 @@ bool canMatchStructureLoot48(
     {
         return matchStructureLoot(
             rules, mc, structureSeed, structurePos, -1,
-            cache, cacheRuleKey);
+            cache, cacheRuleKey, locationReference);
     }
 
     // A structure seed does not determine whether a shipwreck is beached.
@@ -1093,17 +1114,18 @@ bool canMatchStructureLoot48(
     // after biome viability is known.
     bool oceanMatch = matchStructureLoot(
         rules, mc, structureSeed, structurePos, ocean,
-        cache, cacheRuleKey);
+        cache, cacheRuleKey, locationReference);
     bool beachedMatch = matchStructureLoot(
         rules, mc, structureSeed, structurePos, beach,
-        cache, cacheRuleKey);
+        cache, cacheRuleKey, locationReference);
     return oceanMatch || beachedMatch;
 }
 
 bool canMatchAreaLoot48(
     const LootRuleSet& rules, int mc, uint64_t structureSeed,
     const QVector<Pos>& candidatePositions, int minimumInstances,
-    LootSearchCache *cache, uint64_t cacheRuleKey)
+    LootSearchCache *cache, uint64_t cacheRuleKey,
+    Pos locationReference)
 {
     if (rules.rules.isEmpty())
         return true;
@@ -1123,7 +1145,7 @@ bool canMatchAreaLoot48(
         if (!getCachedRuleCounts(
                 &first, rules, mc, structureSeed, pos,
                 rules.structureType == Shipwreck ? ocean : -1,
-                cache, cacheRuleKey))
+                cache, cacheRuleKey, locationReference))
         {
             return false;
         }
@@ -1135,8 +1157,8 @@ bool canMatchAreaLoot48(
         {
             LootSearchCacheEntry beached;
             if (!getCachedRuleCounts(
-                    &beached, rules, mc, structureSeed, pos, beach,
-                    cache, cacheRuleKey))
+                &beached, rules, mc, structureSeed, pos, beach,
+                    cache, cacheRuleKey, locationReference))
             {
                 return false;
             }

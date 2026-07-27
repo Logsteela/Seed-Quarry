@@ -373,6 +373,8 @@ QString SearchThreadEnv::init(
                 c.type != F_TREASURE &&
                 c.type != F_PORTAL &&
                 c.type != F_PORTALN &&
+                c.type != F_VILLAGE &&
+                c.type != F_BASTION &&
                 c.type != F_LOOT)
                 return QString::fromUtf8(
                     "条件 %1 はLoot検索を利用できない種類です。").arg(c.save);
@@ -1629,7 +1631,7 @@ L_qm_any:
                         // after all lower-48-bit candidates are known.
                         (void) canMatchStructureLoot48(
                             *lootRules, env->mc, env->seed, pc,
-                            &env->lootCache, cond->hash);
+                            &env->lootCache, cond->hash, at);
                         if (preliminaryOnly)
                             lootCandidatePositions.push_back(pc);
                     }
@@ -1637,7 +1639,7 @@ L_qm_any:
                     {
                         possibleLootMatch = canMatchStructureLoot48(
                             *lootRules, env->mc, env->seed, pc,
-                            &env->lootCache, cond->hash);
+                            &env->lootCache, cond->hash, at);
                         if (preliminaryOnly && !possibleLootMatch &&
                             (cond->count > 0 ||
                              lootRules->instanceMode ==
@@ -1727,7 +1729,7 @@ L_qm_any:
                                 pc, lootBiomeId,
                                 env->fastFamilyLoot
                                     ? &env->lootCache : nullptr,
-                                cond->hash);
+                                cond->hash, at);
                             if (lootRules->instanceMode ==
                                     LootRuleSet::INSTANCE_EVERY &&
                                 lootStatus == LOOT_MATCH_NO)
@@ -1781,7 +1783,7 @@ L_qm_any:
             !canMatchAreaLoot48(
                 *lootRules, env->mc, env->seed,
                 lootCandidatePositions, cond->count,
-                &env->lootCache, cond->hash))
+                &env->lootCache, cond->hash, at))
         {
             return COND_FAILED;
         }
@@ -1794,7 +1796,7 @@ L_qm_any:
                     lootPositions, lootBiomes,
                     env->fastFamilyLoot
                         ? &env->lootCache : nullptr,
-                    cond->hash);
+                    cond->hash, at);
             if (areaStatus == LOOT_MATCH_NO)
                 return COND_FAILED;
             lootUncertain =

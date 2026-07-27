@@ -505,6 +505,13 @@ void LootRuleEditor::updatePositionModes()
             QString::fromUtf8("砦の開始チャンク原点との差"),
             LootRuleSet::CHEST_POSITION_RELATIVE);
     }
+    if (m_structureType == Bastion ||
+        m_structureType == Village)
+    {
+        m_positionMode->addItem(
+            QString::fromUtf8("Location基準点との差（X/Z）"),
+            LootRuleSet::CHEST_POSITION_LOCATION_REFERENCE);
+    }
     int index = m_positionMode->findData(oldMode);
     m_positionMode->setCurrentIndex(index >= 0 ? index : 0);
 }
@@ -515,10 +522,29 @@ void LootRuleEditor::updatePositionState()
     m_positionRange->setVisible(
         mode != LootRuleSet::CHEST_POSITION_ANY);
     m_positionHint->setVisible(
-        mode == LootRuleSet::CHEST_POSITION_RELATIVE);
-    m_positionHint->setText(QString::fromUtf8(
-        "相対X/Zは砦の開始チャンク原点、相対Yは基準Y=32からの差です。"
-        "範囲の両端を含みます。"));
+        mode == LootRuleSet::CHEST_POSITION_RELATIVE ||
+        mode ==
+            LootRuleSet::CHEST_POSITION_LOCATION_REFERENCE);
+    if (mode == LootRuleSet::CHEST_POSITION_RELATIVE)
+    {
+        m_positionHint->setText(QString::fromUtf8(
+            "相対X/Zは砦の開始チャンク原点、"
+            "相対Yは基準Y=32からの差です。"
+            "範囲の両端を含みます。"));
+    }
+    else if (mode ==
+             LootRuleSet::CHEST_POSITION_LOCATION_REFERENCE)
+    {
+        m_positionHint->setText(QString::fromUtf8(
+            "X/Zは、この条件の「Location is relative to」で"
+            "選んだ結果位置からの差です。"
+            "Yはワールド座標のままです。"
+            "基準未指定時は検索原点との差になります。"));
+    }
+    else
+    {
+        m_positionHint->clear();
+    }
 }
 
 void LootRuleEditor::updateEnabledState()

@@ -282,6 +282,38 @@ int main(int argc, char **argv)
         Pos{-25 * 16, 21 * 16}, taiga) ==
         LOOT_MATCH_YES);
 
+    const Pos villageReference = {
+        villageChests[0].container.pos.x - 7,
+        villageChests[0].container.pos.z + 9,
+    };
+    villagePosition.chestPositionMode =
+        LootRuleSet::CHEST_POSITION_LOCATION_REFERENCE;
+    villagePosition.chestMinX =
+        villagePosition.chestMaxX = 7;
+    villagePosition.chestMinY =
+        villagePosition.chestMaxY =
+            villageChests[0].container.pos.y;
+    villagePosition.chestMinZ =
+        villagePosition.chestMaxZ = -9;
+    assert(validateLootRuleSet(
+        villagePosition, MC_1_16_1).isEmpty());
+    assert(matchStructureLootStatus(
+        villagePosition, MC_1_16_1, 0,
+        Pos{-25 * 16, 21 * 16}, taiga,
+        nullptr, 0, villageReference) ==
+        LOOT_MATCH_YES);
+    assert(matchStructureLootStatus(
+        villagePosition, MC_1_16_1, 0,
+        Pos{-25 * 16, 21 * 16}, taiga,
+        nullptr, 0, Pos{0, 0}) ==
+        LOOT_MATCH_NO);
+    LootRuleSet decodedVillagePosition;
+    assert(deserializeLootRuleSet(
+        serializeLootRuleSet(villagePosition),
+        &decodedVillagePosition, &villageError));
+    assert(decodedVillagePosition.chestPositionMode ==
+        LootRuleSet::CHEST_POSITION_LOCATION_REFERENCE);
+
     Generator generator;
     setupGenerator(&generator, MC_1_16_1, 0);
     applySeed(&generator, DIM_OVERWORLD, seed);

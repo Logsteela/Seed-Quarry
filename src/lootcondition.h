@@ -44,6 +44,7 @@ struct LootRuleSet
         CHEST_POSITION_ANY,
         CHEST_POSITION_ABSOLUTE,
         CHEST_POSITION_RELATIVE,
+        CHEST_POSITION_LOCATION_REFERENCE,
     };
 
     int structureType = Desert_Pyramid;
@@ -70,6 +71,8 @@ struct LootSearchCacheKey
     int x = 0;
     int z = 0;
     int variant = 0;
+    int referenceX = 0;
+    int referenceZ = 0;
 
     bool operator<(const LootSearchCacheKey& other) const;
 };
@@ -126,13 +129,15 @@ bool matchStructureLoot(
     const LootRuleSet& rules, int mc, uint64_t worldSeed,
     Pos structurePos, int biomeId = -1,
     LootSearchCache *cache = nullptr,
-    uint64_t cacheRuleKey = 0);
+    uint64_t cacheRuleKey = 0,
+    Pos locationReference = {});
 bool matchAreaLoot(
     const LootRuleSet& rules, int mc, uint64_t worldSeed,
     const QVector<Pos>& structurePositions,
     const QVector<int>& biomeIds = QVector<int>(),
     LootSearchCache *cache = nullptr,
-    uint64_t cacheRuleKey = 0);
+    uint64_t cacheRuleKey = 0,
+    Pos locationReference = {});
 
 enum LootMatchStatus
 {
@@ -151,13 +156,15 @@ LootMatchStatus matchStructureLootStatus(
     const LootRuleSet& rules, int mc, uint64_t worldSeed,
     Pos structurePos, int biomeId = -1,
     LootSearchCache *cache = nullptr,
-    uint64_t cacheRuleKey = 0);
+    uint64_t cacheRuleKey = 0,
+    Pos locationReference = {});
 LootMatchStatus matchAreaLootStatus(
     const LootRuleSet& rules, int mc, uint64_t worldSeed,
     const QVector<Pos>& structurePositions,
     const QVector<int>& biomeIds = QVector<int>(),
     LootSearchCache *cache = nullptr,
-    uint64_t cacheRuleKey = 0);
+    uint64_t cacheRuleKey = 0,
+    Pos locationReference = {});
 
 /**
  * Conservative lower-48-bit checks used before biome/viability is known.
@@ -167,11 +174,13 @@ LootMatchStatus matchAreaLootStatus(
 bool canMatchStructureLoot48(
     const LootRuleSet& rules, int mc, uint64_t structureSeed,
     Pos structurePos, LootSearchCache *cache = nullptr,
-    uint64_t cacheRuleKey = 0);
+    uint64_t cacheRuleKey = 0,
+    Pos locationReference = {});
 bool canMatchAreaLoot48(
     const LootRuleSet& rules, int mc, uint64_t structureSeed,
     const QVector<Pos>& candidatePositions, int minimumInstances,
     LootSearchCache *cache = nullptr,
-    uint64_t cacheRuleKey = 0);
+    uint64_t cacheRuleKey = 0,
+    Pos locationReference = {});
 
 #endif // LOOTCONDITION_H
