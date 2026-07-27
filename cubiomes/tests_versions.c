@@ -314,6 +314,61 @@ static void assertAdditionalStructureLoot(void)
         DP_LOOT_IRON_NUGGET] == 17);
 }
 
+static int floorDiv4ForTest(int value)
+{
+    int quotient = value / 4;
+    if (value % 4 < 0)
+        quotient--;
+    return quotient;
+}
+
+static void assertSurfaceHeightColumnCache116(void)
+{
+    static const struct
+    {
+        int x, z, height;
+    } cases[] = {
+        {-410, 327, 66},
+        {-399, 340, 66},
+        {-405, 353, 66},
+        {-386, 338, 65},
+        {-421, 319, 66},
+        {-400, 336, 64},
+        {0, 0, 72},
+        {100, 100, 63},
+        {-1, -1, 71},
+        {-4, -4, 70},
+        {-5, -5, 70},
+    };
+
+    Generator generator;
+    setupGenerator(&generator, MC_1_16_1, 0);
+    applySeed(&generator, DIM_OVERWORLD, 0);
+    SurfaceNoise noise;
+    initSurfaceNoise(&noise, DIM_OVERWORLD, 0);
+
+    for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++)
+    {
+        const int cellX = floorDiv4ForTest(cases[i].x);
+        const int cellZ = floorDiv4ForTest(cases[i].z);
+        double columns[4][33];
+        assert(getTerrainNoiseColumn116(
+            &generator, &noise, cellX, cellZ, columns[0]));
+        assert(getTerrainNoiseColumn116(
+            &generator, &noise, cellX, cellZ + 1, columns[1]));
+        assert(getTerrainNoiseColumn116(
+            &generator, &noise, cellX + 1, cellZ, columns[2]));
+        assert(getTerrainNoiseColumn116(
+            &generator, &noise, cellX + 1, cellZ + 1, columns[3]));
+        assert(getFirstFreeHeightFromColumns116(
+            (const double (*)[33])columns,
+            cases[i].x, cases[i].z) == cases[i].height);
+        assert(getFirstFreeHeight116(
+            &generator, &noise,
+            cases[i].x, cases[i].z) == cases[i].height);
+    }
+}
+
 int main(void)
 {
     static const char *stable[] = {
@@ -445,6 +500,7 @@ int main(void)
     assertDesertPyramidLoot();
     assertAdditionalStructureLoot();
     assertVillageBastionLootTables();
+    assertSurfaceHeightColumnCache116();
 
     puts("stable version, biome, and structure tests passed");
     return 0;

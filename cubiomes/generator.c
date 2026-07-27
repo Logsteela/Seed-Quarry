@@ -878,6 +878,64 @@ static int fillNoiseColumn116(double column[33], const int *biomes,
     return 1;
 }
 
+int getTerrainNoiseColumn116(const Generator *g, const SurfaceNoise *sn,
+    int noiseX, int noiseZ, double column[33])
+{
+    if (!g || !sn || !column || g->dim != DIM_OVERWORLD ||
+        g->mc < MC_1_16_1 || g->mc > MC_1_16_5)
+        return 0;
+
+    Range range = {4, noiseX - 2, noiseZ - 2, 5, 5, 0, 1};
+    int *biomes = allocCache(g, range);
+    if (!biomes)
+        return 0;
+    if (genBiomes(g, biomes, range) != 0)
+    {
+        free(biomes);
+        return 0;
+    }
+
+    int ok = fillNoiseColumn116(
+        column, biomes, 5, 0, 0, sn, noiseX, noiseZ);
+    free(biomes);
+    return ok;
+}
+
+int getFirstFreeHeightFromColumns116(const double columns[4][33],
+    int blockX, int blockZ)
+{
+    if (!columns)
+        return -1;
+
+    int cellOffsetX, cellOffsetZ;
+    floorDivMod4(blockX, &cellOffsetX);
+    floorDivMod4(blockZ, &cellOffsetZ);
+    double fractionX = cellOffsetX / 4.0;
+    double fractionZ = cellOffsetZ / 4.0;
+    int cellY;
+    for (cellY = 31; cellY >= 0; cellY--)
+    {
+        int localY;
+        for (localY = 7; localY >= 0; localY--)
+        {
+            double fractionY = localY / 8.0;
+            double density = lerp3(
+                fractionY, fractionX, fractionZ,
+                columns[0][cellY], columns[0][cellY + 1],
+                columns[2][cellY], columns[2][cellY + 1],
+                columns[1][cellY], columns[1][cellY + 1],
+                columns[3][cellY], columns[3][cellY + 1]);
+            int y = cellY * 8 + localY;
+
+            /* generateBaseState(): stone for positive density, else water
+             * below sea level 63, else air. WORLD_SURFACE_WG is NOT_AIR. */
+            if (density > 0.0 || y < 63)
+                return y + 1;
+        }
+    }
+    return 0;
+}
+
 int getFirstFreeHeight116(const Generator *g, const SurfaceNoise *sn,
     int blockX, int blockZ)
 {
@@ -917,33 +975,8 @@ int getFirstFreeHeight116(const Generator *g, const SurfaceNoise *sn,
     if (!ok)
         return -1;
 
-    double fractionX = cellOffsetX / 4.0;
-    double fractionZ = cellOffsetZ / 4.0;
-    int cellY;
-    for (cellY = 31; cellY >= 0; cellY--)
-    {
-        int localY;
-        for (localY = 7; localY >= 0; localY--)
-        {
-            double fractionY = localY / 8.0;
-            double density = lerp3(
-                fractionY, fractionX, fractionZ,
-                columns[0][cellY], columns[0][cellY + 1],
-                columns[2][cellY], columns[2][cellY + 1],
-                columns[1][cellY], columns[1][cellY + 1],
-                columns[3][cellY], columns[3][cellY + 1]);
-            int y = cellY * 8 + localY;
-
-            /* generateBaseState(): stone for positive density, else water
-             * below sea level 63, else air. WORLD_SURFACE_WG is NOT_AIR. */
-            if (density > 0.0 || y < 63)
-                return y + 1;
-        }
-    }
-    return 0;
+    return getFirstFreeHeightFromColumns116(
+        (const double (*)[33]) columns, blockX, blockZ);
 }
-
-
-
 
 

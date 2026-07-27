@@ -149,6 +149,26 @@ int mapApproxHeight(float *y, int *ids, const Generator *g,
 int getFirstFreeHeight116(const Generator *g, const SurfaceNoise *sn,
     int blockX, int blockZ);
 
+/**
+ * Builds one Java 1.16.1 terrain-density column at horizontal noise
+ * coordinates. The output contains the 33 samples used to interpolate the
+ * eight vertical blocks in each noise cell.
+ *
+ * This lower-level API is useful when many nearby block heights are queried:
+ * callers can cache columns and reuse the four surrounding columns for each
+ * block. Returns zero when the generator is incompatible or biome generation
+ * fails.
+ */
+int getTerrainNoiseColumn116(const Generator *g, const SurfaceNoise *sn,
+    int noiseX, int noiseZ, double column[33]);
+
+/**
+ * Interpolates WORLD_SURFACE_WG from four terrain-density columns ordered as
+ * (x,z), (x,z+1), (x+1,z), (x+1,z+1).
+ */
+int getFirstFreeHeightFromColumns116(const double columns[4][33],
+    int blockX, int blockZ);
+
 
 #ifdef __cplusplus
 }

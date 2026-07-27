@@ -15,6 +15,7 @@
 #include <QStringList>
 
 #include <algorithm>
+#include <array>
 #include <deque>
 #include <memory>
 
@@ -185,6 +186,27 @@ struct CubiomesHeightContext
 {
     Generator generator = {};
     SurfaceNoise surfaceNoise = {};
+    QHash<qint64, std::array<double, 33>> terrainColumns;
+
+    bool getColumn(int noiseX, int noiseZ, double out[33])
+    {
+        const qint64 key = qint64(
+            (quint64(quint32(noiseX)) << 32) |
+            quint64(quint32(noiseZ)));
+        auto found = terrainColumns.constFind(key);
+        if (found == terrainColumns.constEnd())
+        {
+            std::array<double, 33> generated;
+            if (!getTerrainNoiseColumn116(
+                    &generator, &surfaceNoise,
+                    noiseX, noiseZ, generated.data()))
+                return false;
+            terrainColumns.insert(key, generated);
+            found = terrainColumns.constFind(key);
+        }
+        std::copy(found->begin(), found->end(), out);
+        return true;
+    }
 };
 
 QString withoutMinecraftNamespace(QString name)
@@ -1040,9 +1062,22 @@ int cubiomesHeight(void *context, int blockX, int blockZ)
 {
     CubiomesHeightContext *height =
         static_cast<CubiomesHeightContext *>(context);
-    return getFirstFreeHeight116(
-        &height->generator, &height->surfaceNoise,
-        blockX, blockZ);
+    const int cellX = floordiv(blockX, 4);
+    const int cellZ = floordiv(blockZ, 4);
+    double columns[4][33];
+    if (!height->getColumn(
+            cellX, cellZ, columns[0]) ||
+        !height->getColumn(
+            cellX, cellZ + 1, columns[1]) ||
+        !height->getColumn(
+            cellX + 1, cellZ, columns[2]) ||
+        !height->getColumn(
+            cellX + 1, cellZ + 1, columns[3]))
+    {
+        return -1;
+    }
+    return getFirstFreeHeightFromColumns116(
+        (const double (*)[33]) columns, blockX, blockZ);
 }
 
 }
