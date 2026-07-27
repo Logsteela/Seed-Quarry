@@ -113,7 +113,7 @@ ConditionDialog::ConditionDialog(FormConditions *parent, MapView *mapview, Confi
         QString::fromUtf8("荒廃したポータル（ネザー）"),
         Ruined_Portal_N);
     areaLootStructure->addItem(
-        QString::fromUtf8("村（Java 1.16.1）"),
+        QString::fromUtf8("村（Java 1.16）"),
         Village);
     areaLootStructure->addItem(
         QString::fromUtf8("砦の遺跡"),

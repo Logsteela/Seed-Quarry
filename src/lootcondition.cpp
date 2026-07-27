@@ -651,7 +651,7 @@ bool isLootSupported(int structureType, int mc)
         return mc == MC_1_16_1 &&
             isBastionStructureData16Available();
     if (structureType == Village)
-        return mc == MC_1_16_1 &&
+        return (mc == MC_1_16_1 || mc == MC_1_16) &&
             isVillageStructureData16Available();
     return false;
 }
@@ -677,7 +677,7 @@ QString lootSupportDescription(int structureType, int mc)
         {
             return QString::fromUtf8(
                 "村の正確なピース・チェスト位置検索は、"
-                "現在Java 1.16.1専用です。");
+                "現在Java 1.16専用です。");
         }
         QString error;
         isVillageStructureData16Available(&error);

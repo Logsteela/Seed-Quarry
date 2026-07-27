@@ -536,7 +536,8 @@ int main(int argc, char **argv)
     assert(isLootSupported(Ruined_Portal, MC_1_16_5));
     assert(isLootSupported(Ruined_Portal_N, MC_1_16_1));
     assert(isLootSupported(Village, MC_1_16_1));
-    assert(!isLootSupported(Village, MC_1_16_5));
+    assert(isLootSupported(Village, MC_1_16));
+    assert(!isLootSupported(Village, MC_1_17));
     assert(structureLootItemAvailable(
         Shipwreck, DP_LOOT_FILLED_MAP));
     assert(!structureLootItemAvailable(
