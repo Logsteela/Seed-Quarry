@@ -89,12 +89,26 @@ struct Container16
     int placementIndex = 0;
 };
 
+struct PathBlock16
+{
+    Point3 pos;
+    bool aboveEmpty = true;
+};
+
+struct FeatureBlock16
+{
+    Point3 pos;
+    int kind = VillagePlacedBlock16::OCCUPIED;
+};
+
 struct Template16
 {
     QString name;
     Point3 size;
     QVector<Jigsaw16> jigsaws;
     QVector<Container16> containers;
+    QVector<PathBlock16> grassPaths;
+    QVector<FeatureBlock16> featureBlocks;
 };
 
 struct Element16
@@ -182,6 +196,23 @@ struct HeightReader
     }
 };
 
+qint64 horizontalKey(int x, int z)
+{
+    return qint64(
+        (quint64(quint32(x)) << 32) |
+        quint64(quint32(z)));
+}
+
+qint64 blockKey(const Point3& pos)
+{
+    return qint64(
+        ((quint64(quint32(pos.x)) &
+          UINT64_C(0x3ffffff)) << 38) |
+        ((quint64(quint32(pos.z)) &
+          UINT64_C(0x3ffffff)) << 12) |
+        (quint64(quint32(pos.y)) & UINT64_C(0xfff)));
+}
+
 struct CubiomesHeightContext
 {
     Generator generator = {};
@@ -254,6 +285,28 @@ Point3 pointFromJson(const QJsonValue& value, bool *ok)
     point.y = array[1].toInt();
     point.z = array[2].toInt();
     return point;
+}
+
+int featureBlockKindFromJson(const QString& kind, bool *ok)
+{
+    if (kind == QLatin1String("occupied"))
+        return VillagePlacedBlock16::OCCUPIED;
+    if (kind == QLatin1String("sturdy"))
+        return VillagePlacedBlock16::STURDY;
+    if (kind == QLatin1String("tree_free"))
+        return VillagePlacedBlock16::TREE_FREE;
+    if (kind == QLatin1String("tree_free_solid"))
+        return VillagePlacedBlock16::TREE_FREE_SOLID;
+    if (kind == QLatin1String("tree_free_sturdy"))
+        return VillagePlacedBlock16::TREE_FREE_STURDY;
+    if (kind == QLatin1String("soil"))
+        return VillagePlacedBlock16::SOIL;
+    if (kind == QLatin1String("sand"))
+        return VillagePlacedBlock16::SAND;
+    if (kind == QLatin1String("water"))
+        return VillagePlacedBlock16::WATER;
+    *ok = false;
+    return VillagePlacedBlock16::OCCUPIED;
 }
 
 int tableFromName(QString name)
@@ -572,6 +625,45 @@ VillageData16 loadVillageData16()
                     second.placementIndex, second.pos);
             });
 
+        const QJsonArray grassPaths =
+            object.value(QStringLiteral("grass_paths")).toArray();
+        structure.grassPaths.reserve(grassPaths.size());
+        for (const QJsonValue& pathValue : grassPaths)
+        {
+            const QJsonObject pathObject =
+                pathValue.toObject();
+            PathBlock16 path;
+            path.pos = pointFromJson(
+                pathObject.value(QStringLiteral("pos")), &ok);
+            path.aboveEmpty = pathObject.value(
+                QStringLiteral("above_empty")).toBool();
+            structure.grassPaths.push_back(path);
+            if (!ok)
+                break;
+        }
+        if (!ok)
+            break;
+
+        const QJsonArray featureBlocks =
+            object.value(QStringLiteral("feature_blocks")).toArray();
+        structure.featureBlocks.reserve(featureBlocks.size());
+        for (const QJsonValue& blockValue : featureBlocks)
+        {
+            const QJsonObject blockObject =
+                blockValue.toObject();
+            FeatureBlock16 block;
+            block.pos = pointFromJson(
+                blockObject.value(QStringLiteral("pos")), &ok);
+            block.kind = featureBlockKindFromJson(
+                blockObject.value(
+                    QStringLiteral("kind")).toString(), &ok);
+            structure.featureBlocks.push_back(block);
+            if (!ok)
+                break;
+        }
+        if (!ok)
+            break;
+
         data.templateByName.insert(
             structure.name, data.templates.size());
         data.templates.push_back(structure);
@@ -786,6 +878,39 @@ Point3 rotatePoint(const Point3& point, int rotation)
     case 3: return { point.z, point.y, -point.x};
     default: return point;
     }
+}
+
+uint64_t blockPositionRandomSeed(const Point3& point)
+{
+    // Mth.getSeed(int,int,int), including Java overflow behavior.
+    const int32_t first = int32_t(
+        uint32_t(point.x) * UINT32_C(3129871));
+    uint64_t value =
+        uint64_t(int64_t(first)) ^
+        uint64_t(int64_t(point.z) * INT64_C(116129781)) ^
+        uint64_t(int64_t(point.y));
+    value = value * value * UINT64_C(42317861) +
+        value * UINT64_C(11);
+    if (value & (UINT64_C(1) << 63))
+        return (value >> 16) | (~UINT64_C(0) << 48);
+    return value >> 16;
+}
+
+bool streetPathIsRandomlyRemoved(
+    const Point3& preGravityPosition, int villageType)
+{
+    float probability = 0.0f;
+    if (villageType == VillageLayout16::PLAINS)
+        probability = 0.1f;
+    else if (villageType != VillageLayout16::DESERT)
+        probability = 0.2f;
+    if (probability == 0.0f)
+        return false;
+
+    uint64_t random;
+    setSeed(&random, blockPositionRandomSeed(
+        preGravityPosition));
+    return nextFloat(&random) < probability;
 }
 
 Direction16 rotateDirection(Direction16 direction, int rotation)
@@ -1466,6 +1591,188 @@ bool generateVillageLayout16WithHeights(
                 container.placementIndex;
             generated.piece = structure.name;
             out->containers.push_back(generated);
+        }
+
+        for (const PathBlock16& pathBlock :
+             structure.grassPaths)
+        {
+            const Point3& path = pathBlock.pos;
+            const Point3 transformed =
+                rotatePoint(path, piece.rotation);
+            const Point3 preGravity =
+                add(transformed, piece.origin);
+            Point3 world = preGravity;
+            bool stateKnown = true;
+            if (piece.element.terrainMatching)
+            {
+                const int surface =
+                    heights.get(world.x, world.z);
+                world.y = surface - 1 + path.y;
+                if (!heights.valid)
+                {
+                    if (error)
+                    {
+                        *error = QStringLiteral(
+                            "WORLD_SURFACE_WG height "
+                            "generation failed.");
+                    }
+                    return false;
+                }
+                // The path RuleProcessor runs before GravityProcessor. At
+                // sea level its input block may be water, which changes the
+                // output to planks. Keep that case unknown.
+                stateKnown = surface > 63;
+            }
+            if (piece.element.terrainMatching &&
+                stateKnown &&
+                streetPathIsRandomlyRemoved(
+                    preGravity, villageType))
+            {
+                continue;
+            }
+            VillagePathBlock16 generated;
+            generated.pos = {world.x, world.y, world.z};
+            generated.pieceIndex = pieceIndex;
+            generated.aboveEmpty = pathBlock.aboveEmpty;
+            generated.stateKnown = stateKnown;
+            out->grassPaths.push_back(generated);
+            out->grassPathsByPosition[
+                blockKey(world)].push_back(generated);
+        }
+    }
+
+    for (int pieceIndex = 0;
+         pieceIndex < out->pieces.size(); pieceIndex++)
+    {
+        const VillagePiece16& feature =
+            out->pieces[pieceIndex];
+        if (feature.elementType != VillagePiece16::FEATURE)
+            continue;
+
+        bool precedesLootInChunk = false;
+        const int featureChunkX = floordiv(feature.pos.x, 16);
+        const int featureChunkZ = floordiv(feature.pos.z, 16);
+        for (const VillageContainer16& container :
+             out->containers)
+        {
+            if (!container.lootTable.isEmpty() &&
+                container.pieceIndex > pieceIndex &&
+                floordiv(container.pos.x, 16) == featureChunkX &&
+                floordiv(container.pos.z, 16) == featureChunkZ)
+            {
+                precedesLootInChunk = true;
+                break;
+            }
+        }
+        if (!precedesLootInChunk)
+            continue;
+
+        int radius = 0;
+        if (feature.feature.contains(
+                QLatin1String("BLOCK_PILE")))
+        {
+            radius = 3;
+        }
+        else if (feature.feature.contains(
+                     QLatin1String("CACTUS_CONFIG")))
+        {
+            radius = 8;
+        }
+        else if (feature.feature.contains(
+                     QLatin1String("TREE")))
+        {
+            radius = 5;
+        }
+        if (radius == 0)
+            continue;
+
+        for (int z = feature.pos.z - radius;
+             z <= feature.pos.z + radius; z++)
+        {
+            for (int x = feature.pos.x - radius;
+                 x <= feature.pos.x + radius; x++)
+            {
+                const int surface = heights.get(x, z);
+                if (!heights.valid)
+                {
+                    if (error)
+                    {
+                        *error = QStringLiteral(
+                            "WORLD_SURFACE_WG height "
+                            "generation failed.");
+                    }
+                    return false;
+                }
+                out->featureSurfaceHeights.insert(
+                    horizontalKey(x, z), surface);
+            }
+        }
+    }
+
+    for (int pieceIndex = 0;
+         pieceIndex < pieces.size(); pieceIndex++)
+    {
+        const Piece16& piece = pieces[pieceIndex];
+        if (piece.element.kind != ELEMENT_LEGACY)
+            continue;
+        const Template16& structure =
+            data.templates[piece.element.templateIndex];
+        for (const FeatureBlock16& block :
+             structure.featureBlocks)
+        {
+            const Point3 transformed =
+                rotatePoint(block.pos, piece.rotation);
+            const Point3 preGravity =
+                add(transformed, piece.origin);
+            Point3 world = preGravity;
+            if (!out->featureSurfaceHeights.contains(
+                    horizontalKey(world.x, world.z)))
+            {
+                continue;
+            }
+            if (piece.element.terrainMatching)
+            {
+                world.y = heights.get(world.x, world.z) -
+                    1 + block.pos.y;
+                if (!heights.valid)
+                {
+                    if (error)
+                    {
+                        *error = QStringLiteral(
+                            "WORLD_SURFACE_WG height "
+                            "generation failed.");
+                    }
+                    return false;
+                }
+            }
+            VillagePlacedBlock16 generated;
+            generated.pos = {world.x, world.y, world.z};
+            generated.pieceIndex = pieceIndex;
+            generated.kind = block.kind;
+            generated.stateKnown =
+                !structure.name.contains(
+                    QLatin1String("/zombie/"));
+            if (piece.element.terrainMatching &&
+                heights.get(world.x, world.z) > 63)
+            {
+                for (const PathBlock16& path :
+                     structure.grassPaths)
+                {
+                    if (path.pos.x == block.pos.x &&
+                        path.pos.y == block.pos.y &&
+                        path.pos.z == block.pos.z &&
+                        streetPathIsRandomlyRemoved(
+                            preGravity, villageType))
+                    {
+                        generated.kind =
+                            VillagePlacedBlock16::SOIL;
+                        generated.stateKnown = true;
+                        break;
+                    }
+                }
+            }
+            out->placedBlocks[blockKey(world)].push_back(
+                generated);
         }
     }
     return true;

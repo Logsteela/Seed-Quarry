@@ -40,9 +40,9 @@ struct VillageLootChestSeed16
  *
  * The routine walks pieces in their saved order independently for every
  * chest chunk. It advances through containers without a LootTable as vanilla
- * does. Sweet-berry, taiga-grass, and plains-flower feature elements are
- * reproduced exactly. A preceding tree, pile, cactus, or unknown feature
- * makes only the later containers in that chunk unresolved.
+ * does. Supported feature elements are reproduced against the layout's
+ * compact block-state model. A feature whose relevant world state is not
+ * known makes only the later containers in that chunk unresolved.
  *
  * Set anotherVillageMayReferenceAChestChunk when another Village start may
  * be present in any output chest's chunk. In that case positions are still
@@ -54,6 +54,16 @@ bool assignVillageLootSeedsSingleStart16(
     QVector<VillageLootChestSeed16> *out,
     const VillageLayout16& layout, uint64_t worldSeed,
     bool anotherVillageMayReferenceAChestChunk,
+    QString *error = nullptr);
+
+/**
+ * Per-chunk overlap form. Each Pos stores chunk coordinates in x/z. Only
+ * loot containers in one of those chunks are marked UNRESOLVED_OVERLAP.
+ */
+bool assignVillageLootSeedsSingleStart16(
+    QVector<VillageLootChestSeed16> *out,
+    const VillageLayout16& layout, uint64_t worldSeed,
+    const QVector<Pos>& overlappingChestChunks,
     QString *error = nullptr);
 
 #endif

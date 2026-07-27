@@ -95,10 +95,10 @@ if ($Reconfigure -or -not (Test-Path $makefile)) {
     }
 }
 
-$jobs = [Math]::Max(
-    1,
-    [Math]::Min(2, [Environment]::ProcessorCount)
-)
+# The Village feature simulator makes a few C++ translation units large
+# enough that two concurrent MinGW compilers can exhaust memory on this
+# workstation. A single job is slower but keeps rebuild/run reliable.
+$jobs = 1
 & $make -C $buildDir "-j$jobs"
 if ($LASTEXITCODE -ne 0) {
     throw "Build failed (exit $LASTEXITCODE)"

@@ -4,6 +4,7 @@
 #include "cubiomes/finders.h"
 
 #include <QString>
+#include <QHash>
 #include <QVector>
 
 #include <stdint.h>
@@ -53,6 +54,35 @@ struct VillageContainer16
     }
 };
 
+struct VillagePathBlock16
+{
+    Pos3 pos = {};
+    int pieceIndex = -1;
+    bool aboveEmpty = true;
+    // False means that a water-sensitive street processor could replace the
+    // block, so callers must conservatively treat this position as unknown.
+    bool stateKnown = true;
+};
+
+struct VillagePlacedBlock16
+{
+    enum Kind {
+        OCCUPIED,
+        STURDY,
+        TREE_FREE,
+        TREE_FREE_SOLID,
+        TREE_FREE_STURDY,
+        SOIL,
+        SAND,
+        WATER,
+    };
+
+    Pos3 pos = {};
+    int pieceIndex = -1;
+    int kind = OCCUPIED;
+    bool stateKnown = true;
+};
+
 struct VillageLayout16
 {
     enum VillageType {
@@ -70,6 +100,13 @@ struct VillageLayout16
     QString startPool;
     QVector<VillagePiece16> pieces;
     QVector<VillageContainer16> containers;
+    QVector<VillagePathBlock16> grassPaths;
+    QHash<qint64, QVector<VillagePathBlock16>>
+        grassPathsByPosition;
+    QHash<qint64, QVector<VillagePlacedBlock16>> placedBlocks;
+    // Exact WORLD_SURFACE_WG samples needed only by feature pieces which can
+    // affect a later loot container in the same chunk.
+    QHash<qint64, int> featureSurfaceHeights;
 };
 
 bool isVillageStructureData16Available(QString *error = nullptr);

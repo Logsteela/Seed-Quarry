@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
-"""Extract deterministic jigsaw/container facts from an official Minecraft jar.
+"""Extract deterministic structure facts from an official Minecraft jar.
 
-This tool does not copy structure block palettes into the output. It records
-only the facts needed by Seed Atlas' jigsaw assembler:
+This tool records only the facts needed by Seed Atlas' jigsaw and compact
+Village feature simulation:
 
 * template dimensions;
 * jigsaw connector positions and attributes;
 * randomizable-container positions, block types, and LootTable ids.
+* grass paths and coarse block-material categories near feature points.
 
 Minecraft 1.16 structure NBT files are gzip-compressed inside the jar. The
 parser below intentionally supports the complete standard NBT tag set so the
@@ -71,6 +72,84 @@ RANDOMIZABLE_CONTAINERS = {
     "minecraft:dropper",
     "minecraft:trapped_chest",
 }
+
+TREE_FREE_BLOCKS = {
+    "minecraft:air",
+    "minecraft:cave_air",
+    "minecraft:void_air",
+    "minecraft:water",
+    "minecraft:grass",
+    "minecraft:fern",
+    "minecraft:tall_grass",
+    "minecraft:large_fern",
+    "minecraft:snow",
+    "minecraft:wheat",
+    "minecraft:carrots",
+    "minecraft:potatoes",
+    "minecraft:beetroots",
+    "minecraft:pumpkin_stem",
+    "minecraft:melon_stem",
+    "minecraft:sugar_cane",
+    "minecraft:dead_bush",
+    "minecraft:dandelion",
+    "minecraft:poppy",
+    "minecraft:blue_orchid",
+    "minecraft:allium",
+    "minecraft:azure_bluet",
+    "minecraft:oxeye_daisy",
+    "minecraft:cornflower",
+    "minecraft:lily_of_the_valley",
+}
+
+NON_STURDY_SUFFIXES = (
+    "_stairs", "_slab", "_fence", "_wall", "_door", "_trapdoor",
+    "_pane", "_torch", "_lantern", "_carpet", "_bed", "_button",
+    "_pressure_plate", "_sapling", "_flower", "_tulip",
+)
+
+
+def feature_block_kind(block_name: str) -> str:
+    if block_name in (
+        "minecraft:dirt",
+        "minecraft:grass_block",
+        "minecraft:podzol",
+        "minecraft:coarse_dirt",
+        "minecraft:mycelium",
+        "minecraft:farmland",
+    ):
+        return "soil"
+    if block_name in ("minecraft:sand", "minecraft:red_sand"):
+        return "sand"
+    if block_name == "minecraft:water":
+        return "water"
+    if (
+        block_name in TREE_FREE_BLOCKS
+    ):
+        return "tree_free"
+    if block_name.endswith("_leaves"):
+        return "tree_free_solid"
+    if (
+        block_name.endswith("_log")
+        or block_name.endswith("_wood")
+    ):
+        return "tree_free_sturdy"
+    if block_name.endswith(NON_STURDY_SUFFIXES) or block_name in {
+        "minecraft:bell",
+        "minecraft:campfire",
+        "minecraft:grindstone",
+        "minecraft:lectern",
+        "minecraft:brewing_stand",
+        "minecraft:cauldron",
+        "minecraft:composter",
+        "minecraft:chest",
+        "minecraft:barrel",
+        "minecraft:iron_bars",
+        "minecraft:cobweb",
+        "minecraft:ladder",
+        "minecraft:vine",
+    }:
+        return "occupied"
+    return "sturdy"
 
 
 class NbtError(ValueError):
@@ -223,6 +302,9 @@ def extract_template(
 
     jigsaws: List[Dict[str, Any]] = []
     containers: List[Dict[str, Any]] = []
+    grass_path_positions: List[List[int]] = []
+    occupied_positions = set()
+    feature_blocks: List[Dict[str, Any]] = []
     for placement_index, block in enumerate(blocks):
         if not isinstance(block, dict):
             raise NbtError(f"{entry_name}: malformed block entry")
@@ -241,6 +323,16 @@ def extract_template(
             raise NbtError(f"{entry_name}: palette block has no Name")
         pos = vector3(block.get("pos"), "block.pos", entry_name)
         nbt = block.get("nbt")
+
+        if block_name not in (
+            "minecraft:air",
+            "minecraft:cave_air",
+            "minecraft:void_air",
+            "minecraft:structure_block",
+        ):
+            occupied_positions.add(tuple(pos))
+
+        placed_name = block_name
 
         if block_name == "minecraft:jigsaw":
             if not isinstance(nbt, dict):
@@ -267,6 +359,34 @@ def extract_template(
                 ),
                 "placement_index": placement_index,
             })
+            occupied_positions.discard(tuple(pos))
+            final_name = str(nbt.get("final_state", "")).split("[", 1)[0]
+            placed_name = final_name
+            if final_name not in (
+                "minecraft:air",
+                "minecraft:cave_air",
+                "minecraft:void_air",
+                "minecraft:structure_void",
+            ):
+                occupied_positions.add(tuple(pos))
+            if final_name == "minecraft:grass_path":
+                grass_path_positions.append(pos)
+
+        if block_name == "minecraft:grass_path":
+            grass_path_positions.append(pos)
+
+        if placed_name not in (
+            "minecraft:air",
+            "minecraft:cave_air",
+            "minecraft:void_air",
+            "minecraft:structure_air",
+            "minecraft:structure_block",
+            "minecraft:structure_void",
+        ):
+            feature_blocks.append({
+                "pos": pos,
+                "kind": feature_block_kind(placed_name),
+            })
 
         if block_name in RANDOMIZABLE_CONTAINERS:
             loot_table = None
@@ -288,6 +408,19 @@ def extract_template(
         result["jigsaws"] = jigsaws
     if containers:
         result["containers"] = containers
+    if grass_path_positions:
+        result["grass_paths"] = [
+            {
+                "pos": pos,
+                "above_empty": (
+                    (pos[0], pos[1] + 1, pos[2])
+                    not in occupied_positions
+                ),
+            }
+            for pos in grass_path_positions
+        ]
+    if feature_blocks:
+        result["feature_blocks"] = feature_blocks
     return result
 
 

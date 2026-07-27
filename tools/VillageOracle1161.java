@@ -501,7 +501,7 @@ public final class VillageOracle1161 {
                         "N|%d|%d|%d%n", seed, chunkX, chunkZ);
                     System.exit(1);
                 }
-                return;
+                System.exit(0);
             }
 
             if (args.length == 3 && "--scan".equals(args[0])) {
@@ -522,8 +522,9 @@ public final class VillageOracle1161 {
                         int chunkZ = candidateChunk(
                             seed, regionX, regionZ, false);
                         if (printVillage(
-                                checker, seed, chunkX, chunkZ))
-                            return;
+                                checker, seed, chunkX, chunkZ)) {
+                            System.exit(0);
+                        }
                     }
                 }
                 System.out.printf(
@@ -544,7 +545,7 @@ public final class VillageOracle1161 {
                         seed, chunkX, chunkZ);
                     System.exit(1);
                 }
-                return;
+                System.exit(0);
             }
         } catch (NumberFormatException error) {
             System.err.println("Invalid integer: " + error.getMessage());

@@ -74,7 +74,7 @@ bool hasVillageItemContentRule(const LootRuleSet& rules)
     return false;
 }
 
-bool villageLootChunksHaveAnotherRngStart(
+QVector<Pos> villageLootChunksWithAnotherRngStart(
     const VillageLayout16& target, uint64_t worldSeed,
     int targetStartChunkX, int targetStartChunkZ)
 {
@@ -89,7 +89,7 @@ bool villageLootChunksHaveAnotherRngStart(
         }
     }
     if (chestChunks.isEmpty())
-        return false;
+        return {};
 
     QSet<qint64> candidateStarts;
     for (qint64 chestKey : chestChunks)
@@ -136,6 +136,7 @@ bool villageLootChunksHaveAnotherRngStart(
     Generator generator;
     setupGenerator(&generator, MC_1_16_1, 0);
     applySeed(&generator, DIM_OVERWORLD, worldSeed);
+    QSet<qint64> affectedChunks;
     for (qint64 startKey : candidateStarts)
     {
         const int startChunkX =
@@ -143,7 +144,7 @@ bool villageLootChunksHaveAnotherRngStart(
         const int startChunkZ =
             chunkZFromKey(startKey);
 
-        bool nearTargetChest = false;
+        QSet<qint64> nearbyChestChunks;
         for (qint64 chestKey : chestChunks)
         {
             if (qAbs(startChunkX -
@@ -151,11 +152,10 @@ bool villageLootChunksHaveAnotherRngStart(
                 qAbs(startChunkZ -
                      chunkZFromKey(chestKey)) <= 8)
             {
-                nearTargetChest = true;
-                break;
+                nearbyChestChunks.insert(chestKey);
             }
         }
-        if (!nearTargetChest)
+        if (nearbyChestChunks.isEmpty())
             continue;
 
         const Pos start = {
@@ -173,30 +173,42 @@ bool villageLootChunksHaveAnotherRngStart(
         {
             // A failed proof must not be treated as a safe single-start
             // placement.
-            return true;
+            affectedChunks.unite(nearbyChestChunks);
+            if (affectedChunks.size() == chestChunks.size())
+                break;
+            continue;
         }
 
         for (const VillagePiece16& piece : neighbor.pieces)
         {
             if (piece.elementType != VillagePiece16::FEATURE)
                 continue;
-            if (chestChunks.contains(blockChunkKey(
-                    piece.pos.x, piece.pos.z)))
-            {
-                return true;
-            }
+            const qint64 pieceChunk = blockChunkKey(
+                piece.pos.x, piece.pos.z);
+            if (chestChunks.contains(pieceChunk))
+                affectedChunks.insert(pieceChunk);
         }
         for (const VillageContainer16& container :
              neighbor.containers)
         {
-            if (chestChunks.contains(blockChunkKey(
-                    container.pos.x, container.pos.z)))
-            {
-                return true;
-            }
+            const qint64 containerChunk = blockChunkKey(
+                container.pos.x, container.pos.z);
+            if (chestChunks.contains(containerChunk))
+                affectedChunks.insert(containerChunk);
         }
+        if (affectedChunks.size() == chestChunks.size())
+            break;
     }
-    return false;
+
+    QVector<Pos> result;
+    result.reserve(affectedChunks.size());
+    for (qint64 chunkKey : affectedChunks)
+    {
+        result.push_back(Pos{
+            chunkXFromKey(chunkKey),
+            chunkZFromKey(chunkKey)});
+    }
+    return result;
 }
 
 quint64 contentHash(const QByteArray& data)
@@ -443,13 +455,16 @@ bool getStructureLoot(
         }
 
         QVector<VillageLootChestSeed16> generatedChests;
-        const bool overlappingRngStart =
-            hasVillageItemContentRule(rules) &&
-            villageLootChunksHaveAnotherRngStart(
-                layout, worldSeed, chunkX, chunkZ);
+        QVector<Pos> overlappingRngChunks;
+        if (hasVillageItemContentRule(rules))
+        {
+            overlappingRngChunks =
+                villageLootChunksWithAnotherRngStart(
+                    layout, worldSeed, chunkX, chunkZ);
+        }
         if (!assignVillageLootSeedsSingleStart16(
                 &generatedChests, layout, worldSeed,
-                overlappingRngStart))
+                overlappingRngChunks))
         {
             return false;
         }

@@ -38,30 +38,42 @@ order. The manifest's `placement_index` preserves the relevant order.
 ## The 13 Village configured features
 
 `Light exact` means shared-RNG advancement can be reproduced without
-simulating the block world. Java `nextInt(1)` still advances the RNG.
+simulating the block world. `Compact-state exact` means it can be reproduced
+when the extracted Village blocks and sampled surface around the feature are
+enough to prove every world-state branch. Java `nextInt(1)` still advances
+the RNG.
 
 | Configured feature | Shared-RNG behavior | Classification |
 | --- | --- | --- |
-| normal oak tree | Tree height/radius/offset and foliage calls occur only if terrain/substrate/clearance checks allow the tree | world-state dependent |
-| pine tree | As above; foliage height adds a random call | world-state dependent |
-| spruce tree | As above; foliage height and first spruce row add random calls | world-state dependent |
-| acacia tree | As above; fork directions/lengths and possible second foliage attachment add branches | world-state dependent |
-| hay block pile | Fixed shape-test floats, but successful placements consume one axis choice; grass-path support can consume `nextBoolean()` | world-state dependent |
-| snow pile | Provider itself consumes no RNG, but a grass-path support block conditionally consumes `nextBoolean()` | world-state dependent (conditionally light) |
-| melon pile | Same as snow pile | world-state dependent (conditionally light) |
-| pumpkin pile | Each successful placement advances two `nextFloat()` calls in `WeightedStateProvider`; grass paths add a conditional boolean | world-state dependent |
-| ice pile | Same as pumpkin pile (two weighted entries) | world-state dependent |
-| cactus random patch | Always 10 attempts x 6 offset calls; every valid attempt additionally makes two nested `nextInt` calls in `ColumnPlacer` | world-state dependent |
+| normal oak tree | Tree height/radius/offset and foliage calls occur only if terrain/substrate/clearance checks allow the tree | compact-state exact |
+| pine tree | As above; foliage height adds a random call | compact-state exact |
+| spruce tree | As above; foliage height and first spruce row add random calls | compact-state exact |
+| acacia tree | As above; fork directions/lengths and possible second foliage attachment add branches | compact-state exact |
+| hay block pile | Fixed shape-test floats, successful placements consume one axis choice, and grass-path support can consume `nextBoolean()` | compact-state exact |
+| snow pile | Provider itself consumes no RNG, but a grass-path support block conditionally consumes `nextBoolean()` | compact-state exact |
+| melon pile | Same as snow pile | compact-state exact |
+| pumpkin pile | Each successful placement advances two `nextFloat()` calls in `WeightedStateProvider`; grass paths add a conditional boolean | compact-state exact |
+| ice pile | Same as pumpkin pile (two weighted entries) | compact-state exact |
+| cactus random patch | Always 10 attempts x 6 offset calls; every valid attempt additionally makes two nested `nextInt` calls in `ColumnPlacer` | compact-state exact |
 | sweet berry random patch | Simple provider and placer consume no RNG; exactly 64 attempts x 6 offset calls | light exact |
 | taiga grass random patch | Two `nextFloat()` calls select grass/fern once, then exactly 32 attempts x 6 offset calls | light exact |
 | plains flower | Coordinate noise chooses a one- or two-call flower selection path, then exactly 64 x 6 offset calls; placement success consumes no RNG | light exact |
 
 Tree failure/success depends on terrain height, water depth, substrate, template
 blocks, preceding features, and clearance. Piles and cactus similarly inspect
-and modify actual blocks. Reproducing those cases exactly requires a small
-block-world simulation, not merely the heightmap.
+and modify actual blocks. The implementation therefore extracts grass paths
+and coarse block kinds from the official 1.16.1 templates, transforms them in
+piece order, and samples `WORLD_SURFACE_WG` only around feature points. It
+simulates blocks placed by the feature while consuming the shared RNG.
 
-## Two fixed oracle vectors
+It deliberately returns `UNRESOLVED_FEATURE` instead of guessing when that
+compact model cannot prove a branch. Current conservative cases include a
+feature crossing its placement chunk, water-sensitive terrain at or below sea
+level, zombie-processor blocks whose final state is ambiguous, and block kinds
+whose material behavior was not extracted. This keeps loot search free of
+false negatives while resolving many of the previously blanket-unknown cases.
+
+## Oracle vectors
 
 The target-level-1 SeedChecker oracle and the extracted template manifest were
 used to transform loot-container positions and compare piece order by chunk:
@@ -74,6 +86,23 @@ used to transform loot-container positions and compare piece order by chunk:
 This does not prove the difficult case is impossible, but it shows that an
 exact fast path which rejects only unsafe chest chunks is useful.
 
+An actual target-level-1 Minecraft oracle was also run for seed
+`8709371129873690708`, Snowy Village start chunk `(-371,-396)`. The four
+loot-table seeds reproduced by the C++ implementation are:
+
+| Chest position | LootTableSeed |
+| --- | ---: |
+| `(-5918,75,-6351)` | `-3285011792938035519` |
+| `(-5924,75,-6350)` | `2146034468891856845` |
+| `(-5980,77,-6331)` | `8560071340488466059` |
+| `(-5974,76,-6325)` | `5135956710036044922` |
+
+`tools/VillageFeatureRngOracle1161.java` is a small independent
+`java.util.Random` oracle for flat, structure-free branches. It covers all
+four trees, hay, weighted piles, and cactus without loading Minecraft or
+SeedChecker. Its fixed vectors are asserted by
+`tools/village_loot_seed_probe.cpp`.
+
 ## Recommended implementation policy
 
 1. Always generate exact Village layout and exact absolute container
@@ -82,18 +111,18 @@ exact fast path which rejects only unsafe chest chunks is useful.
    (`decorationSeed + 40011`), then walk pieces and containers in exact stored
    order.
 3. Advance through earlier containers with `nextLong()`.
-4. Advance through earlier sweet-berry, taiga-grass, and plains-flower
-   features with their lightweight exact algorithms.
-5. If an earlier tree, pile, or cactus point exists in that chunk, mark the
-   loot seed `unsafe/unresolved`; do not guess. Also mark chunks referencing
-   more than one Village start unresolved until fastutil reference ordering
-   and all starts are modeled.
+4. Advance through lightweight features directly. For trees, piles, and
+   cactus, use the compact block-state simulation; mark only later containers
+   unresolved if a required state is not provable.
+5. Detect competing Village RNG consumers per chest chunk. Mark only the
+   affected chunks unresolved, rather than invalidating every chest in the
+   target Village.
 6. The GUI can still expose exact chest coordinates for unresolved cases.
    Loot filtering should conservatively pass such candidates (or label them
    position-only) rather than produce false negatives.
 
-This hybrid exact/position-only policy is substantially safer and faster than
-implementing a partial tree or pile simulation and calling its loot output
+This hybrid exact/position-only policy keeps the fast proven branches while
+making uncertainty explicit instead of calling a guessed tree or pile result
 exact.
 
 ## Integration sketch
@@ -116,7 +145,7 @@ struct VillageLootChest16 {
 bool assignVillageLootSeedsSingleStart16(
     QVector<VillageLootChest16> *out,
     const VillageLayout16& layout, uint64_t worldSeed,
-    bool anotherVillageMayReferenceAChestChunk,
+    const QVector<Pos>& overlappingChestChunks,
     QString *error = nullptr);
 ```
 
@@ -131,7 +160,7 @@ for each distinct chunk containing a loot-bearing Village container:
     decorationSeed =
         ((chunkX*16) * a + (chunkZ*16) * b) XOR worldSeed
     rng.setSeed(decorationSeed + 40011)
-    unresolved = anotherVillageMayReferenceThisChunk
+    unresolved = overlappingVillageRngChunks.contains(thisChunk)
 
     for pieceIndex in 0 .. layout.pieces.size-1:
         piece = layout.pieces[pieceIndex]
@@ -139,9 +168,7 @@ for each distinct chunk containing a loot-bearing Village container:
             continue
 
         if piece is FEATURE:
-            if feature is sweet berry, taiga grass, or plains flower:
-                advanceSafeVillageFeature(rng, piece.feature, piece.pos)
-            else:
+            if not advanceVillageFeature(rng, compactWorld, piece):
                 unresolved = true
             continue
 
@@ -166,7 +193,7 @@ For exact safe-feature advancement:
 `cubiomes` already has matching `perlinInit`/`sampleSimplex2D`, so the plains
 flower path does not need a new noise implementation.
 
-`lootcondition.cpp` should carry a `lootKnown` bit on
+`lootcondition.cpp` carries a `lootKnown` bit on
 `GeneratedLootChest`/`LootSearchCacheChest`. Unknown seed is not the same as
 an absent chest. Position filters remain exact. If an item rule includes an
 unknown chest, the current search should conservatively keep the candidate
