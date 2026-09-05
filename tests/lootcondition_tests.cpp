@@ -332,6 +332,28 @@ int main(int argc, char **argv)
     villageLootCondition.hash =
         registerLootRuleSet(rejectedVillageLoot);
 
+    const std::map<uint64_t, LootRuleSet> samplingRules = {
+        {villageLootCondition.hash, rejectedVillageLoot},
+    };
+    assert(canSampleVillageLootFamily({villageLootCondition}, samplingRules));
+    Condition exclusion = villageLootCondition;
+    exclusion.count = 0;
+    assert(!canSampleVillageLootFamily({exclusion}, samplingRules));
+    for (int type : {F_LOGIC_NOT, F_LOGIC_OR, F_LUA})
+    {
+        Condition helper = {};
+        helper.type = type;
+        assert(!canSampleVillageLootFamily(
+            {helper, villageLootCondition}, samplingRules));
+        helper.meta = Condition::DISABLED;
+        assert(canSampleVillageLootFamily(
+            {helper, villageLootCondition}, samplingRules));
+    }
+    assert(!canSampleVillageLootFamily({}, samplingRules));
+    Condition areaVillage = villageLootCondition;
+    areaVillage.type = F_LOOT;
+    assert(canSampleVillageLootFamily({areaVillage}, samplingRules));
+
     Generator generator;
     setupGenerator(&generator, MC_1_16_1, 0);
     applySeed(&generator, DIM_OVERWORLD, seed);
@@ -390,9 +412,42 @@ int main(int argc, char **argv)
         printConditionHex(generatedTreasure, MC_1_16_1);
     else if (testArgument == "--portal-condition-hex")
         printConditionHex(generatedPortal, MC_1_16_1);
-    else if (testArgument ==
-             "--village-family-condition-hex")
+    else if (testArgument == "--village-family-condition-hex" ||
+             testArgument == "--village-not-family-condition-hex")
     {
+        if (testArgument == "--village-not-family-condition-hex")
+        {
+            // Last upper-16 seed: the integration test ends after one seed,
+            // even with exhaustive family scanning enabled by the guard.
+            Generator lastFamilyGenerator;
+            setupGenerator(&lastFamilyGenerator, MC_1_16_1, 0);
+            applySeed(&lastFamilyGenerator, DIM_OVERWORLD,
+                      UINT64_C(0xffff000000000000));
+            bool found = false;
+            for (int z = -4; z <= 4 && !found; z++)
+                for (int x = -4; x <= 4 && !found; x++)
+                {
+                    Pos pos;
+                    if (!getStructurePos(Village, MC_1_16_1,
+                            UINT64_C(0xffff000000000000), x, z, &pos) ||
+                        !isViableStructurePos(Village, &lastFamilyGenerator,
+                            pos.x, pos.z, 0))
+                        continue;
+                    villageLootCondition.x1 = villageLootCondition.x2 = pos.x;
+                    villageLootCondition.z1 = villageLootCondition.z2 = pos.z;
+                    found = true;
+                }
+            assert(found);
+            Condition notCondition = {};
+            notCondition.type = F_LOGIC_NOT;
+            notCondition.save = 1;
+            notCondition.version = Condition::VER_CURRENT;
+            QByteArray helper(reinterpret_cast<const char*>(&notCondition),
+                              offsetof(Condition, generated_start));
+            printf("condition=%s\n", helper.toHex().constData());
+            villageLootCondition.save = 2;
+            villageLootCondition.relative = 1;
+        }
         QByteArray base(
             reinterpret_cast<const char*>(
                 &villageLootCondition),

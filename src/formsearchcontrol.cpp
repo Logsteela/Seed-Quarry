@@ -541,6 +541,8 @@ void FormSearchControl::on_buttonSearchHelp_clicked()
         "村Lootの場合は、Loot以外の条件を満たす最初の上位16bitを代表として"
         "Lootを確認し、不一致なら同じ48-bit familyの残りを省略します。"
         "これは一件を早く探すための非網羅モードです。"
+        "NOT・ORゲート・Lua、または村Lootの除外条件（個数0）を含む検索では、"
+        "村のfamily省略を自動的に無効にします。Loot内のアイテムAND/ORは利用できます。"
         "</p><p>"
         "Load a <b>seed list from a file</b> to search through an "
         "existing set of seeds. The seeds should be in decimal ASCII text, "

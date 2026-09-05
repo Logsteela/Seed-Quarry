@@ -726,6 +726,33 @@ struct ConditionTree
     QString set(const std::vector<Condition>& cv, int mc);
 };
 
+// Removing a Loot clause is only a useful precheck for positive conditions.
+// NOT/exclusion can reverse its meaning, and OR/Lua can accept another path.
+// Be conservative for the whole search tree until branch-local sampling exists.
+inline bool canSampleVillageLootFamily(
+    const std::vector<Condition>& conditions,
+    const std::map<uint64_t, LootRuleSet>& lootRules)
+{
+    bool foundVillageLoot = false;
+    for (const Condition& c : conditions)
+    {
+        if (c.meta & Condition::DISABLED)
+            continue;
+        if (c.type == F_LOGIC_NOT || c.type == F_LOGIC_OR ||
+            c.type == F_LUA)
+            return false;
+        if (!(c.flags & Condition::FLG_LOOT) && c.type != F_LOOT)
+            continue;
+        auto it = lootRules.find(c.hash);
+        if (it == lootRules.end() || it->second.structureType != Village)
+            continue;
+        if (c.count <= 0)
+            return false;
+        foundVillageLoot = true;
+    }
+    return foundVillageLoot;
+}
+
 struct SearchThreadEnv
 {
     ConditionTree condtree;

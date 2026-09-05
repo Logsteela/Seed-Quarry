@@ -318,7 +318,7 @@ bool SearchMaster::set(QWidget *widget, const Session& s)
     this->fastVillageFamilySkip =
         s.sc.searchtype == SEARCH_BLOCKS &&
         this->fastFamilyLoot &&
-        env.hasVillageLoot;
+        canSampleVillageLootFamily(condtree.condvec, env.loot_rules);
     if (this->fastVillageFamilySkip)
     {
         // A whole lower-48 family must stay in one work item. Otherwise
