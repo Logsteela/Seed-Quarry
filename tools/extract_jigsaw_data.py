@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Extract deterministic structure facts from an official Minecraft jar.
 
-This tool records only the facts needed by Seed Atlas' jigsaw and compact
+This tool records only the facts needed by Seed Quarry' jigsaw and compact
 Village feature simulation:
 
 * template dimensions;

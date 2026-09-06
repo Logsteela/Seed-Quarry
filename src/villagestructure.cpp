@@ -364,7 +364,7 @@ QStringList manifestCandidates()
 {
     QStringList paths;
     const QString configured =
-        qEnvironmentVariable("SEED_ATLAS_STRUCTURE_DATA");
+        qEnvironmentVariable("SEED_QUARRY_STRUCTURE_DATA");
     if (!configured.isEmpty())
     {
         const QFileInfo info(configured);

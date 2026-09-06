@@ -43,7 +43,7 @@ win32: {
 
 macx {
     ICON = rc/app_icon.icns
-    QMAKE_TARGET_BUNDLE_PREFIX = org.seedatlas
+    QMAKE_TARGET_BUNDLE_PREFIX = org.seedquarry
 }
 
 wasm: {
@@ -79,7 +79,7 @@ LIBS                += $$CUPATH/libcubiomes.a -lm
 
 LUAPATH = $$PWD/lua/src
 
-TARGET = seed-atlas
+TARGET = seed-quarry
 
 SOURCES += \
         $$LUAPATH/lapi.c \
@@ -251,7 +251,7 @@ RESOURCES += \
 
 # Keep English source strings and embed the optional Japanese catalog into
 # the executable. New languages can be added by appending another .ts file.
-TRANSLATIONS += translations/seed-atlas_ja.ts
+TRANSLATIONS += translations/seed-quarry_ja.ts
 CONFIG += lrelease embed_translations
 QM_FILES_RESOURCE_PREFIX = /i18n
 

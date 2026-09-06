@@ -18,7 +18,7 @@ $villageStructureSourcePath = Join-Path $sourceDir "src\villagestructure.cpp"
 $villageLootSeedSourcePath = Join-Path $sourceDir "src\villagelootseed.cpp"
 $cubiomesMakefilePath = Join-Path $sourceDir "cubiomes\makefile"
 $cubiomesCmakePath = Join-Path $sourceDir "cubiomes\CMakeLists.txt"
-$projectPath = Join-Path $sourceDir "seed-atlas.pro"
+$projectPath = Join-Path $sourceDir "seed-quarry.pro"
 $versionTestsPath = Join-Path $sourceDir "cubiomes\tests_versions.c"
 $lootTestsPath = Join-Path $sourceDir "tests\lootcondition_tests.cpp"
 $noticesPath = Join-Path $sourceDir "THIRD_PARTY_NOTICES.md"
@@ -232,15 +232,15 @@ Assert-SourceCheck ($cubiomesMakefileText.Contains("loot.c")) `
 Assert-SourceCheck ($cubiomesCmakeText.Contains("loot.c")) `
     "cubiomes/CMakeLists.txt does not compile loot.c."
 Assert-SourceCheck ($projectText.Contains('$$CUPATH/loot.h')) `
-    "seed-atlas.pro does not track cubiomes/loot.h."
+    "seed-quarry.pro does not track cubiomes/loot.h."
 Assert-SourceCheck ($projectText.Contains('src/lootcondition.cpp')) `
-    "seed-atlas.pro does not compile src/lootcondition.cpp."
+    "seed-quarry.pro does not compile src/lootcondition.cpp."
 Assert-SourceCheck ($projectText.Contains('src/lootconditionwidget.cpp')) `
-    "seed-atlas.pro does not compile src/lootconditionwidget.cpp."
+    "seed-quarry.pro does not compile src/lootconditionwidget.cpp."
 Assert-SourceCheck ($projectText.Contains('src/villagestructure.cpp')) `
-    "seed-atlas.pro does not compile src/villagestructure.cpp."
+    "seed-quarry.pro does not compile src/villagestructure.cpp."
 Assert-SourceCheck ($projectText.Contains('src/villagelootseed.cpp')) `
-    "seed-atlas.pro does not compile src/villagelootseed.cpp."
+    "seed-quarry.pro does not compile src/villagelootseed.cpp."
 Assert-SourceCheck ($versionTestsText.Contains("3515201313347228787ULL")) `
     "The MineMap desert-pyramid golden-vector test is missing."
 Assert-SourceCheck ($lootTestsText.Contains("widePositions.fill(pyramid, 70000)")) `

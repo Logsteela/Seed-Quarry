@@ -86,7 +86,7 @@ enum DesertPyramidLootItem
      * Village (Java 1.16.1).
      *
      * New values must only ever be appended here. The numeric values above
-     * are stored in Seed Atlas condition files and therefore form a
+     * are stored in Seed Quarry condition files and therefore form a
      * compatibility boundary.
      */
     DP_LOOT_BREAD,
@@ -177,7 +177,7 @@ enum DesertPyramidLootItem
     DP_LOOT_DEAD_BUSH,
 
     /*
-     * Seed Atlas virtual item. This is not present in a Minecraft Loot table;
+     * Seed Quarry virtual item. This is not present in a Minecraft Loot table;
      * it counts one for every generated randomizable container and enables
      * position-only/chest-count filters without guessing the chest contents.
      * Keep it appended so existing serialized item numbers remain stable.

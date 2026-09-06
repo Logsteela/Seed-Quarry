@@ -4,7 +4,7 @@
 
 通常は既存の Rebuild and Run ショートカット、またはルートの
 `rebuild-and-run.ps1` を使う。ビルド先は
-`build-dev-debug/debug/seed-atlas.exe`。Qt DLLと構造物manifestはexeの隣に必要。
+`build-dev-debug/debug/seed-quarry.exe`。Qt DLLと構造物manifestはexeの隣に必要。
 
 ## 現在の重点
 

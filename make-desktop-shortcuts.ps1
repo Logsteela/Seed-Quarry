@@ -1,7 +1,7 @@
 $ErrorActionPreference = "Stop"
 
 $sourceDir = $PSScriptRoot
-$exe = Join-Path $sourceDir "build-dev-debug\debug\seed-atlas.exe"
+$exe = Join-Path $sourceDir "build-dev-debug\debug\seed-quarry.exe"
 $rebuildScript = Join-Path $sourceDir "rebuild-and-run.ps1"
 $outputDir = Join-Path $sourceDir "desktop-shortcuts"
 $windowsPowerShell = Join-Path $env:SystemRoot `
@@ -43,17 +43,17 @@ function Install-Shortcut {
 }
 
 $runShortcut = Install-Shortcut `
-    -Name "Seed Atlas - Run.lnk" `
+    -Name "Seed Quarry - Run.lnk" `
     -Target $exe `
-    -Description "Start the current Seed Atlas development build"
+    -Description "Start the current Seed Quarry development build"
 
 $rebuildArguments = '-NoLogo -NoProfile -ExecutionPolicy Bypass -File "{0}"' `
     -f $rebuildScript
 $rebuildShortcut = Install-Shortcut `
-    -Name "Seed Atlas - Rebuild and Run.lnk" `
+    -Name "Seed Quarry - Rebuild and Run.lnk" `
     -Target $windowsPowerShell `
     -Arguments $rebuildArguments `
-    -Description "Rebuild Seed Atlas, deploy its Qt runtime, and start it"
+    -Description "Rebuild Seed Quarry, deploy its Qt runtime, and start it"
 
 Write-Host "Shortcuts created. Move these files to the desktop:"
 Write-Host "  $runShortcut"

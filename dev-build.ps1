@@ -85,7 +85,7 @@ if ($Reconfigure -or -not (Test-Path $makefile)) {
     try {
         $configAdd = "CONFIG+=$Configuration"
         $configRemove = if ($Configuration -eq "debug") { "CONFIG-=release" } else { "CONFIG-=debug" }
-        & $qmake $configAdd $configRemove (Join-Path $sourceDir "seed-atlas.pro")
+        & $qmake $configAdd $configRemove (Join-Path $sourceDir "seed-quarry.pro")
         if ($LASTEXITCODE -ne 0) {
             throw "qmake failed (exit $LASTEXITCODE)"
         }
@@ -104,7 +104,7 @@ if ($LASTEXITCODE -ne 0) {
     throw "Build failed (exit $LASTEXITCODE)"
 }
 
-$exe = Join-Path $buildDir "$Configuration\seed-atlas.exe"
+$exe = Join-Path $buildDir "$Configuration\seed-quarry.exe"
 if (-not (Test-Path $exe)) {
     throw "Build completed but the executable was not found: $exe"
 }

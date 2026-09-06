@@ -8,7 +8,7 @@ review than broad rewrites.
 
 - Keep source UI strings in English and wrap user-visible strings with Qt's
   translation functions.
-- Update `translations/seed-atlas_ja.ts` when changing translated controls.
+- Update `translations/seed-quarry_ja.ts` when changing translated controls.
 - Preserve the numeric values and serialized form of existing search and Loot
   settings unless a migration is included.
 - State whether a search optimization is exhaustive or can miss matches.

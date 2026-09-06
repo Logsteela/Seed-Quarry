@@ -1,6 +1,6 @@
 # Third-party notices
 
-Seed Atlas includes or uses the following third-party components. Their names
+Seed Quarry includes or uses the following third-party components. Their names
 identify the actual dependencies and are not product branding.
 
 ## cubiomes
@@ -65,7 +65,7 @@ GPLv3. Source: https://github.com/toolbox4minecraft/amidst
 Compiler runtime libraries are distributed under their applicable GNU
 licenses and runtime exceptions. The corresponding toolchain sources and
 license information are available from https://www.mingw-w64.org/ and in the
-complete Seed Atlas source and build instructions.
+complete Seed Quarry source and build instructions.
 
 ## Microsoft Direct3D compiler runtime
 

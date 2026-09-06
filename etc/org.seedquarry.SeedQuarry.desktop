@@ -1,9 +1,9 @@
 [Desktop Entry]
 Type=Application
-Name=Seed Atlas
+Name=Seed Quarry
 Comment=Minecraft seed finder and map viewer
-Exec=seed-atlas
-Icon=org.seedatlas.SeedAtlas
+Exec=seed-quarry
+Icon=org.seedquarry.SeedQuarry
 Terminal=false
 StartupNotify=false
 Categories=Game;Qt;

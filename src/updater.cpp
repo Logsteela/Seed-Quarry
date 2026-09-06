@@ -12,6 +12,6 @@ void searchForUpdates(bool quiet)
             QApplication::translate("UpdaterDialog", "Updates"),
             QApplication::translate(
                 "UpdaterDialog",
-                "Automatic updates are not configured for this Seed Atlas build."));
+                "Automatic updates are not configured for this Seed Quarry build."));
     }
 }

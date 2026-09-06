@@ -9,7 +9,7 @@
    </size>
   </property>
   <property name="windowTitle">
-   <string>Seed Atlas</string>
+   <string>Seed Quarry</string>
   </property>
   <property name="windowIcon">
    <iconset resource="../rc/icons.qrc">

@@ -55,9 +55,9 @@ if ($LASTEXITCODE -ne 0) {
     throw "Loot unit tests failed (exit $LASTEXITCODE)"
 }
 
-$app = Join-Path $appBuildDir "debug\seed-atlas.exe"
+$app = Join-Path $appBuildDir "debug\seed-quarry.exe"
 if (-not (Test-Path $app)) {
-    throw "Seed Atlas debug build was not found: $app"
+    throw "Seed Quarry debug build was not found: $app"
 }
 
 function Test-HeadlessSession {
@@ -77,7 +77,7 @@ function Test-HeadlessSession {
     $deadline = (Get-Date).AddSeconds(30)
     do {
         $running = @(
-            Get-Process seed-atlas -ErrorAction SilentlyContinue |
+            Get-Process seed-quarry -ErrorAction SilentlyContinue |
             Where-Object { $_.Path -eq $app }
         )
         if ($running.Count -eq 0) {

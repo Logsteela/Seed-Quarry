@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop-application">
 
-  <id>org.seedatlas.SeedAtlas</id>
+  <id>org.seedquarry.SeedQuarry</id>
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>GPL-3.0</project_license>
 
-  <developer_name>Seed Atlas Project</developer_name>
-  <name>Seed Atlas</name>
+  <developer_name>Seed Quarry Project</developer_name>
+  <name>Seed Quarry</name>
   <summary>Minecraft seed finder and map viewer</summary>
   <description>
-    <p>Seed Atlas offers highly customizable seed-finding utilities and a map viewer for the biome and structure generation of Minecraft Java Edition.</p>
+    <p>Seed Quarry offers highly customizable seed-finding utilities and a map viewer for the biome and structure generation of Minecraft Java Edition.</p>
   </description>
 
   <releases>
@@ -66,7 +66,7 @@
     </release>
   </releases>
 
-  <launchable type="desktop-id">org.seedatlas.SeedAtlas.desktop</launchable>
+  <launchable type="desktop-id">org.seedquarry.SeedQuarry.desktop</launchable>
   <recommends>
     <display_length side="shortest">900</display_length>
     <display_length side="longest">1600</display_length>

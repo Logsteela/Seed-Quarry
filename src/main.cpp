@@ -8,6 +8,7 @@
 #include <QApplication>
 #include <QComboBox>
 #include <QDir>
+#include <QFile>
 #include <QFontDatabase>
 #include <QGuiApplication>
 #include <QLibraryInfo>
@@ -18,6 +19,34 @@
 #include <QTabWidget>
 #include <QTimer>
 #include <QTranslator>
+
+namespace
+{
+constexpr const char *LEGACY_APP_STRING = "seed-atlas";
+
+QString configLocationFor(const char *applicationName)
+{
+    const QString currentName = QCoreApplication::applicationName();
+    QCoreApplication::setApplicationName(QString::fromLatin1(applicationName));
+    const QString path =
+        QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
+    QCoreApplication::setApplicationName(currentName);
+    return path;
+}
+
+void migrateLegacySettings()
+{
+    QSettings current(APP_STRING, APP_STRING);
+    if (!current.allKeys().isEmpty())
+        return;
+
+    QSettings legacy(LEGACY_APP_STRING, LEGACY_APP_STRING);
+    const QStringList keys = legacy.allKeys();
+    for (const QString& key : keys)
+        current.setValue(key, legacy.value(key));
+    current.sync();
+}
+}
 
 extern "C"
 int getStructureConfig_override(int stype, int mc, StructureConfig *sconf)
@@ -71,10 +100,13 @@ int main(int argc, char *argv[])
             usage = true;
     }
 
+    if (!reset)
+        migrateLegacySettings();
+
     if (usage)
     {
         const char *msg =
-                "Usage: seed-atlas [options]\n"
+                "Usage: seed-quarry [options]\n"
                 "Options:\n"
                 "      --help                 Display this help and exit.\n"
                 "      --version              Output version information and exit.\n"
@@ -113,6 +145,13 @@ int main(int argc, char *argv[])
         if (!dir.exists())
             dir.mkpath(".");
         sessionpath = path + "/session.save";
+        if (!QFile::exists(sessionpath))
+        {
+            const QString legacySession =
+                configLocationFor(LEGACY_APP_STRING) + "/session.save";
+            if (QFile::exists(legacySession))
+                QFile::copy(legacySession, sessionpath);
+        }
     }
 
     if (nogui)
@@ -127,7 +166,7 @@ int main(int argc, char *argv[])
     }
     else
     {
-        QGuiApplication::setDesktopFileName("org.seedatlas.SeedAtlas");
+        QGuiApplication::setDesktopFileName("org.seedquarry.SeedQuarry");
         QApplication::setAttribute(Qt::AA_UseStyleSheetPropagationInWidgetStyles, false);
 
         QApplication app(argc, argv);
@@ -142,7 +181,7 @@ int main(int argc, char *argv[])
             const QLocale locale(QLocale::Japanese, QLocale::Japan);
             QLocale::setDefault(locale);
             if (appTranslator.load(QStringLiteral(
-                    ":/i18n/seed-atlas_ja.qm")))
+                    ":/i18n/seed-quarry_ja.qm")))
             {
                 app.installTranslator(&appTranslator);
             }
@@ -164,11 +203,11 @@ int main(int argc, char *argv[])
 
         // Opt-in visual regression hook. It is intentionally environment-only
         // so normal users never see a testing option in the command-line UI.
-        QByteArray snapshotPath = qgetenv("SEED_ATLAS_UI_SNAPSHOT");
+        QByteArray snapshotPath = qgetenv("SEED_QUARRY_UI_SNAPSHOT");
         if (!snapshotPath.isEmpty())
         {
             QTimer::singleShot(750, &app, [&app, &mw, snapshotPath]() {
-                const QByteArray testVersion = qgetenv("SEED_ATLAS_UI_VERSION");
+                const QByteArray testVersion = qgetenv("SEED_QUARRY_UI_VERSION");
                 if (!testVersion.isEmpty())
                 {
                     if (QLineEdit *seedEdit = mw.findChild<QLineEdit *>("seedEdit"))
@@ -177,14 +216,14 @@ int main(int argc, char *argv[])
                         versionCombo->setCurrentText(QString::fromLocal8Bit(testVersion));
                 }
                 bool tabOk = false;
-                int tabIndex = qEnvironmentVariableIntValue("SEED_ATLAS_UI_TAB", &tabOk);
+                int tabIndex = qEnvironmentVariableIntValue("SEED_QUARRY_UI_TAB", &tabOk);
                 if (tabOk)
                 {
                     if (QTabWidget *tabs = mw.findChild<QTabWidget *>("tabContainer"))
                         tabs->setCurrentIndex(tabIndex);
                 }
                 QVector<int> biomeIds;
-                const QByteArray highlight = qgetenv("SEED_ATLAS_UI_HIGHLIGHT");
+                const QByteArray highlight = qgetenv("SEED_QUARRY_UI_HIGHLIGHT");
                 for (const QByteArray& value : highlight.split(','))
                 {
                     bool ok = false;

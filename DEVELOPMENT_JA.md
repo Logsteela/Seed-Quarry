@@ -1,4 +1,4 @@
-# Seed Atlas 改造用メモ
+# Seed Quarry 改造用メモ
 
 ## このPCに導入済みのQt
 
@@ -33,9 +33,9 @@ PowerShellでこのフォルダーを開き、次を実行します。
 .\dev-build.ps1
 ```
 
-最初にソースの静的検査とCubiomesの回帰テストを実行し、その後でSeed Atlasを
+最初にソースの静的検査とCubiomesの回帰テストを実行し、その後でSeed Quarryを
 ビルドします。初回だけ全体をビルドし、2回目以降は変更されたファイルだけを
-増分ビルドして、完了後に開発版Seed Atlasを直接起動します。同時コンパイルは
+増分ビルドして、完了後に開発版Seed Quarryを直接起動します。同時コンパイルは
 メモリ不足を避けるため最大2個です。配布用EXEを毎回作る必要はありません。
 
 ビルド後は`windeployqt`も自動実行し、QtのDLLと`platforms`プラグインを
@@ -43,7 +43,7 @@ EXEの隣へ配置します。その後は次のファイルをエクスプロ�
 ダブルクリックして起動できます。
 
 ```text
-build-dev-debug\debug\seed-atlas.exe
+build-dev-debug\debug\seed-quarry.exe
 ```
 
 ### デスクトップショートカット
@@ -58,8 +58,8 @@ build-dev-debug\debug\seed-atlas.exe
 `desktop-shortcuts`フォルダーに次の2個が作成されます。必要なものを
 エクスプローラーでデスクトップへ移動してください。
 
-- `Seed Atlas - Run`: 現在のビルドをすぐに起動
-- `Seed Atlas - Rebuild and Run`: 変更部分を再ビルドし、Qt DLLを再配置して起動
+- `Seed Quarry - Run`: 現在のビルドをすぐに起動
+- `Seed Quarry - Rebuild and Run`: 変更部分を再ビルドし、Qt DLLを再配置して起動
 
 ショートカットを削除した場合やプロジェクトの保存場所を移動した場合も、
 新しい保存場所で上記スクリプトをもう一度実行してから、作成されたリンクを
@@ -188,7 +188,7 @@ OK/Cancelは固定表示され、初期ウィンドウサイズも画面の使�
 
 このソースはGit管理済みです。
 
-- `master`: 受領したSeed Atlas 4.2.dev0そのまま
+- `master`: 受領したSeed Quarry 4.2.dev0そのまま
 - `codex/portal-variants`: 今回の改造
 
 よく使う確認コマンド:
@@ -204,7 +204,7 @@ git log --oneline --decorate -10
 ```powershell
 git add .gitignore DEVELOPMENT_JA.md LOOT_INTEGRATION_JA.md `
     cubiomes/loot.c cubiomes/loot.h cubiomes/tests_versions.c `
-    seed-atlas.pro src/conditiondialog.cpp src/conditiondialog.h `
+    seed-quarry.pro src/conditiondialog.cpp src/conditiondialog.h `
     src/lootcondition.cpp src/lootcondition.h `
     src/lootconditionwidget.cpp src/lootconditionwidget.h `
     src/scripts.cpp src/search.cpp src/search.h `

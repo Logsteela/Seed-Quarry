@@ -5,12 +5,12 @@
         <name>AboutDialog</name>
         <message>
             <location filename="../src/aboutdialog.ui" line="6" />
-            <source>About Seed Atlas</source>
+            <source>About Seed Quarry</source>
             <translation type="unfinished"></translation>
         </message>
         <message>
             <location filename="../src/aboutdialog.ui" line="22" />
-            <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style="font-size:16pt;font-weight:600;"&gt;Seed Atlas _VERSION_&lt;/span&gt;&lt;/p&gt;&lt;p&gt;Built: _DATE_&lt;/p&gt;&lt;p&gt;License: &lt;a href="https://www.gnu.org/licenses/gpl-3.0.html"&gt;GPLv3&lt;/a&gt;&lt;/p&gt;&lt;p&gt;&lt;b&gt;Modified version&lt;/b&gt;&lt;/p&gt;&lt;p&gt;Seed Atlas is based on Cubiomes Viewer by Cubitect. This modified version was created on 14 July 2026 and is not an official upstream release.&lt;/p&gt;&lt;p&gt;&lt;b&gt;Components and legal information&lt;/b&gt;&lt;/p&gt;&lt;p&gt;Biome and structure generation uses &lt;a href="https://github.com/Cubitect/cubiomes/"&gt;cubiomes&lt;/a&gt; (MIT). Qt _QT_MAJOR_._QT_MINOR_ is available under (L)GPLv3. The dark theme is derived from QDarkStyleSheet (MIT). Biome colors and icons are inspired by Amidst (GPLv3). Lua _LUA_VERS_ is distributed under the MIT license.&lt;/p&gt;&lt;p&gt;Full license notices and the corresponding source code are included with the installed program.&lt;/p&gt;&lt;p&gt;NOT AN OFFICIAL MINECRAFT PRODUCT.&lt;br/&gt;NOT APPROVED BY OR ASSOCIATED WITH MOJANG OR MICROSOFT.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
+            <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style="font-size:16pt;font-weight:600;"&gt;Seed Quarry _VERSION_&lt;/span&gt;&lt;/p&gt;&lt;p&gt;Built: _DATE_&lt;/p&gt;&lt;p&gt;License: &lt;a href="https://www.gnu.org/licenses/gpl-3.0.html"&gt;GPLv3&lt;/a&gt;&lt;/p&gt;&lt;p&gt;&lt;b&gt;Modified version&lt;/b&gt;&lt;/p&gt;&lt;p&gt;Seed Quarry is based on Cubiomes Viewer by Cubitect. This modified version was created on 14 July 2026 and is not an official upstream release.&lt;/p&gt;&lt;p&gt;&lt;b&gt;Components and legal information&lt;/b&gt;&lt;/p&gt;&lt;p&gt;Biome and structure generation uses &lt;a href="https://github.com/Cubitect/cubiomes/"&gt;cubiomes&lt;/a&gt; (MIT). Qt _QT_MAJOR_._QT_MINOR_ is available under (L)GPLv3. The dark theme is derived from QDarkStyleSheet (MIT). Biome colors and icons are inspired by Amidst (GPLv3). Lua _LUA_VERS_ is distributed under the MIT license.&lt;/p&gt;&lt;p&gt;Full license notices and the corresponding source code are included with the installed program.&lt;/p&gt;&lt;p&gt;NOT AN OFFICIAL MINECRAFT PRODUCT.&lt;br/&gt;NOT APPROVED BY OR ASSOCIATED WITH MOJANG OR MICROSOFT.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
             <translation type="unfinished"></translation>
         </message>
     </context>
@@ -2197,8 +2197,8 @@ Leave blank for the default behaviour</source>
         </message>
         <message>
             <location filename="../src/configdialog.cpp" line="115" />
-            <source>The selected language is applied the next time Seed Atlas starts.</source>
-            <translation>選択した言語は、次回Seed Atlasを起動した時に適用されます。</translation>
+            <source>The selected language is applied the next time Seed Quarry starts.</source>
+            <translation>選択した言語は、次回Seed Quarryを起動した時に適用されます。</translation>
         </message>
         <message>
             <location filename="../src/configdialog.cpp" line="117" />
@@ -5096,7 +5096,7 @@ Applies only to feature-structures of region-size = 32 and chunk-gap = 8, in par
         <name>MainWindow</name>
         <message>
             <location filename="../src/mainwindow.ui" line="12" />
-            <source>Seed Atlas</source>
+            <source>Seed Quarry</source>
             <translation type="unfinished"></translation>
         </message>
         <message>
@@ -7231,7 +7231,7 @@ condition missing or out of order.</source>
         </message>
         <message>
             <location filename="../src/updater.cpp" line="13" />
-            <source>Automatic updates are not configured for this Seed Atlas build.</source>
+            <source>Automatic updates are not configured for this Seed Quarry build.</source>
             <translation type="unfinished"></translation>
         </message>
     </context>

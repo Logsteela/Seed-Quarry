@@ -113,7 +113,7 @@ void ConfigDialog::setupCategories()
     comboLanguage->addItem(tr("English"), QStringLiteral("en"));
     comboLanguage->addItem(tr("Japanese"), QStringLiteral("ja"));
     comboLanguage->setToolTip(tr(
-        "The selected language is applied the next time Seed Atlas starts."));
+        "The selected language is applied the next time Seed Quarry starts."));
     languageLayout->addRow(tr("Interface language:"), comboLanguage);
     application->insertWidget(application->count()-1, languageGroup);
     moveGroup(application, ui->groupSession);

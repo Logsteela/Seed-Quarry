@@ -11,8 +11,8 @@
 #include <vector>
 
 
-#define APP_STRING "seed-atlas"
-#define APP_DISPLAY_NAME "Seed Atlas"
+#define APP_STRING "seed-quarry"
+#define APP_DISPLAY_NAME "Seed Quarry"
 
 #define PRECOMPUTE48_BUFSIZ ((int64_t)1 << 30)
 

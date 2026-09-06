@@ -1,4 +1,4 @@
-/* Seed Atlas modern cross-platform theme.
+/* Seed Quarry modern cross-platform theme.
  * Color tokens are replaced at runtime so one layout follows light, dark,
  * and system appearance without maintaining two diverging stylesheets. */
 

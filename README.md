@@ -1,6 +1,6 @@
-# Seed Atlas
+# Seed Quarry
 
-Seed Atlas is an experimental open-source Minecraft Java Edition seed viewer
+Seed Quarry is an experimental open-source Minecraft Java Edition seed viewer
 and finder. It is based on
 [Cubiomes Viewer](https://github.com/Cubitect/cubiomes-viewer) and adds
 searchable structure variants, Java 1.16 structure-Loot conditions, and a
@@ -48,7 +48,7 @@ Install Qt 6 with its 64-bit MinGW component, then run from PowerShell:
 ```
 
 The script performs source checks, incrementally builds the application,
-deploys the required Qt runtime files, and starts Seed Atlas. Build without
+deploys the required Qt runtime files, and starts Seed Quarry. Build without
 starting it with:
 
 ```powershell
@@ -88,7 +88,7 @@ for the broader version matrix and `docs/` for implementation notes.
 
 ## License and attribution
 
-Seed Atlas is distributed under GPLv3. See [LICENSE](LICENSE),
+Seed Quarry is distributed under GPLv3. See [LICENSE](LICENSE),
 [LEGAL_NOTICE.md](LEGAL_NOTICE.md), and
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Contributions must preserve
 the notices and licence obligations of upstream and bundled components.

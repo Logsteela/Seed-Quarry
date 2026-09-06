@@ -5,7 +5,7 @@ try {
 }
 catch {
     Write-Host
-    Write-Host "Seed Atlas rebuild failed." -ForegroundColor Red
+    Write-Host "Seed Quarry rebuild failed." -ForegroundColor Red
     Write-Host $_.Exception.Message -ForegroundColor Red
     Write-Host
     Read-Host "Press Enter to close"
