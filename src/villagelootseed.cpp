@@ -154,9 +154,21 @@ enum FeatureBlockState
     FEATURE_BLOCK_PLACED,
 };
 
+struct FeatureResolution16
+{
+    int reason = VILLAGE_LOOT_UNRESOLVED_NONE;
+
+    void fail(int value)
+    {
+        if (reason == VILLAGE_LOOT_UNRESOLVED_NONE)
+            reason = value;
+    }
+};
+
 FeatureBlockState featureBlockState(
     const VillageLayout16& layout, int pieceIndex,
-    const QVector<Pos3>& placed, const Pos3& pos)
+    const QVector<Pos3>& placed, const Pos3& pos,
+    FeatureResolution16 *resolution)
 {
     for (const Pos3& block : placed)
     {
@@ -165,92 +177,109 @@ FeatureBlockState featureBlockState(
     }
     const Pos3& featureOrigin =
         layout.pieces[pieceIndex].pos;
-    if (blockChunk(pos.x) != blockChunk(featureOrigin.x) ||
-        blockChunk(pos.z) != blockChunk(featureOrigin.z))
-    {
-        return FEATURE_BLOCK_UNKNOWN;
-    }
+    const bool insidePlacementChunk =
+        blockChunk(pos.x) == blockChunk(featureOrigin.x) &&
+        blockChunk(pos.z) == blockChunk(featureOrigin.z);
 
-    if (const VillagePathBlock16 *path =
+    if (insidePlacementChunk)
+    {
+        if (const VillagePathBlock16 *path =
             villagePathAt(layout, pieceIndex, pos))
-    {
-        return path->stateKnown
-            ? FEATURE_BLOCK_PATH
-            : FEATURE_BLOCK_UNKNOWN;
-    }
-    const auto blocks = layout.placedBlocks.constFind(
-        blockKey(pos));
-    if (blocks != layout.placedBlocks.constEnd())
-    {
-        const VillagePlacedBlock16 *latest = nullptr;
-        for (const VillagePlacedBlock16& block : *blocks)
         {
-            if (block.pieceIndex < pieceIndex &&
-                (!latest ||
-                 block.pieceIndex > latest->pieceIndex))
+            if (!path->stateKnown)
             {
-                latest = &block;
-            }
-        }
-        if (latest)
-        {
-            if (!latest->stateKnown)
+                resolution->fail(
+                    VILLAGE_LOOT_UNRESOLVED_PATH_STATE);
                 return FEATURE_BLOCK_UNKNOWN;
-            switch (latest->kind)
+            }
+            return path->isPath
+                ? FEATURE_BLOCK_PATH
+                : FEATURE_BLOCK_STURDY;
+        }
+        const auto blocks = layout.placedBlocks.constFind(
+            blockKey(pos));
+        if (blocks != layout.placedBlocks.constEnd())
+        {
+            const VillagePlacedBlock16 *latest = nullptr;
+            for (const VillagePlacedBlock16& block : *blocks)
             {
-            case VillagePlacedBlock16::STURDY:
-                return FEATURE_BLOCK_STURDY;
-            case VillagePlacedBlock16::TREE_FREE:
-                return FEATURE_BLOCK_TREE_FREE;
-            case VillagePlacedBlock16::TREE_FREE_SOLID:
-                return FEATURE_BLOCK_TREE_FREE_SOLID;
-            case VillagePlacedBlock16::TREE_FREE_STURDY:
-                return FEATURE_BLOCK_TREE_FREE_STURDY;
-            case VillagePlacedBlock16::SOIL:
-                return FEATURE_BLOCK_SOIL;
-            case VillagePlacedBlock16::SAND:
-                return FEATURE_BLOCK_SAND;
-            case VillagePlacedBlock16::WATER:
-                return FEATURE_BLOCK_WATER;
-            default:
-                return FEATURE_BLOCK_OCCUPIED;
+                if (block.pieceIndex < pieceIndex &&
+                    (!latest ||
+                     block.pieceIndex > latest->pieceIndex))
+                {
+                    latest = &block;
+                }
+            }
+            if (latest)
+            {
+                if (!latest->stateKnown)
+                {
+                    resolution->fail(
+                        VILLAGE_LOOT_UNRESOLVED_TEMPLATE_STATE);
+                    return FEATURE_BLOCK_UNKNOWN;
+                }
+                switch (latest->kind)
+                {
+                case VillagePlacedBlock16::STURDY:
+                    return FEATURE_BLOCK_STURDY;
+                case VillagePlacedBlock16::TREE_FREE:
+                    return FEATURE_BLOCK_TREE_FREE;
+                case VillagePlacedBlock16::TREE_FREE_SOLID:
+                    return FEATURE_BLOCK_TREE_FREE_SOLID;
+                case VillagePlacedBlock16::TREE_FREE_STURDY:
+                    return FEATURE_BLOCK_TREE_FREE_STURDY;
+                case VillagePlacedBlock16::SOIL:
+                    return FEATURE_BLOCK_SOIL;
+                case VillagePlacedBlock16::SAND:
+                    return FEATURE_BLOCK_SAND;
+                case VillagePlacedBlock16::WATER:
+                    return FEATURE_BLOCK_WATER;
+                default:
+                    return FEATURE_BLOCK_OCCUPIED;
+                }
             }
         }
-    }
 
-    Pos3 below = pos;
-    below.y--;
-    const auto paths = layout.grassPathsByPosition.constFind(
-        blockKey(below));
-    if (paths != layout.grassPathsByPosition.constEnd())
-    {
+      Pos3 below = pos;
+      below.y--;
+      const auto paths = layout.grassPathsByPosition.constFind(
+          blockKey(below));
+      if (paths != layout.grassPathsByPosition.constEnd())
+      {
         for (const VillagePathBlock16& path : *paths)
         {
             if (path.pieceIndex >= pieceIndex)
                 continue;
             if (!path.stateKnown)
+            {
+                resolution->fail(VILLAGE_LOOT_UNRESOLVED_PATH_STATE);
                 return FEATURE_BLOCK_UNKNOWN;
+            }
             if (path.aboveEmpty)
                 return FEATURE_BLOCK_AIR;
             break;
         }
+      }
     }
 
     const auto surface = layout.featureSurfaceHeights.constFind(
         horizontalKey(pos.x, pos.z));
-    if (surface == layout.featureSurfaceHeights.constEnd() ||
-        *surface <= 63)
+    if (surface == layout.featureSurfaceHeights.constEnd())
     {
+        resolution->fail(VILLAGE_LOOT_UNRESOLVED_SURFACE_MISSING);
         return FEATURE_BLOCK_UNKNOWN;
     }
     if (pos.y >= *surface)
         return FEATURE_BLOCK_AIR;
     if (pos.y == *surface - 1)
     {
+        if (*surface == 63)
+            return FEATURE_BLOCK_WATER;
         return layout.villageType == VillageLayout16::DESERT
             ? FEATURE_BLOCK_SAND
             : FEATURE_BLOCK_SOIL;
     }
+    resolution->fail(VILLAGE_LOOT_UNRESOLVED_DEEP_TERRAIN);
     return FEATURE_BLOCK_UNKNOWN;
 }
 
@@ -264,7 +293,8 @@ enum BlockPileProvider
 bool advanceBlockPile(
     uint64_t *random, const VillageLayout16& layout,
     int pieceIndex, const Pos3& origin,
-    BlockPileProvider provider)
+    BlockPileProvider provider,
+    FeatureResolution16 *resolution)
 {
     if (origin.y < 5)
         return true;
@@ -299,7 +329,8 @@ bool advanceBlockPile(
                 };
                 const FeatureBlockState candidateState =
                     featureBlockState(
-                        layout, pieceIndex, placed, candidate);
+                        layout, pieceIndex, placed, candidate,
+                        resolution);
                 if (candidateState == FEATURE_BLOCK_UNKNOWN)
                     return false;
                 if (candidateState != FEATURE_BLOCK_AIR)
@@ -309,7 +340,8 @@ bool advanceBlockPile(
                 support.y--;
                 const FeatureBlockState supportState =
                     featureBlockState(
-                        layout, pieceIndex, placed, support);
+                        layout, pieceIndex, placed, support,
+                        resolution);
                 if (supportState == FEATURE_BLOCK_UNKNOWN)
                     return false;
 
@@ -344,12 +376,11 @@ bool advanceBlockPile(
 
 bool advanceCactusPatch(
     uint64_t *random, const VillageLayout16& layout,
-    int pieceIndex, const Pos3& origin)
+    int pieceIndex, const Pos3& origin,
+    FeatureResolution16 *resolution)
 {
     uint64_t advanced = *random;
     QVector<Pos3> cactus;
-    const int chunkX = blockChunk(origin.x);
-    const int chunkZ = blockChunk(origin.z);
     for (int attempt = 0; attempt < 10; attempt++)
     {
         Pos3 candidate = {
@@ -360,15 +391,10 @@ bool advanceCactusPatch(
             origin.z + nextInt(&advanced, 8) -
                 nextInt(&advanced, 8),
         };
-        if (blockChunk(candidate.x) != chunkX ||
-            blockChunk(candidate.z) != chunkZ)
-        {
-            return false;
-        }
-
         const FeatureBlockState candidateState =
             featureBlockState(
-                layout, pieceIndex, cactus, candidate);
+                layout, pieceIndex, cactus, candidate,
+                resolution);
         if (candidateState == FEATURE_BLOCK_UNKNOWN)
             return false;
         if (candidateState != FEATURE_BLOCK_AIR)
@@ -385,11 +411,14 @@ bool advanceCactusPatch(
             adjacent.z += offset[1];
             const FeatureBlockState state =
                 featureBlockState(
-                    layout, pieceIndex, cactus, adjacent);
+                    layout, pieceIndex, cactus, adjacent,
+                    resolution);
             if (state == FEATURE_BLOCK_UNKNOWN)
                 return false;
             if (state == FEATURE_BLOCK_OCCUPIED)
             {
+                resolution->fail(
+                    VILLAGE_LOOT_UNRESOLVED_TEMPLATE_STATE);
                 return false;
             }
             if (state == FEATURE_BLOCK_TREE_FREE_SOLID ||
@@ -409,7 +438,8 @@ bool advanceCactusPatch(
         below.y--;
         const FeatureBlockState belowState =
             featureBlockState(
-                layout, pieceIndex, cactus, below);
+                layout, pieceIndex, cactus, below,
+                resolution);
         if (belowState == FEATURE_BLOCK_UNKNOWN)
             return false;
         if (belowState != FEATURE_BLOCK_SAND &&
@@ -422,10 +452,16 @@ bool advanceCactusPatch(
         above.y++;
         const FeatureBlockState aboveState =
             featureBlockState(
-                layout, pieceIndex, cactus, above);
+                layout, pieceIndex, cactus, above,
+                resolution);
         if (aboveState == FEATURE_BLOCK_UNKNOWN ||
             aboveState == FEATURE_BLOCK_OCCUPIED)
         {
+            if (aboveState == FEATURE_BLOCK_OCCUPIED)
+            {
+                resolution->fail(
+                    VILLAGE_LOOT_UNRESOLVED_TEMPLATE_STATE);
+            }
             return false;
         }
         if (aboveState == FEATURE_BLOCK_WATER)
@@ -457,7 +493,7 @@ bool treeAreaIsFree(
     const VillageLayout16& layout, int pieceIndex,
     int baseX, int baseY, int baseZ, int treeHeight,
     int limit, int lowerRadius, int upperRadius,
-    bool *treeFits)
+    bool *treeFits, FeatureResolution16 *resolution)
 {
     *treeFits = true;
     const QVector<Pos3> noPlacedBlocks;
@@ -476,7 +512,7 @@ bool treeAreaIsFree(
                             baseX + x,
                             baseY + y,
                             baseZ + z,
-                        });
+                        }, resolution);
                 if (state == FEATURE_BLOCK_UNKNOWN)
                     return false;
                 if (state != FEATURE_BLOCK_AIR &&
@@ -497,10 +533,10 @@ bool treeAreaIsFree(
 bool placeAcaciaLog(
     const VillageLayout16& layout, int pieceIndex,
     QVector<Pos3> *logs, const Pos3& pos,
-    bool *placed)
+    bool *placed, FeatureResolution16 *resolution)
 {
     const FeatureBlockState state = featureBlockState(
-        layout, pieceIndex, *logs, pos);
+        layout, pieceIndex, *logs, pos, resolution);
     if (state == FEATURE_BLOCK_UNKNOWN)
         return false;
     *placed = state == FEATURE_BLOCK_AIR ||
@@ -513,10 +549,104 @@ bool placeAcaciaLog(
     return true;
 }
 
+bool stateRaisesOceanFloor(FeatureBlockState state)
+{
+    return state == FEATURE_BLOCK_PATH ||
+        state == FEATURE_BLOCK_STURDY ||
+        state == FEATURE_BLOCK_SAND ||
+        state == FEATURE_BLOCK_SOIL ||
+        state == FEATURE_BLOCK_TREE_FREE_SOLID ||
+        state == FEATURE_BLOCK_TREE_FREE_STURDY;
+}
+
+bool treeRuntimeBase(
+    const VillageLayout16& layout, int pieceIndex,
+    const Pos3& origin, int *baseY, bool *mayGrow,
+    FeatureResolution16 *resolution)
+{
+    const auto surface = layout.featureSurfaceHeights.constFind(
+        horizontalKey(origin.x, origin.z));
+    if (surface == layout.featureSurfaceHeights.constEnd())
+    {
+        resolution->fail(VILLAGE_LOOT_UNRESOLVED_SURFACE_MISSING);
+        return false;
+    }
+
+    int worldSurface = *surface;
+    int oceanFloor = *surface > 63 ? *surface : -1;
+    QVector<int> candidateY;
+    for (auto blocks = layout.placedBlocks.constBegin();
+         blocks != layout.placedBlocks.constEnd(); ++blocks)
+    {
+        for (const VillagePlacedBlock16& block : *blocks)
+        {
+            if (block.pieceIndex < pieceIndex &&
+                block.pos.x == origin.x &&
+                block.pos.z == origin.z)
+            {
+                candidateY.push_back(block.pos.y);
+            }
+        }
+    }
+    for (const VillagePathBlock16& path : layout.grassPaths)
+    {
+        if (path.pieceIndex < pieceIndex &&
+            path.pos.x == origin.x &&
+            path.pos.z == origin.z)
+        {
+            candidateY.push_back(path.pos.y);
+        }
+    }
+    std::sort(candidateY.begin(), candidateY.end());
+    candidateY.erase(
+        std::unique(candidateY.begin(), candidateY.end()),
+        candidateY.end());
+
+    const QVector<Pos3> noFeatureBlocks;
+    for (int y : candidateY)
+    {
+        const FeatureBlockState state = featureBlockState(
+            layout, pieceIndex, noFeatureBlocks,
+            Pos3{origin.x, y, origin.z}, resolution);
+        if (state == FEATURE_BLOCK_UNKNOWN)
+            return false;
+        if (state == FEATURE_BLOCK_AIR)
+            continue;
+
+        worldSurface = qMax(worldSurface, y + 1);
+        if (stateRaisesOceanFloor(state))
+        {
+            oceanFloor = qMax(oceanFloor, y + 1);
+        }
+        else if (state == FEATURE_BLOCK_OCCUPIED &&
+                 y + 1 >= worldSurface)
+        {
+            // The compact manifest deliberately groups several partial
+            // blocks together; their OCEAN_FLOOR predicate is not uniform.
+            resolution->fail(
+                VILLAGE_LOOT_UNRESOLVED_TEMPLATE_STATE);
+            return false;
+        }
+    }
+
+    // All four Village tree configs use OCEAN_FLOOR and maxWaterDepth=0.
+    // If no placed solid reaches the water surface, the precise sea floor
+    // height is irrelevant: the positive water depth rejects the tree.
+    if (oceanFloor < 0 || worldSurface != oceanFloor)
+    {
+        *mayGrow = false;
+        *baseY = 0;
+        return true;
+    }
+    *mayGrow = true;
+    *baseY = oceanFloor;
+    return true;
+}
+
 bool advanceTree(
     uint64_t *random, const VillageLayout16& layout,
     int pieceIndex, const Pos3& origin,
-    VillageTreeType type)
+    VillageTreeType type, FeatureResolution16 *resolution)
 {
     uint64_t advanced = *random;
     int treeHeight;
@@ -573,14 +703,19 @@ bool advanceTree(
     (void) foliageHeight;
     (void) foliageRadius;
 
-    const auto surface = layout.featureSurfaceHeights.constFind(
-        horizontalKey(origin.x, origin.z));
-    if (surface == layout.featureSurfaceHeights.constEnd() ||
-        *surface <= 63)
+    int baseY = 0;
+    bool mayGrow = false;
+    if (!treeRuntimeBase(
+            layout, pieceIndex, origin, &baseY, &mayGrow,
+            resolution))
     {
         return false;
     }
-    const int baseY = *surface;
+    if (!mayGrow)
+    {
+        *random = advanced;
+        return true;
+    }
     if (baseY < 1 || baseY + treeHeight + 1 > 256)
     {
         *random = advanced;
@@ -594,7 +729,7 @@ bool advanceTree(
     const QVector<Pos3> noPlacedBlocks;
     const FeatureBlockState substrate = featureBlockState(
         layout, pieceIndex, noPlacedBlocks,
-        Pos3{origin.x, baseY - 1, origin.z});
+        Pos3{origin.x, baseY - 1, origin.z}, resolution);
     if (substrate == FEATURE_BLOCK_UNKNOWN)
         return false;
     if (substrate != FEATURE_BLOCK_SOIL)
@@ -607,7 +742,8 @@ bool advanceTree(
     if (!treeAreaIsFree(
             layout, pieceIndex,
             origin.x, baseY, origin.z, treeHeight,
-            limit, lowerRadius, upperRadius, &fits))
+            limit, lowerRadius, upperRadius, &fits,
+            resolution))
     {
         return false;
     }
@@ -656,7 +792,8 @@ bool advanceTree(
             bool placed;
             if (!placeAcaciaLog(
                     layout, pieceIndex, &logs,
-                    Pos3{x, baseY + y, z}, &placed))
+                    Pos3{x, baseY + y, z}, &placed,
+                    resolution))
             {
                 return false;
             }
@@ -685,7 +822,8 @@ bool advanceTree(
                 bool placed;
                 if (!placeAcaciaLog(
                         layout, pieceIndex, &logs,
-                        Pos3{x, baseY + y, z}, &placed))
+                        Pos3{x, baseY + y, z}, &placed,
+                        resolution))
                 {
                     return false;
                 }
@@ -707,7 +845,8 @@ bool advanceTree(
 
 bool advanceSimpleBlockPile(
     uint64_t *random, const VillageLayout16& layout,
-    int pieceIndex, const Pos3& origin)
+    int pieceIndex, const Pos3& origin,
+    FeatureResolution16 *resolution)
 {
     uint64_t advanced = *random;
     const int radiusX = 2 + nextInt(&advanced, 2);
@@ -743,6 +882,8 @@ bool advanceSimpleBlockPile(
                     continue;
                 if (!path->stateKnown)
                 {
+                    resolution->fail(
+                        VILLAGE_LOOT_UNRESOLVED_PATH_STATE);
                     return false;
                 }
                 (void) next(&advanced, 1);
@@ -755,7 +896,7 @@ bool advanceSimpleBlockPile(
 
 bool advanceSafeFeature(
     uint64_t *random, const VillageLayout16& layout,
-    int pieceIndex)
+    int pieceIndex, FeatureResolution16 *resolution)
 {
     const VillagePiece16& piece = layout.pieces[pieceIndex];
     const QString& feature = piece.feature;
@@ -790,14 +931,15 @@ bool advanceSafeFeature(
         // only world-dependent RNG path is a nextBoolean when placing on a
         // grass-path block.
         return advanceSimpleBlockPile(
-            random, layout, pieceIndex, piece.pos);
+            random, layout, pieceIndex, piece.pos,
+            resolution);
     }
     if (feature.contains(
             QLatin1String("HAY_PILE_CONFIG")))
     {
         return advanceBlockPile(
             random, layout, pieceIndex, piece.pos,
-            PILE_ROTATED);
+            PILE_ROTATED, resolution);
     }
     if (feature.contains(
             QLatin1String("PUMPKIN_PILE_CONFIG")) ||
@@ -806,45 +948,72 @@ bool advanceSafeFeature(
     {
         return advanceBlockPile(
             random, layout, pieceIndex, piece.pos,
-            PILE_WEIGHTED);
+            PILE_WEIGHTED, resolution);
     }
     if (feature.contains(
             QLatin1String("CACTUS_CONFIG")))
     {
         return advanceCactusPatch(
-            random, layout, pieceIndex, piece.pos);
+            random, layout, pieceIndex, piece.pos,
+            resolution);
     }
     if (feature.contains(
             QLatin1String("NORMAL_TREE_CONFIG")))
     {
         return advanceTree(
             random, layout, pieceIndex, piece.pos,
-            TREE_NORMAL);
+            TREE_NORMAL, resolution);
     }
     if (feature.contains(
             QLatin1String("PINE_TREE_CONFIG")))
     {
         return advanceTree(
             random, layout, pieceIndex, piece.pos,
-            TREE_PINE);
+            TREE_PINE, resolution);
     }
     if (feature.contains(
             QLatin1String("SPRUCE_TREE_CONFIG")))
     {
         return advanceTree(
             random, layout, pieceIndex, piece.pos,
-            TREE_SPRUCE);
+            TREE_SPRUCE, resolution);
     }
     if (feature.contains(
             QLatin1String("ACACIA_TREE_CONFIG")))
     {
         return advanceTree(
             random, layout, pieceIndex, piece.pos,
-            TREE_ACACIA);
+            TREE_ACACIA, resolution);
     }
+    resolution->fail(VILLAGE_LOOT_UNRESOLVED_UNKNOWN_FEATURE);
     return false;
 }
 
+}
+
+const char *villageLootUnresolvedReasonName16(int reason)
+{
+    switch (reason)
+    {
+    case VILLAGE_LOOT_UNRESOLVED_NONE:
+        return "NONE";
+    case VILLAGE_LOOT_UNRESOLVED_CROSS_CHUNK:
+        return "CROSS_CHUNK";
+    case VILLAGE_LOOT_UNRESOLVED_PATH_STATE:
+        return "PATH_STATE";
+    case VILLAGE_LOOT_UNRESOLVED_TEMPLATE_STATE:
+        return "TEMPLATE_STATE";
+    case VILLAGE_LOOT_UNRESOLVED_SURFACE_MISSING:
+        return "SURFACE_MISSING";
+    case VILLAGE_LOOT_UNRESOLVED_WATER_LEVEL:
+        return "WATER_LEVEL";
+    case VILLAGE_LOOT_UNRESOLVED_DEEP_TERRAIN:
+        return "DEEP_TERRAIN";
+    case VILLAGE_LOOT_UNRESOLVED_UNKNOWN_FEATURE:
+        return "UNKNOWN_FEATURE";
+    default:
+        return "INVALID";
+    }
 }
 
 bool assignVillageLootSeedsSingleStart16(
@@ -958,6 +1127,8 @@ bool assignVillageLootSeedsSingleStart16(
                 UINT64_C(40011));
 
         bool unresolved = false;
+        int unresolvedFeatureIndex = -1;
+        int unresolvedReason = VILLAGE_LOOT_UNRESOLVED_NONE;
         for (int pieceIndex = 0;
              pieceIndex < layout.pieces.size();
              pieceIndex++)
@@ -974,8 +1145,18 @@ bool assignVillageLootSeedsSingleStart16(
                 VillagePiece16::FEATURE)
             {
                 if (!unresolved &&
-                    !advanceSafeFeature(
-                        &random, layout, pieceIndex))
+                    ![&] {
+                        FeatureResolution16 resolution;
+                        const bool exact = advanceSafeFeature(
+                            &random, layout, pieceIndex,
+                            &resolution);
+                        if (!exact)
+                        {
+                            unresolvedFeatureIndex = pieceIndex;
+                            unresolvedReason = resolution.reason;
+                        }
+                        return exact;
+                    }())
                 {
                     unresolved = true;
                 }
@@ -1001,6 +1182,10 @@ bool assignVillageLootSeedsSingleStart16(
                     {
                         (*out)[outputIndex].quality =
                             VILLAGE_LOOT_SEED_UNRESOLVED_FEATURE;
+                        (*out)[outputIndex].unresolvedFeatureIndex =
+                            unresolvedFeatureIndex;
+                        (*out)[outputIndex].unresolvedReason =
+                            unresolvedReason;
                         assigned[outputIndex] = true;
                     }
                     continue;

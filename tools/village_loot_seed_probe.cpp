@@ -64,7 +64,10 @@ bool testFeatureQuality(
         chests.first().quality != expectedQuality)
     {
         *errors << "Unexpected feature quality for "
-                << feature << '\n';
+                << feature << ": count=" << chests.size()
+                << ", quality="
+                << (chests.isEmpty() ? -1 : chests.first().quality)
+                << ", expected=" << expectedQuality << '\n';
         return false;
     }
     return true;
@@ -298,6 +301,8 @@ bool scanUnresolved(
         plains, desert, savanna, snowy_tundra, taiga,
     };
     QHash<QString, int> featureCounts;
+    QHash<QString, int> reasonCounts;
+    QHash<QString, int> featureReasonCounts;
     int unresolvedChests = 0;
     int totalChests = 0;
     for (int index = 0; index < count; index++)
@@ -329,13 +334,20 @@ bool scanUnresolved(
             if (chest.isExact())
                 continue;
             unresolvedChests++;
-            for (const VillagePiece16& piece : layout.pieces)
+            reasonCounts[QString::fromLatin1(
+                villageLootUnresolvedReasonName16(
+                    chest.unresolvedReason))]++;
+            if (chest.unresolvedFeatureIndex >= 0 &&
+                chest.unresolvedFeatureIndex < layout.pieces.size())
             {
-                if (featureBeforeContainerInChunk(
-                        layout, chest.container, piece))
-                {
-                    featureCounts[piece.feature]++;
-                }
+                const QString feature = layout.pieces[
+                    chest.unresolvedFeatureIndex].feature;
+                const QString reason = QString::fromLatin1(
+                    villageLootUnresolvedReasonName16(
+                        chest.unresolvedReason));
+                featureCounts[feature]++;
+                featureReasonCounts[reason + QLatin1Char('|') +
+                    feature]++;
             }
         }
     }
@@ -347,6 +359,18 @@ bool scanUnresolved(
          it != featureCounts.constEnd(); ++it)
     {
         *output << "FEATURE\tchest_occurrences=" << it.value()
+                << "\tname=" << it.key() << '\n';
+    }
+    for (auto it = reasonCounts.constBegin();
+         it != reasonCounts.constEnd(); ++it)
+    {
+        *output << "REASON\tchest_occurrences=" << it.value()
+                << "\tname=" << it.key() << '\n';
+    }
+    for (auto it = featureReasonCounts.constBegin();
+         it != featureReasonCounts.constEnd(); ++it)
+    {
+        *output << "PAIR\tchest_occurrences=" << it.value()
                 << "\tname=" << it.key() << '\n';
     }
     return true;
@@ -413,6 +437,20 @@ bool findUnresolved(
                     << chest.container.pos.x << ','
                     << chest.container.pos.y << ','
                     << chest.container.pos.z << '\n';
+            if (chest.unresolvedFeatureIndex >= 0 &&
+                chest.unresolvedFeatureIndex < layout.pieces.size())
+            {
+                const VillagePiece16& failed = layout.pieces[
+                    chest.unresolvedFeatureIndex];
+                *output << "FAILED\tindex="
+                        << chest.unresolvedFeatureIndex
+                        << "\tpos=" << failed.pos.x << ','
+                        << failed.pos.y << ',' << failed.pos.z
+                        << "\treason="
+                        << villageLootUnresolvedReasonName16(
+                               chest.unresolvedReason)
+                        << "\tfeature=" << failed.feature << '\n';
+            }
             for (const VillagePiece16& piece : layout.pieces)
             {
                 if (featureBeforeContainerInChunk(
@@ -462,8 +500,62 @@ bool printCase(
                 << chest.container.pos.z
                 << "\tloot_seed="
                 << qint64(chest.lootTableSeed)
-                << "\tquality=" << chest.quality
-                << '\n';
+                << "\tquality=" << chest.quality;
+        if (!chest.isExact())
+        {
+            *output << "\tfailed_feature="
+                    << chest.unresolvedFeatureIndex
+                    << "\treason="
+                    << villageLootUnresolvedReasonName16(
+                           chest.unresolvedReason);
+        }
+        *output << '\n';
+    }
+    for (int pieceIndex = 0;
+         pieceIndex < layout.pieces.size(); pieceIndex++)
+    {
+        const VillagePiece16& piece = layout.pieces[pieceIndex];
+        if (piece.elementType != VillagePiece16::FEATURE)
+            continue;
+        const auto surface = layout.featureSurfaceHeights.constFind(
+            horizontalKey(piece.pos.x, piece.pos.z));
+        *output << "FEATURE\tindex=" << pieceIndex
+                << "\tpos=" << piece.pos.x << ',' << piece.pos.y
+                << ',' << piece.pos.z << "\tsurface="
+                << (surface == layout.featureSurfaceHeights.constEnd()
+                    ? -1 : *surface)
+                << "\tname=" << piece.feature << '\n';
+        for (auto blocks = layout.placedBlocks.constBegin();
+             blocks != layout.placedBlocks.constEnd(); ++blocks)
+        {
+            for (const VillagePlacedBlock16& block : *blocks)
+            {
+                if (block.pieceIndex < pieceIndex &&
+                    block.pos.x == piece.pos.x &&
+                    block.pos.z == piece.pos.z)
+                {
+                    *output << "COLUMN_BLOCK\tfeature=" << pieceIndex
+                            << "\tpiece=" << block.pieceIndex
+                            << "\ty=" << block.pos.y
+                            << "\tkind=" << block.kind
+                            << "\tknown=" << block.stateKnown << '\n';
+                }
+                if (block.pieceIndex < pieceIndex &&
+                    !block.stateKnown &&
+                    qAbs(block.pos.x - piece.pos.x) <= 4 &&
+                    qAbs(block.pos.z - piece.pos.z) <= 4 &&
+                    block.pos.y >= piece.pos.y - 2 &&
+                    block.pos.y <= piece.pos.y + 14)
+                {
+                    *output << "UNKNOWN_BLOCK\tfeature=" << pieceIndex
+                            << "\tpiece=" << block.pieceIndex
+                            << "\tpos=" << block.pos.x << ','
+                            << block.pos.y << ',' << block.pos.z
+                            << "\tkind=" << block.kind
+                            << "\tblock=" << block.block << '\n';
+                }
+            }
+        }
     }
     return true;
 }

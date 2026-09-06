@@ -99,6 +99,7 @@ struct FeatureBlock16
 {
     Point3 pos;
     int kind = VillagePlacedBlock16::OCCUPIED;
+    QString block;
 };
 
 struct Template16
@@ -657,6 +658,8 @@ VillageData16 loadVillageData16()
             block.kind = featureBlockKindFromJson(
                 blockObject.value(
                     QStringLiteral("kind")).toString(), &ok);
+            block.block = blockObject.value(
+                QStringLiteral("block")).toString();
             structure.featureBlocks.push_back(block);
             if (!ok)
                 break;
@@ -1183,6 +1186,66 @@ bool villageTypeForBiome(
     }
 }
 
+bool zombieFeatureBlockStateKnown(
+    const FeatureBlock16& block, int villageType)
+{
+    // These substrate blocks are not inputs to any of the five 1.16.1
+    // zombie-Village processor rule lists.
+    if (block.kind == VillagePlacedBlock16::SOIL ||
+        block.kind == VillagePlacedBlock16::SAND ||
+        block.kind == VillagePlacedBlock16::WATER)
+    {
+        return true;
+    }
+    if (block.block.isEmpty())
+        return false;
+
+    // Door/light removal changes occupied to air in the corresponding
+    // zombie processors. Treat trapdoors conservatively as well: the exact
+    // block identity is retained, so this can be narrowed later.
+    if (block.block.endsWith(QLatin1String("_door")) ||
+        block.block == QLatin1String("torch") ||
+        block.block == QLatin1String("wall_torch"))
+    {
+        return false;
+    }
+
+    // The remaining names are inputs to a biome's cobweb rules whose output
+    // has a different coarse collision/tree-replaceability category. All
+    // other rules (mossification, pane/campfire/crop replacement) preserve
+    // the category used here.
+    switch (villageType)
+    {
+    case VillageLayout16::DESERT:
+        return block.block != QLatin1String("cut_sandstone") &&
+            block.block != QLatin1String("smooth_sandstone") &&
+            block.block != QLatin1String("terracotta");
+    case VillageLayout16::PLAINS:
+        return block.block != QLatin1String("cobblestone") &&
+            block.block != QLatin1String("oak_log") &&
+            block.block != QLatin1String("oak_planks") &&
+            block.block != QLatin1String("stripped_oak_log") &&
+            block.block != QLatin1String("white_terracotta");
+    case VillageLayout16::SAVANNA:
+        return block.block != QLatin1String("acacia_log") &&
+            block.block != QLatin1String("acacia_planks") &&
+            block.block != QLatin1String("acacia_wood") &&
+            block.block != QLatin1String("orange_terracotta") &&
+            block.block != QLatin1String("red_terracotta") &&
+            block.block != QLatin1String("yellow_terracotta");
+    case VillageLayout16::SNOWY:
+        return block.block != QLatin1String("lantern") &&
+            block.block != QLatin1String("spruce_planks") &&
+            block.block != QLatin1String("stripped_spruce_log") &&
+            block.block != QLatin1String("stripped_spruce_wood");
+    case VillageLayout16::TAIGA:
+        return block.block != QLatin1String("cobblestone") &&
+            block.block != QLatin1String("spruce_log");
+    default:
+        return false;
+    }
+}
+
 int cubiomesHeight(void *context, int blockX, int blockZ)
 {
     CubiomesHeightContext *height =
@@ -1602,7 +1665,7 @@ bool generateVillageLayout16WithHeights(
             const Point3 preGravity =
                 add(transformed, piece.origin);
             Point3 world = preGravity;
-            bool stateKnown = true;
+            bool isPath = true;
             if (piece.element.terrainMatching)
             {
                 const int surface =
@@ -1618,13 +1681,14 @@ bool generateVillageLayout16WithHeights(
                     }
                     return false;
                 }
-                // The path RuleProcessor runs before GravityProcessor. At
-                // sea level its input block may be water, which changes the
-                // output to planks. Keep that case unknown.
-                stateKnown = surface > 63;
+                // The path RuleProcessor runs before GravityProcessor. A
+                // WORLD_SURFACE_WG height of 63 means the input block at
+                // Y=62 is water, which the processor deterministically
+                // changes to planks rather than a dirt path.
+                isPath = surface > 63;
             }
             if (piece.element.terrainMatching &&
-                stateKnown &&
+                isPath &&
                 streetPathIsRandomlyRemoved(
                     preGravity, villageType))
             {
@@ -1634,7 +1698,8 @@ bool generateVillageLayout16WithHeights(
             generated.pos = {world.x, world.y, world.z};
             generated.pieceIndex = pieceIndex;
             generated.aboveEmpty = pathBlock.aboveEmpty;
-            generated.stateKnown = stateKnown;
+            generated.isPath = isPath;
+            generated.stateKnown = true;
             out->grassPaths.push_back(generated);
             out->grassPathsByPosition[
                 blockKey(world)].push_back(generated);
@@ -1749,9 +1814,12 @@ bool generateVillageLayout16WithHeights(
             generated.pos = {world.x, world.y, world.z};
             generated.pieceIndex = pieceIndex;
             generated.kind = block.kind;
-            generated.stateKnown =
-                !structure.name.contains(
+            generated.block = block.block;
+            const bool zombieTemplate =
+                structure.name.contains(
                     QLatin1String("/zombie/"));
+            generated.stateKnown = !zombieTemplate ||
+                zombieFeatureBlockStateKnown(block, villageType);
             if (piece.element.terrainMatching &&
                 heights.get(world.x, world.z) > 63)
             {

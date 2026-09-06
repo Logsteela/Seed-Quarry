@@ -13,7 +13,10 @@ Java 1.16.1が最優先。GUIでは1.16を選んで村の1.16.1計算を使う�
 
 村・砦の配置、チェスト座標、Loot条件は実装済み。ただし砦のバージョン判定は
 内部1.16.1限定で、通常GUIの1.16選択ではまだ利用できない。
-村の木・pile・サボテン等は一部配置状況で共有RNGを確定できずUNKNOWNになる。
+村の木とpileの主要分岐、海面、水を跨ぐ木、featureのchunk越境、先行templateで
+変化するtree runtime heightmapを再現済み。ゾンビ村も元block名をmanifestへ保持し、
+粗い当たり判定の性質が変わらないblockは確定できる。1000件のviable start probeで
+残ったUNKNOWNは4件、すべて深い地形を参照したサボテンだった。
 UNKNOWNを一致や不一致と捏造しない。
 
 村Loot高速化ON + family blocksでは、1workerに1つの48-bit familyを渡す。
@@ -33,7 +36,8 @@ Loot一致時は通常の結果処理へ進み、UNKNOWNではfamilyを打ち切
 
 ## 次の候補
 
-1. 残る木・pile・サボテンのUNKNOWN理由を分類してprobeに集計表示する。
+1. サボテン/pileがsurfaceより深いblockを読む場合の厳密地形（carver/caveを含む）を
+   実装する。現在はDEEP_TERRAINとして安全側のUNKNOWN。
 2. 同一chunk内の複数feature間で生成ブロックが干渉する場合を、まず安全側の
    UNKNOWNに落とし、その後sparse block stateを引き継いで厳密化する。
 3. 砦をGUIの1.16から使うためのバージョン対応整理と回帰テスト。

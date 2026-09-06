@@ -68,10 +68,15 @@ simulates blocks placed by the feature while consuming the shared RNG.
 
 It deliberately returns `UNRESOLVED_FEATURE` instead of guessing when that
 compact model cannot prove a branch. Current conservative cases include a
-feature crossing its placement chunk, water-sensitive terrain at or below sea
-level, zombie-processor blocks whose final state is ambiguous, and block kinds
-whose material behavior was not extracted. This keeps loot search free of
-false negatives while resolving many of the previously blanket-unknown cases.
+feature query below the sampled top surface (where caves/carvers matter),
+zombie-processor blocks whose coarse collision category can actually change,
+and block kinds whose material behavior was not extracted. Feature placement
+across a chunk edge, water at sea level, and the runtime tree heightmap raised
+by earlier template/path blocks are modeled explicitly. The manifest retains
+the original block identity as well as its coarse category, so unaffected
+zombie-template blocks no longer become blanket unknown. This keeps loot
+search free of false negatives while resolving many formerly conservative
+cases.
 
 ## Oracle vectors
 
@@ -96,6 +101,23 @@ loot-table seeds reproduced by the C++ implementation are:
 | `(-5924,75,-6350)` | `2146034468891856845` |
 | `(-5980,77,-6331)` | `8560071340488466059` |
 | `(-5974,76,-6325)` | `5135956710036044922` |
+
+Two interaction-heavy Taiga checks additionally match the SeedChecker 1.16.1
+oracle exactly:
+
+- seed `3962023812499842531`, start chunk `(236,328)`: a preceding template
+  raises the runtime tree base at sea level;
+- seed `5718060553726506393`, start chunk `(275,-303)`: cross-chunk pumpkin
+  pile and spruce-feature queries;
+- seed `3026716864276998616`, start chunk `(374,-234)`: nine chests, including
+  a pine tree beside a zombie meeting-point template. All nine C++ loot seeds
+  equal the Java oracle values.
+
+A deterministic 100-layout probe currently resolves 332 of 337 loot chests.
+The five conservative results are cactus/pumpkin queries that need deep
+terrain or exact partial-block behavior. Among 1,000 viable Village starts in
+the probe sequence, only four starts remain unresolved, all because cactus
+queries reach terrain below the known top surface.
 
 `tools/VillageFeatureRngOracle1161.java` is a small independent
 `java.util.Random` oracle for flat, structure-free branches. It covers all

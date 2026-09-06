@@ -15,6 +15,20 @@ enum VillageLootSeedQuality16
     VILLAGE_LOOT_SEED_UNRESOLVED_OVERLAP,
 };
 
+enum VillageLootSeedUnresolvedReason16
+{
+    VILLAGE_LOOT_UNRESOLVED_NONE,
+    VILLAGE_LOOT_UNRESOLVED_CROSS_CHUNK,
+    VILLAGE_LOOT_UNRESOLVED_PATH_STATE,
+    VILLAGE_LOOT_UNRESOLVED_TEMPLATE_STATE,
+    VILLAGE_LOOT_UNRESOLVED_SURFACE_MISSING,
+    VILLAGE_LOOT_UNRESOLVED_WATER_LEVEL,
+    VILLAGE_LOOT_UNRESOLVED_DEEP_TERRAIN,
+    VILLAGE_LOOT_UNRESOLVED_UNKNOWN_FEATURE,
+};
+
+const char *villageLootUnresolvedReasonName16(int reason);
+
 /**
  * A loot-table-bearing Village container and the seed assigned while its
  * structure piece is placed in Java 1.16.1.
@@ -28,6 +42,8 @@ struct VillageLootChestSeed16
     VillageContainer16 container;
     uint64_t lootTableSeed = 0;
     int quality = VILLAGE_LOOT_SEED_EXACT;
+    int unresolvedFeatureIndex = -1;
+    int unresolvedReason = VILLAGE_LOOT_UNRESOLVED_NONE;
 
     bool isExact() const
     {

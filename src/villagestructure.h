@@ -59,8 +59,8 @@ struct VillagePathBlock16
     Pos3 pos = {};
     int pieceIndex = -1;
     bool aboveEmpty = true;
-    // False means that a water-sensitive street processor could replace the
-    // block, so callers must conservatively treat this position as unknown.
+    // At sea level the street processor replaces the path with planks.
+    bool isPath = true;
     bool stateKnown = true;
 };
 
@@ -80,6 +80,7 @@ struct VillagePlacedBlock16
     Pos3 pos = {};
     int pieceIndex = -1;
     int kind = OCCUPIED;
+    QString block;
     bool stateKnown = true;
 };
 

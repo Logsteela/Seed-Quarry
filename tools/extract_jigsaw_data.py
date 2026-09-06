@@ -386,6 +386,10 @@ def extract_template(
             feature_blocks.append({
                 "pos": pos,
                 "kind": feature_block_kind(placed_name),
+                # Keep the exact input identity so runtime code can model
+                # structure processors without guessing from the coarse
+                # collision/soil category.
+                "block": strip_namespace(placed_name),
             })
 
         if block_name in RANDOMIZABLE_CONTAINERS:
@@ -932,6 +936,14 @@ def parse_args(argv: List[str]) -> argparse.Namespace:
             "needed to extract hard-coded Bastion pools"
         ),
     )
+    parser.add_argument(
+        "--reuse-pools-from",
+        type=Path,
+        help=(
+            "existing manifest whose verified hard-coded pool definitions "
+            "are reused when decompiled sources are unavailable"
+        ),
+    )
     return parser.parse_args(argv)
 
 
@@ -946,6 +958,20 @@ def main(argv: List[str]) -> int:
         manifest = extract_jar(
             jar_path, args.version, args.decompiled_source
         )
+        if args.reuse_pools_from is not None:
+            with args.reuse_pools_from.open(
+                "r", encoding="utf-8"
+            ) as stream:
+                prior = json.load(stream)
+            if (
+                prior.get("minecraft_version") != args.version
+                or prior.get("jar_sha1") != manifest.get("jar_sha1")
+                or "pools" not in prior
+            ):
+                raise NbtError(
+                    "reused pools manifest does not match the selected jar"
+                )
+            manifest["pools"] = prior["pools"]
     except (OSError, zipfile.BadZipFile, NbtError) as error:
         print(f"Extraction failed: {error}", file=sys.stderr)
         return 1
