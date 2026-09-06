@@ -404,6 +404,12 @@ QString SearchThreadEnv::init(
 
 void SearchThreadEnv::setSeed(uint64_t seed)
 {
+    if (this->seed != seed)
+    {
+        lootCache.villageWorldSeed = seed;
+        lootCache.villageEntries.clear();
+        lootCache.villageChestCount = 0;
+    }
     this->seed = seed;
     this->octaves = 0;
 }
@@ -1741,7 +1747,8 @@ L_qm_any:
                                 matchStructureLootStatus(
                                 *lootRules, env->mc, env->seed,
                                 pc, lootBiomeId,
-                                env->fastFamilyLoot
+                                (env->fastFamilyLoot ||
+                                 lootRules->structureType == Village)
                                     ? &env->lootCache : nullptr,
                                 cond->hash, at);
                             if (lootRules->instanceMode ==
@@ -1808,7 +1815,8 @@ L_qm_any:
                 matchAreaLootStatus(
                     *lootRules, env->mc, env->seed,
                     lootPositions, lootBiomes,
-                    env->fastFamilyLoot
+                    (env->fastFamilyLoot ||
+                     lootRules->structureType == Village)
                         ? &env->lootCache : nullptr,
                     cond->hash, at);
             if (areaStatus == LOOT_MATCH_NO)

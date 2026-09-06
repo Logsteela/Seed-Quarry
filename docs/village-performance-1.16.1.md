@@ -119,7 +119,11 @@ probeには `SEM_NOGPFAULTERRORBOX` 等も追加し、今後異常終了して�
 
 精度を維持するなら次の順で検討する。
 
-1. 同一world seed内の複数村でGeneratorとSurfaceNoiseを共有する。
+同一world seed・開始座標・biomeの村を複数Loot条件が参照する場合については、
+最終チェスト列のworker-localキャッシュを追加済み。上位16bitを跨がず、
+最大256村・合計4096チェスト/workerなので結果の厳密性とメモリ上限を維持する。
+
+1. 同一world seed内の異なる村でGeneratorとSurfaceNoiseを共有する。
 2. search条件の安いbiome・viability・variant判定を必ず村layoutより前へ置く。
 3. density column生成そのものをbatch化またはSIMD化する。
 4. Loot条件が強い場合だけ使える、偽陰性のない下位48bit上限・下限判定を増やす。

@@ -314,6 +314,71 @@ int main(int argc, char **argv)
     assert(decodedVillagePosition.chestPositionMode ==
         LootRuleSet::CHEST_POSITION_LOCATION_REFERENCE);
 
+    LootSearchCache villageCache;
+    assert(matchStructureLootStatus(
+        villagePosition, MC_1_16_1, 0,
+        Pos{-25 * 16, 21 * 16}, taiga,
+        &villageCache, 0, villageReference) ==
+        LOOT_MATCH_YES);
+    assert(villageCache.villageCalculations == 1);
+    assert(villageCache.villageHits == 0);
+    assert(matchStructureLootStatus(
+        villagePosition, MC_1_16_1, 0,
+        Pos{-25 * 16, 21 * 16}, taiga,
+        &villageCache, 0, Pos{0, 0}) ==
+        LOOT_MATCH_NO);
+    assert(villageCache.villageCalculations == 1);
+    assert(villageCache.villageHits == 1);
+
+    StructureLoot firstVillageLoot = {};
+    assert(generateStructureLootTable16(
+        &firstVillageLoot,
+        villageChests[0].container.table,
+        villageChests[0].lootTableSeed));
+    LootRule firstVillageItem;
+    assert(firstPresentItem(
+        firstVillageLoot, &firstVillageItem));
+    LootRuleSet villageContent = villagePosition;
+    villageContent.chestPositionMode =
+        LootRuleSet::CHEST_POSITION_ANY;
+    villageContent.rules[0] = firstVillageItem;
+    const LootMatchStatus uncachedVillageContent =
+        matchStructureLootStatus(
+            villageContent, MC_1_16_1, 0,
+            Pos{-25 * 16, 21 * 16}, taiga);
+    assert(matchStructureLootStatus(
+        villageContent, MC_1_16_1, 0,
+        Pos{-25 * 16, 21 * 16}, taiga,
+        &villageCache) == uncachedVillageContent);
+    // Position-only data cannot stand in for overlap-checked item contents.
+    assert(villageCache.villageCalculations == 2);
+    assert(villageCache.villageHits == 1);
+
+    LootRuleSet secondVillageContent = villageContent;
+    secondVillageContent.rules[0].minCount++;
+    const LootMatchStatus uncachedSecondVillageContent =
+        matchStructureLootStatus(
+            secondVillageContent, MC_1_16, 0,
+            Pos{-25 * 16, 21 * 16}, taiga);
+    assert(matchStructureLootStatus(
+        secondVillageContent, MC_1_16, 0,
+        Pos{-25 * 16, 21 * 16}, taiga,
+        &villageCache) == uncachedSecondVillageContent);
+    // GUI's 1.16 selector and the internal 1.16.1 id share exact mechanics.
+    assert(villageCache.villageCalculations == 2);
+    assert(villageCache.villageHits == 2);
+
+    const uint64_t otherUpperBits = UINT64_C(1) << 48;
+    (void) matchStructureLootStatus(
+        villageContent, MC_1_16_1, otherUpperBits,
+        Pos{-25 * 16, 21 * 16}, taiga,
+        &villageCache);
+    assert(villageCache.villageCalculations == 3);
+    assert(villageCache.villageWorldSeed == otherUpperBits);
+    assert(villageCache.villageEntries.size() == 1);
+    assert(villageCache.villageChestCount > 0);
+    assert(villageCache.villageChestCount <= 4096);
+
     LootRuleSet rejectedVillageLoot = villagePosition;
     rejectedVillageLoot.chestPositionMode =
         LootRuleSet::CHEST_POSITION_ANY;
@@ -413,9 +478,13 @@ int main(int argc, char **argv)
     else if (testArgument == "--portal-condition-hex")
         printConditionHex(generatedPortal, MC_1_16_1);
     else if (testArgument == "--village-family-condition-hex" ||
-             testArgument == "--village-not-family-condition-hex")
+             testArgument == "--village-not-family-condition-hex" ||
+             testArgument == "--village-success-family-condition-hex")
     {
-        if (testArgument == "--village-not-family-condition-hex")
+        const bool useLastFamily =
+            testArgument == "--village-not-family-condition-hex" ||
+            testArgument == "--village-success-family-condition-hex";
+        if (useLastFamily)
         {
             // Last upper-16 seed: the integration test ends after one seed,
             // even with exhaustive family scanning enabled by the guard.
@@ -438,6 +507,9 @@ int main(int argc, char **argv)
                     found = true;
                 }
             assert(found);
+        }
+        if (testArgument == "--village-not-family-condition-hex")
+        {
             Condition notCondition = {};
             notCondition.type = F_LOGIC_NOT;
             notCondition.save = 1;
@@ -448,13 +520,21 @@ int main(int argc, char **argv)
             villageLootCondition.save = 2;
             villageLootCondition.relative = 1;
         }
+        LootRuleSet familyRules = rejectedVillageLoot;
+        if (testArgument == "--village-success-family-condition-hex")
+        {
+            familyRules.rules[0] =
+                itemRule(DP_LOOT_ANY_CONTAINER, 1, -1);
+            villageLootCondition.hash =
+                registerLootRuleSet(familyRules);
+        }
         QByteArray base(
             reinterpret_cast<const char*>(
                 &villageLootCondition),
             offsetof(Condition, generated_start));
         QByteArray payload =
             serializeLootRuleSet(
-                rejectedVillageLoot).toBase64(
+                familyRules).toBase64(
                 QByteArray::Base64UrlEncoding |
                 QByteArray::OmitTrailingEquals);
         printf("condition=%s|%s\n",

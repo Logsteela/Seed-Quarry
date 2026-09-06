@@ -167,6 +167,9 @@ try {
     Test-HeadlessSession `
         "tests\loot_village_not_family_session.txt" `
         @("-281474976710656")
+    Test-HeadlessSession `
+        "tests\loot_village_success_family_session.txt" `
+        @("-281474976710656")
 }
 finally {
     Pop-Location

@@ -13,6 +13,7 @@
 
 #include <algorithm>
 #include <limits>
+#include <utility>
 
 namespace {
 
@@ -507,13 +508,13 @@ bool getCachedRuleCounts(
     if (!out)
         return false;
 
-    // Village terrain, Jigsaw collisions, and therefore its chest list can
-    // change between the 65536 full seeds in one lower-48 family.
-    if (rules.structureType == Village)
-        cache = nullptr;
+    const bool useVillageCache =
+        cache && rules.structureType == Village;
+    const bool useFamilyCache =
+        cache && rules.structureType != Village;
 
     LootSearchCacheKey key;
-    if (cache)
+    if (useFamilyCache)
     {
         const uint64_t familySeed = worldSeed & MASK48;
         if (cache->familySeed != familySeed)
@@ -563,9 +564,80 @@ bool getCachedRuleCounts(
     }
 
     LootChestSet loots;
-    if (!getStructureLoot(
-            &loots, rules, mc, worldSeed, pos, biomeId))
+    if (useVillageCache)
+    {
+        if (cache->villageWorldSeed != worldSeed)
+        {
+            cache->villageWorldSeed = worldSeed;
+            cache->villageEntries.clear();
+            cache->villageChestCount = 0;
+        }
+
+        VillageLootRawCacheKey villageKey;
+        villageKey.mc = mc == MC_1_16 ? MC_1_16_1 : mc;
+        villageKey.x = pos.x;
+        villageKey.z = pos.z;
+        villageKey.biomeId = biomeId;
+        villageKey.contentsRequired =
+            hasVillageItemContentRule(rules);
+        auto found = cache->villageEntries.find(villageKey);
+        if (found != cache->villageEntries.end())
+        {
+            cache->villageHits++;
+            loots.chests.reserve(found->second.chests.size());
+            for (const VillageLootRawCacheChest& raw :
+                 found->second.chests)
+            {
+                GeneratedLootChest chest;
+                chest.loot = raw.loot;
+                chest.present = raw.present;
+                chest.contentsKnown = raw.contentsKnown;
+                chest.pos = raw.pos;
+                chest.table = raw.table;
+                chest.piece = raw.piece;
+                loots.chests.push_back(chest);
+            }
+        }
+        else
+        {
+            cache->villageCalculations++;
+            if (!getStructureLoot(
+                    &loots, rules, mc, worldSeed, pos, biomeId))
+            {
+                return false;
+            }
+            // Keep memory bounded per worker. Retaining the first entries is
+            // useful because separate Village conditions scan in the same
+            // order; replacing them here would cause cache thrashing.
+            if (cache->villageEntries.size() < 256 &&
+                cache->villageChestCount +
+                    uint64_t(loots.chests.size()) <= 4096)
+            {
+                VillageLootRawCacheEntry rawEntry;
+                rawEntry.chests.reserve(loots.chests.size());
+                for (const GeneratedLootChest& chest : loots.chests)
+                {
+                    VillageLootRawCacheChest raw;
+                    raw.loot = chest.loot;
+                    raw.present = chest.present;
+                    raw.contentsKnown = chest.contentsKnown;
+                    raw.pos = chest.pos;
+                    raw.table = chest.table;
+                    raw.piece = chest.piece;
+                    rawEntry.chests.push_back(raw);
+                }
+                cache->villageEntries.emplace(
+                    villageKey, std::move(rawEntry));
+                cache->villageChestCount +=
+                    uint64_t(loots.chests.size());
+            }
+        }
+    }
+    else if (!getStructureLoot(
+                 &loots, rules, mc, worldSeed, pos, biomeId))
+    {
         return false;
+    }
 
     LootSearchCacheEntry generated;
     generated.chests.reserve(loots.chests.size());
@@ -585,7 +657,7 @@ bool getCachedRuleCounts(
         generated.chests.push_back(cachedChest);
     }
     *out = generated;
-    if (cache)
+    if (useFamilyCache)
         cache->entries[key] = generated;
     return true;
 }
@@ -646,12 +718,31 @@ bool LootSearchCacheKey::operator<(
     return referenceZ < other.referenceZ;
 }
 
+bool VillageLootRawCacheKey::operator<(
+    const VillageLootRawCacheKey& other) const
+{
+    if (mc != other.mc)
+        return mc < other.mc;
+    if (x != other.x)
+        return x < other.x;
+    if (z != other.z)
+        return z < other.z;
+    if (biomeId != other.biomeId)
+        return biomeId < other.biomeId;
+    return contentsRequired < other.contentsRequired;
+}
+
 void LootSearchCache::reset()
 {
     familySeed = ~(uint64_t)0;
+    villageWorldSeed = ~(uint64_t)0;
     calculations = 0;
     hits = 0;
+    villageCalculations = 0;
+    villageHits = 0;
+    villageChestCount = 0;
     entries.clear();
+    villageEntries.clear();
     ruleHashes.clear();
 }
 

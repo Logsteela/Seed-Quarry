@@ -99,16 +99,50 @@ struct LootSearchCacheEntry
     QVector<LootSearchCacheChest> chests;
 };
 
+struct VillageLootRawCacheKey
+{
+    int mc = 0;
+    int x = 0;
+    int z = 0;
+    int biomeId = 0;
+    bool contentsRequired = false;
+
+    bool operator<(const VillageLootRawCacheKey& other) const;
+};
+
+struct VillageLootRawCacheChest
+{
+    StructureLoot loot = {};
+    bool present = false;
+    bool contentsKnown = true;
+    Pos3 pos = {};
+    int table = -1;
+    QString piece;
+};
+
+struct VillageLootRawCacheEntry
+{
+    QVector<VillageLootRawCacheChest> chests;
+};
+
 /**
- * Worker-local cache used by the optional 48-bit Loot precheck/speed mode.
- * Entries are discarded whenever the lower 48-bit seed changes.
+ * Worker-local Loot cache. Fixed structures reuse projected rule counts for
+ * one lower-48 family. Village entries instead retain raw chest results only
+ * for one exact 64-bit seed, because terrain can change their layout between
+ * upper-16 variants. Search workers do not share this object.
  */
 struct LootSearchCache
 {
     uint64_t familySeed = ~(uint64_t)0;
+    uint64_t villageWorldSeed = ~(uint64_t)0;
     uint64_t calculations = 0;
     uint64_t hits = 0;
+    uint64_t villageCalculations = 0;
+    uint64_t villageHits = 0;
+    uint64_t villageChestCount = 0;
     std::map<LootSearchCacheKey, LootSearchCacheEntry> entries;
+    std::map<VillageLootRawCacheKey, VillageLootRawCacheEntry>
+        villageEntries;
     std::map<const LootRuleSet*, uint64_t> ruleHashes;
 
     void reset();
