@@ -55,6 +55,18 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
+## MineMap
+
+The fixed-structure Loot implementation and validation work also used
+MineMap 1.0.26 as a behavioral reference. Seed Quarry does not distribute the
+MineMap application or its Java user interface.
+
+MineMap source: https://github.com/hube12/MineMap
+
+Copyright (c) 2021 KaptainWutax, Neil. Licensed under the MIT License. The
+complete licence is available in the linked MineMap repository. Exact pinned
+versions and reference commits are recorded in `LOOT_INTEGRATION_JA.md`.
+
 ## Amidst
 
 Biome colors and some icon concepts are inspired by Amidst, licensed under

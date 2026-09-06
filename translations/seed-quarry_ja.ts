@@ -10,7 +10,7 @@
         </message>
         <message>
             <location filename="../src/aboutdialog.ui" line="22" />
-            <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style="font-size:16pt;font-weight:600;"&gt;Seed Quarry _VERSION_&lt;/span&gt;&lt;/p&gt;&lt;p&gt;Built: _DATE_&lt;/p&gt;&lt;p&gt;License: &lt;a href="https://www.gnu.org/licenses/gpl-3.0.html"&gt;GPLv3&lt;/a&gt;&lt;/p&gt;&lt;p&gt;&lt;b&gt;Modified version&lt;/b&gt;&lt;/p&gt;&lt;p&gt;Seed Quarry is based on Cubiomes Viewer by Cubitect. This modified version was created on 14 July 2026 and is not an official upstream release.&lt;/p&gt;&lt;p&gt;&lt;b&gt;Components and legal information&lt;/b&gt;&lt;/p&gt;&lt;p&gt;Biome and structure generation uses &lt;a href="https://github.com/Cubitect/cubiomes/"&gt;cubiomes&lt;/a&gt; (MIT). Qt _QT_MAJOR_._QT_MINOR_ is available under (L)GPLv3. The dark theme is derived from QDarkStyleSheet (MIT). Biome colors and icons are inspired by Amidst (GPLv3). Lua _LUA_VERS_ is distributed under the MIT license.&lt;/p&gt;&lt;p&gt;Full license notices and the corresponding source code are included with the installed program.&lt;/p&gt;&lt;p&gt;NOT AN OFFICIAL MINECRAFT PRODUCT.&lt;br/&gt;NOT APPROVED BY OR ASSOCIATED WITH MOJANG OR MICROSOFT.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
+            <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot;font-size:16pt;font-weight:600;&quot;&gt;Seed Quarry _VERSION_&lt;/span&gt;&lt;br/&gt;Built: _DATE_&lt;br/&gt;License: &lt;a href=&quot;https://www.gnu.org/licenses/gpl-3.0.html&quot;&gt;GPLv3&lt;/a&gt;&lt;/p&gt;&lt;p&gt;&lt;b&gt;Project lineage&lt;/b&gt;&lt;/p&gt;&lt;p&gt;Seed Quarry is an independent GPLv3 fork of &lt;a href=&quot;https://github.com/DUzzL/Seed-Atlas&quot;&gt;Seed Atlas&lt;/a&gt; by DUzzL, which is based on &lt;a href=&quot;https://github.com/Cubitect/cubiomes-viewer&quot;&gt;Cubiomes Viewer&lt;/a&gt; by Cubitect. Most of the viewer interface, map, and original seed-search workflow come from those upstream projects. Seed Quarry is not an official upstream release.&lt;/p&gt;&lt;p&gt;&lt;b&gt;Additional references&lt;/b&gt;&lt;/p&gt;&lt;p&gt;Parts of the Java 1.16 Loot implementation were developed with reference to &lt;a href=&quot;https://github.com/hube12/MineMap&quot;&gt;MineMap 1.0.26&lt;/a&gt; and its SeedFinding dependencies. MineMap itself and its UI are not bundled.&lt;/p&gt;&lt;p&gt;&lt;b&gt;Seed Quarry additions&lt;/b&gt;&lt;/p&gt;&lt;p&gt;Searchable structure variants and Loot conditions, chest-coordinate rules, experimental village and bastion analysis, 48-bit Loot search modes, and localisation and packaging changes.&lt;/p&gt;&lt;p&gt;Generation uses &lt;a href=&quot;https://github.com/Cubitect/cubiomes/&quot;&gt;cubiomes&lt;/a&gt; (MIT). Qt _QT_MAJOR_._QT_MINOR_ is available under (L)GPLv3. Lua _LUA_VERS_ is MIT-licensed. Full notices are included with the source.&lt;/p&gt;&lt;p&gt;NOT AN OFFICIAL MINECRAFT PRODUCT.&lt;br/&gt;NOT APPROVED BY OR ASSOCIATED WITH MOJANG OR MICROSOFT.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
             <translation type="unfinished"></translation>
         </message>
     </context>
@@ -695,7 +695,7 @@
         <message>
             <location filename="../src/biomecolordialog.cpp" line="370" />
             <source>Failed to open file for export:
-"%1"</source>
+    &quot;%1&quot;</source>
             <translation type="unfinished"></translation>
         </message>
         <message>
@@ -936,7 +936,7 @@
         </message>
         <message>
             <location filename="../src/conditiondialog.ui" line="570" />
-            <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p style="white-space:pre"&gt;Satisfied if &lt;span style=" font-weight:600;"&gt;any&lt;/span&gt; of the checked biomes are present&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
+            <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p style=&quot;white-space:pre&quot;&gt;Satisfied if &lt;span style=&quot; font-weight:600;&quot;&gt;any&lt;/span&gt; of the checked biomes are present&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
             <translation type="unfinished"></translation>
         </message>
         <message>
@@ -974,7 +974,7 @@
             <location filename="../src/conditiondialog.ui" line="625" />
             <location filename="../src/conditiondialog.ui" line="1220" />
             <source>Instead of estimating the center of the allowed biome area,
-yield each sampled position individually</source>
+    yield each sampled position individually</source>
             <translation type="unfinished"></translation>
         </message>
         <message>
@@ -1100,7 +1100,7 @@ yield each sampled position individually</source>
         </message>
         <message>
             <location filename="../src/conditiondialog.ui" line="978" />
-            <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;The climate has to enter the required range&lt;/p&gt;&lt;p&gt;With the &lt;span style=" font-style:italic;"&gt;complete&lt;/span&gt; modifier, the entire range must be covered&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
+            <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;The climate has to enter the required range&lt;/p&gt;&lt;p&gt;With the &lt;span style=&quot; font-style:italic;&quot;&gt;complete&lt;/span&gt; modifier, the entire range must be covered&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
             <translation type="unfinished"></translation>
         </message>
         <message>
@@ -1125,7 +1125,7 @@ yield each sampled position individually</source>
         </message>
         <message>
             <location filename="../src/conditiondialog.ui" line="1071" />
-            <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Resulting biomes (&lt;span style=" font-weight:600;"&gt;at least one&lt;/span&gt; with &lt;img src=":/icons/check_include.png"/&gt;, &lt;span style=" font-weight:600;"&gt;any&lt;/span&gt; with &lt;img src=":/icons/check_unchecked.png"/&gt;, &lt;span style=" font-weight:600;"&gt;none&lt;/span&gt; with &lt;img src=":/icons/check_exclude.png"/&gt;):&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
+            <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Resulting biomes (&lt;span style=&quot; font-weight:600;&quot;&gt;at least one&lt;/span&gt; with &lt;img src=&quot;:/icons/check_include.png&quot;/&gt;, &lt;span style=&quot; font-weight:600;&quot;&gt;any&lt;/span&gt; with &lt;img src=&quot;:/icons/check_unchecked.png&quot;/&gt;, &lt;span style=&quot; font-weight:600;&quot;&gt;none&lt;/span&gt; with &lt;img src=&quot;:/icons/check_exclude.png&quot;/&gt;):&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
             <translation type="unfinished"></translation>
         </message>
         <message>
@@ -1812,7 +1812,7 @@ yield each sampled position individually</source>
         <message numerus="yes">
             <location filename="../src/conditiondialog.cpp" line="1170" />
             <source>The biome locator checks for %n instance(s), each of size %1, which cannot be satisfied by an area of size
-%2%3%4 = %5 &lt; %6 @ scale 1:%7.</source>
+    %2%3%4 = %5 &lt; %6 @ scale 1:%7.</source>
             <translation type="unfinished">
                 <numerusform></numerusform>
             </translation>
@@ -1830,7 +1830,7 @@ yield each sampled position individually</source>
         <message>
             <location filename="../src/conditiondialog.cpp" line="1194" />
             <source>Cave biomes do not generate above Y = 246.
-The sampling height should be lowered.</source>
+    The sampling height should be lowered.</source>
             <translation type="unfinished"></translation>
         </message>
         <message>
@@ -1941,7 +1941,7 @@ The sampling height should be lowered.</source>
         </message>
         <message>
             <location filename="../src/conditiondialog.cpp" line="1989" />
-            <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Lua scripts allow the user to write custom filters. A valid Lua filtering script has to define a&lt;/p&gt;&lt;p&gt;&lt;b&gt;check(seed, at, deps)&lt;/b&gt;&lt;/p&gt;&lt;p&gt;function, that evaluates when a seed satisfies the condition. It should return a &lt;b&gt;x, z&lt;/b&gt; value pair that is the block position for other conditions to reference as the relative location. If the condition fails, the function can return &lt;b&gt;nil&lt;/b&gt; instead.&lt;/p&gt;&lt;p&gt;The arguments of &lt;b&gt;check()&lt;/b&gt; are in order:&lt;/p&gt;&lt;p&gt;&lt;dl&gt;&lt;dt&gt;&lt;b&gt;seed&lt;/b&gt;&lt;dd&gt;the current world seed&lt;dt&gt;&lt;b&gt;at&lt;/b&gt; = {x, z}&lt;dd&gt;the relative location of the parent condition&lt;dt&gt;&lt;b&gt;deps&lt;/b&gt; = [..]{x, z, id, parent}&lt;dd&gt;a list of tables with information on the dependent conditions (i.e. those later in the conditions list)&lt;/dl&gt;&lt;/p&gt;&lt;p&gt;Optionally, the script can also define a &lt;b&gt;check48()&lt;/b&gt; function, with a similar prototype, that tests whether a given 48-bit seed base is worth investigating further.&lt;/p&gt;&lt;p&gt;A few global symbols are predefined. These include the biome ID and structure type enums from cubiomes, which means they can be referred to by their names (such as &lt;b&gt;flower_forest&lt;/b&gt; or &lt;b&gt;Village&lt;/b&gt;). Furthermore, the following functions are available:&lt;/p&gt;&lt;p&gt;&lt;dl&gt;&lt;dt&gt;&lt;b&gt;getBiomeAt(x, z)&lt;/b&gt;&lt;dt&gt;&lt;b&gt;getBiomeAt(x, y, z)&lt;/b&gt;&lt;dd&gt;returns the overworld biome at the given block coordinates&lt;/p&gt;&lt;p&gt;&lt;dt&gt;&lt;b&gt;getStructures(type, x1, z1, x2, z2)&lt;/b&gt;&lt;dd&gt;returns a list of &lt;b&gt;{x, z}&lt;/b&gt; structure positions for the specified structure &lt;b&gt;type&lt;/b&gt; within the area spanning the block positions &lt;b&gt;x1, z1&lt;/b&gt; to &lt;b&gt;x2, z2&lt;/b&gt;, or &lt;b&gt;nil&lt;/b&gt; upon failure&lt;dt&gt;&lt;b&gt;getStructureVariant(type, x, z [, biome])&lt;/b&gt;&lt;dd&gt;Returns the structure variant at the specified position. Fields include underground, airpocket, giant, mirror, rotation, start, biome, basement, abandoned, cracked, size, and bounding information. Returns &lt;b&gt;nil&lt;/b&gt; on failure.&lt;dt&gt;&lt;b&gt;getDesertPyramidLoot(x, z [, chest])&lt;/b&gt;&lt;dd&gt;Returns Java 1.16.1 / 1.16.5 desert-pyramid Loot. &lt;b&gt;chest&lt;/b&gt; is 1 through 4 in Vanilla's internal RNG order. If omitted, the result contains &lt;b&gt;[1]&lt;/b&gt; through &lt;b&gt;[4]&lt;/b&gt; and their combined &lt;b&gt;total&lt;/b&gt;. Returns &lt;b&gt;nil&lt;/b&gt; for unsupported versions or on failure.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
+            <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Lua scripts allow the user to write custom filters. A valid Lua filtering script has to define a&lt;/p&gt;&lt;p&gt;&lt;b&gt;check(seed, at, deps)&lt;/b&gt;&lt;/p&gt;&lt;p&gt;function, that evaluates when a seed satisfies the condition. It should return a &lt;b&gt;x, z&lt;/b&gt; value pair that is the block position for other conditions to reference as the relative location. If the condition fails, the function can return &lt;b&gt;nil&lt;/b&gt; instead.&lt;/p&gt;&lt;p&gt;The arguments of &lt;b&gt;check()&lt;/b&gt; are in order:&lt;/p&gt;&lt;p&gt;&lt;dl&gt;&lt;dt&gt;&lt;b&gt;seed&lt;/b&gt;&lt;dd&gt;the current world seed&lt;dt&gt;&lt;b&gt;at&lt;/b&gt; = {x, z}&lt;dd&gt;the relative location of the parent condition&lt;dt&gt;&lt;b&gt;deps&lt;/b&gt; = [..]{x, z, id, parent}&lt;dd&gt;a list of tables with information on the dependent conditions (i.e. those later in the conditions list)&lt;/dl&gt;&lt;/p&gt;&lt;p&gt;Optionally, the script can also define a &lt;b&gt;check48()&lt;/b&gt; function, with a similar prototype, that tests whether a given 48-bit seed base is worth investigating further.&lt;/p&gt;&lt;p&gt;A few global symbols are predefined. These include the biome ID and structure type enums from cubiomes, which means they can be referred to by their names (such as &lt;b&gt;flower_forest&lt;/b&gt; or &lt;b&gt;Village&lt;/b&gt;). Furthermore, the following functions are available:&lt;/p&gt;&lt;p&gt;&lt;dl&gt;&lt;dt&gt;&lt;b&gt;getBiomeAt(x, z)&lt;/b&gt;&lt;dt&gt;&lt;b&gt;getBiomeAt(x, y, z)&lt;/b&gt;&lt;dd&gt;returns the overworld biome at the given block coordinates&lt;/p&gt;&lt;p&gt;&lt;dt&gt;&lt;b&gt;getStructures(type, x1, z1, x2, z2)&lt;/b&gt;&lt;dd&gt;returns a list of &lt;b&gt;{x, z}&lt;/b&gt; structure positions for the specified structure &lt;b&gt;type&lt;/b&gt; within the area spanning the block positions &lt;b&gt;x1, z1&lt;/b&gt; to &lt;b&gt;x2, z2&lt;/b&gt;, or &lt;b&gt;nil&lt;/b&gt; upon failure&lt;dt&gt;&lt;b&gt;getStructureVariant(type, x, z [, biome])&lt;/b&gt;&lt;dd&gt;Returns the structure variant at the specified position. Fields include underground, airpocket, giant, mirror, rotation, start, biome, basement, abandoned, cracked, size, and bounding information. Returns &lt;b&gt;nil&lt;/b&gt; on failure.&lt;dt&gt;&lt;b&gt;getDesertPyramidLoot(x, z [, chest])&lt;/b&gt;&lt;dd&gt;Returns Java 1.16.1 / 1.16.5 desert-pyramid Loot. &lt;b&gt;chest&lt;/b&gt; is 1 through 4 in Vanilla&apos;s internal RNG order. If omitted, the result contains &lt;b&gt;[1]&lt;/b&gt; through &lt;b&gt;[4]&lt;/b&gt; and their combined &lt;b&gt;total&lt;/b&gt;. Returns &lt;b&gt;nil&lt;/b&gt; for unsupported versions or on failure.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
             <translation type="unfinished"></translation>
         </message>
     </context>
@@ -2004,12 +2004,12 @@ The sampling height should be lowered.</source>
         </message>
         <message>
             <location filename="../src/configdialog.ui" line="151" />
-            <source>Single quotes (')</source>
+            <source>Single quotes (&apos;)</source>
             <translation type="unfinished"></translation>
         </message>
         <message>
             <location filename="../src/configdialog.ui" line="156" />
-            <source>Double quotes (")</source>
+            <source>Double quotes (&quot;)</source>
             <translation type="unfinished"></translation>
         </message>
         <message>
@@ -2100,7 +2100,7 @@ The sampling height should be lowered.</source>
         <message>
             <location filename="../src/configdialog.ui" line="317" />
             <source>Use a fixed grid in blocks instead of outlining the generated map tiles
-Leave blank for the default behaviour</source>
+    Leave blank for the default behaviour</source>
             <translation type="unfinished"></translation>
         </message>
         <message>
@@ -2532,12 +2532,12 @@ Leave blank for the default behaviour</source>
         </message>
         <message>
             <location filename="../src/exportdialog.cpp" line="362" />
-            <source>When exporting more than one seed, the file pattern has to include the "%S" format specifier for the seed number.</source>
+            <source>When exporting more than one seed, the file pattern has to include the &quot;%S&quot; format specifier for the seed number.</source>
             <translation type="unfinished"></translation>
         </message>
         <message>
             <location filename="../src/exportdialog.cpp" line="369" />
-            <source>Exporting as tiled images requires both the "%x" and "%z" format specifiers in the file pattern, representing the tile coordinates.</source>
+            <source>Exporting as tiled images requires both the &quot;%x&quot; and &quot;%z&quot; format specifiers in the file pattern, representing the tile coordinates.</source>
             <translation type="unfinished"></translation>
         </message>
         <message>
@@ -2656,7 +2656,7 @@ Leave blank for the default behaviour</source>
         <message>
             <location filename="../src/search.cpp" line="367" />
             <source>Condition %1:
-</source>
+    </source>
             <translation type="unfinished"></translation>
         </message>
         <message>
@@ -2756,7 +2756,7 @@ Leave blank for the default behaviour</source>
         </message>
         <message>
             <location filename="../src/search.h" line="213" />
-            <source>The lower 48-bits provide potential for four swamp huts in spawning range, in one of the "classic" configurations. (Checks for huts in the nearest 2x2 chunk corners of each region.)</source>
+            <source>The lower 48-bits provide potential for four swamp huts in spawning range, in one of the &quot;classic&quot; configurations. (Checks for huts in the nearest 2x2 chunk corners of each region.)</source>
             <translation type="unfinished"></translation>
         </message>
         <message>
@@ -3225,7 +3225,7 @@ Leave blank for the default behaviour</source>
         <message>
             <location filename="../src/formgen48.ui" line="120" />
             <source>Selects a set of values for the lower 20-bits of the seed, corresponding to quad-feature constellations
-Applies only to feature-structures of region-size = 32 and chunk-gap = 8, in particular swamp-huts</source>
+    Applies only to feature-structures of region-size = 32 and chunk-gap = 8, in particular swamp-huts</source>
             <translation type="unfinished"></translation>
         </message>
         <message>
@@ -3266,7 +3266,7 @@ Applies only to feature-structures of region-size = 32 and chunk-gap = 8, in par
         <message>
             <location filename="../src/formgen48.ui" line="167" />
             <source>Number of planar spawning spaces inside monuments that are within 128 blocks of a center position
-(i.e. this is a measure quality, out of 4*58*58)</source>
+    (i.e. this is a measure quality, out of 4*58*58)</source>
             <translation type="unfinished"></translation>
         </message>
         <message>
@@ -3358,7 +3358,7 @@ Applies only to feature-structures of region-size = 32 and chunk-gap = 8, in par
         <message>
             <location filename="../src/formgen48.cpp" line="115" />
             <source>Failed to load 48-bit seed list from file:
-"%1"</source>
+    &quot;%1&quot;</source>
             <translation type="unfinished"></translation>
         </message>
         <message>
@@ -3545,7 +3545,7 @@ Applies only to feature-structures of region-size = 32 and chunk-gap = 8, in par
         <message>
             <location filename="../src/formsearchcontrol.cpp" line="272" />
             <source>Failed to load 64-bit seed list from file:
-"%1"</source>
+    &quot;%1&quot;</source>
             <translation type="unfinished"></translation>
         </message>
         <message>
@@ -3555,7 +3555,7 @@ Applies only to feature-structures of region-size = 32 and chunk-gap = 8, in par
         </message>
         <message>
             <location filename="../src/formsearchcontrol.cpp" line="387" />
-            <source>Please define some constraints using the "Add" button.</source>
+            <source>Please define some constraints using the &quot;Add&quot; button.</source>
             <translation type="unfinished"></translation>
         </message>
         <message>
@@ -3939,7 +3939,7 @@ Applies only to feature-structures of region-size = 32 and chunk-gap = 8, in par
         </message>
         <message>
             <location filename="../src/lootcondition.cpp" line="48" />
-            <source>The selected item does not occur in this structure's chests.</source>
+            <source>The selected item does not occur in this structure&apos;s chests.</source>
             <translation type="unfinished"></translation>
         </message>
         <message>
@@ -4137,7 +4137,7 @@ Applies only to feature-structures of region-size = 32 and chunk-gap = 8, in par
         </message>
         <message>
             <location filename="../src/lootconditionwidget.cpp" line="52" />
-            <source>X/Z are relative to the result selected by this condition's 'Location is relative to' setting. Y remains an absolute world coordinate. With no reference, X/Z are relative to the search origin.</source>
+            <source>X/Z are relative to the result selected by this condition&apos;s &apos;Location is relative to&apos; setting. Y remains an absolute world coordinate. With no reference, X/Z are relative to the search origin.</source>
             <translation type="unfinished"></translation>
         </message>
         <message>
@@ -4658,7 +4658,7 @@ Applies only to feature-structures of region-size = 32 and chunk-gap = 8, in par
         </message>
         <message>
             <location filename="../src/lootconditionwidget.cpp" line="131" />
-            <source>Bottle o' Enchanting</source>
+            <source>Bottle o&apos; Enchanting</source>
             <translation type="unfinished"></translation>
         </message>
         <message>
@@ -5764,7 +5764,7 @@ Applies only to feature-structures of region-size = 32 and chunk-gap = 8, in par
         <message>
             <location filename="../src/mainwindow.cpp" line="853" />
             <source>Failed to open file:
-"%1"</source>
+    &quot;%1&quot;</source>
             <translation type="unfinished"></translation>
         </message>
         <message>
@@ -5957,7 +5957,7 @@ Applies only to feature-structures of region-size = 32 and chunk-gap = 8, in par
         <message>
             <location filename="../src/maptoolsdialog.ui" line="68" />
             <source>Maximum visible scale
-(blocks per pixel)</source>
+    (blocks per pixel)</source>
             <translation type="unfinished"></translation>
         </message>
         <message>
@@ -6056,7 +6056,7 @@ Applies only to feature-structures of region-size = 32 and chunk-gap = 8, in par
             <location filename="../src/presetdialog.cpp" line="92" />
             <source>Two abandoned Villages close together, one in a Plains, the other in a Desert.
 
-Works best with the 48-bit family search.</source>
+    Works best with the 48-bit family search.</source>
             <translation type="unfinished"></translation>
         </message>
         <message>
@@ -6088,7 +6088,7 @@ Works best with the 48-bit family search.</source>
             <location filename="../src/presetdialog.cpp" line="109" />
             <source>Spawn in a Village with a Ruined Portal leading to a Stronghold.
 
-Works best with the 48-bit family search.</source>
+    Works best with the 48-bit family search.</source>
             <translation type="unfinished"></translation>
         </message>
         <message>
@@ -6100,7 +6100,7 @@ Works best with the 48-bit family search.</source>
             <location filename="../src/presetdialog.cpp" line="122" />
             <source>A wide range of climates near the origin.
 
-(Does not look for any particular biomes.)</source>
+    (Does not look for any particular biomes.)</source>
             <translation type="unfinished"></translation>
         </message>
         <message>
@@ -6112,7 +6112,7 @@ Works best with the 48-bit family search.</source>
             <location filename="../src/presetdialog.cpp" line="128" />
             <source>A large Jungle biome at the origin.
 
-Looks for a suitable climate that primarily supports Jungle variants.</source>
+    Looks for a suitable climate that primarily supports Jungle variants.</source>
             <translation type="unfinished"></translation>
         </message>
         <message>
@@ -6124,7 +6124,7 @@ Looks for a suitable climate that primarily supports Jungle variants.</source>
             <location filename="../src/presetdialog.cpp" line="134" />
             <source>Extreme climate weirdness that can generate holes to the world floor.
 
-In versions 1.19 - 1.19.2, the world generation can have interesting artifacts at these places.</source>
+    In versions 1.19 - 1.19.2, the world generation can have interesting artifacts at these places.</source>
             <translation type="unfinished"></translation>
         </message>
         <message>
@@ -6143,7 +6143,7 @@ In versions 1.19 - 1.19.2, the world generation can have interesting artifacts a
         <message>
             <location filename="../src/mainwindow.cpp" line="866" />
             <source>Failed to open session file:
-"%1"</source>
+    &quot;%1&quot;</source>
             <translation type="unfinished"></translation>
         </message>
         <message>
@@ -6163,7 +6163,7 @@ In versions 1.19 - 1.19.2, the world generation can have interesting artifacts a
         <message>
             <location filename="../src/searchthread.cpp" line="57" />
             <source>File does not look like a session file.
-Progress may be incomplete or broken.</source>
+    Progress may be incomplete or broken.</source>
             <translation type="unfinished"></translation>
         </message>
         <message>
@@ -6176,7 +6176,7 @@ Progress may be incomplete or broken.</source>
         <message>
             <location filename="../src/searchthread.cpp" line="67" />
             <source>Session file was created with a newer version.
-Progress may be incomplete or broken.</source>
+    Progress may be incomplete or broken.</source>
             <translation type="unfinished"></translation>
         </message>
         <message>
@@ -6192,7 +6192,7 @@ Progress may be incomplete or broken.</source>
         <message>
             <location filename="../src/searchthread.cpp" line="118" />
             <source>Failed to parse line %1 of file:
-%2</source>
+    %2</source>
             <translation type="unfinished"></translation>
         </message>
     </context>
@@ -6339,7 +6339,7 @@ Progress may be incomplete or broken.</source>
         <message>
             <location filename="../src/searchthread.cpp" line="194" />
             <source>Condition with ID %1 has a broken reference position:
-condition missing or out of order.</source>
+    condition missing or out of order.</source>
             <translation type="unfinished"></translation>
         </message>
         <message>
@@ -6392,7 +6392,7 @@ condition missing or out of order.</source>
         <message>
             <location filename="../src/searchthread.cpp" line="305" />
             <source>Failed to setup search environment:
-%1</source>
+    %1</source>
             <translation type="unfinished"></translation>
         </message>
     </context>
@@ -6488,7 +6488,7 @@ condition missing or out of order.</source>
         </message>
         <message>
             <location filename="../src/tabbiomes.ui" line="77" />
-            <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;X&lt;span style=" vertical-align:sub;"&gt;1&lt;/span&gt;:&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
+            <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;X&lt;span style=&quot; vertical-align:sub;&quot;&gt;1&lt;/span&gt;:&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
             <translation type="unfinished"></translation>
         </message>
         <message>
@@ -6501,7 +6501,7 @@ condition missing or out of order.</source>
         </message>
         <message>
             <location filename="../src/tabbiomes.ui" line="97" />
-            <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Z&lt;span style=" vertical-align:sub;"&gt;1&lt;/span&gt;:&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
+            <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Z&lt;span style=&quot; vertical-align:sub;&quot;&gt;1&lt;/span&gt;:&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
             <translation type="unfinished"></translation>
         </message>
         <message>
@@ -6514,12 +6514,12 @@ condition missing or out of order.</source>
         </message>
         <message>
             <location filename="../src/tabbiomes.ui" line="124" />
-            <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;X&lt;span style=" vertical-align:sub;"&gt;2&lt;/span&gt;:&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
+            <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;X&lt;span style=&quot; vertical-align:sub;&quot;&gt;2&lt;/span&gt;:&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
             <translation type="unfinished"></translation>
         </message>
         <message>
             <location filename="../src/tabbiomes.ui" line="144" />
-            <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Z&lt;span style=" vertical-align:sub;"&gt;2&lt;/span&gt;:&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
+            <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Z&lt;span style=&quot; vertical-align:sub;&quot;&gt;2&lt;/span&gt;:&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
             <translation type="unfinished"></translation>
         </message>
         <message>
@@ -6705,7 +6705,7 @@ condition missing or out of order.</source>
         <message>
             <location filename="../src/tabbiomes.cpp" line="1055" />
             <source>Failed to open file for export:
-"%1"</source>
+    &quot;%1&quot;</source>
             <translation type="unfinished"></translation>
         </message>
         <message>
@@ -6861,7 +6861,7 @@ condition missing or out of order.</source>
         <message>
             <location filename="../src/tablocations.cpp" line="536" />
             <source>Failed to open file for export:
-"%1"</source>
+    &quot;%1&quot;</source>
             <translation type="unfinished"></translation>
         </message>
     </context>
@@ -7017,7 +7017,7 @@ condition missing or out of order.</source>
         <message>
             <location filename="../src/tabslime.cpp" line="384" />
             <source>Failed to open file for export:
-"%1"</source>
+    &quot;%1&quot;</source>
             <translation type="unfinished"></translation>
         </message>
     </context>
@@ -7160,7 +7160,7 @@ condition missing or out of order.</source>
         </message>
         <message>
             <location filename="../src/tabstructures.ui" line="242" />
-            <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;X&lt;span style=" vertical-align:sub;"&gt;1&lt;/span&gt;:&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
+            <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;X&lt;span style=&quot; vertical-align:sub;&quot;&gt;1&lt;/span&gt;:&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
             <translation type="unfinished"></translation>
         </message>
         <message>
@@ -7173,7 +7173,7 @@ condition missing or out of order.</source>
         </message>
         <message>
             <location filename="../src/tabstructures.ui" line="262" />
-            <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Z&lt;span style=" vertical-align:sub;"&gt;1&lt;/span&gt;:&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
+            <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Z&lt;span style=&quot; vertical-align:sub;&quot;&gt;1&lt;/span&gt;:&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
             <translation type="unfinished"></translation>
         </message>
         <message>
@@ -7186,12 +7186,12 @@ condition missing or out of order.</source>
         </message>
         <message>
             <location filename="../src/tabstructures.ui" line="289" />
-            <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;X&lt;span style=" vertical-align:sub;"&gt;2&lt;/span&gt;:&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
+            <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;X&lt;span style=&quot; vertical-align:sub;&quot;&gt;2&lt;/span&gt;:&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
             <translation type="unfinished"></translation>
         </message>
         <message>
             <location filename="../src/tabstructures.ui" line="309" />
-            <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Z&lt;span style=" vertical-align:sub;"&gt;2&lt;/span&gt;:&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
+            <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Z&lt;span style=&quot; vertical-align:sub;&quot;&gt;2&lt;/span&gt;:&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
             <translation type="unfinished"></translation>
         </message>
         <message>
@@ -7218,7 +7218,7 @@ condition missing or out of order.</source>
         <message>
             <location filename="../src/tabstructures.cpp" line="678" />
             <source>Failed to open file for export:
-"%1"</source>
+    &quot;%1&quot;</source>
             <translation type="unfinished"></translation>
         </message>
     </context>
@@ -7235,4 +7235,4 @@ condition missing or out of order.</source>
             <translation type="unfinished"></translation>
         </message>
     </context>
-</TS>
+    </TS>

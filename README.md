@@ -1,27 +1,48 @@
 # Seed Quarry
 
-Seed Quarry is an experimental open-source Minecraft Java Edition seed viewer
-and finder. It is based on
-[Cubiomes Viewer](https://github.com/Cubitect/cubiomes-viewer) and adds
-searchable structure variants, Java 1.16 structure-Loot conditions, and a
-reworked desktop interface.
+Seed Quarry is an independent GPLv3 source-code fork of
+[Seed Atlas](https://github.com/DUzzL/Seed-Atlas) by DUzzL. Seed Atlas is
+itself based on [Cubiomes Viewer](https://github.com/Cubitect/cubiomes-viewer)
+by Cubitect.
 
-This repository is an independent modified version. It is not an official
-Cubiomes Viewer release and is not affiliated with Mojang or Microsoft.
+Most of the viewer interface, biome and structure map, and original
+seed-search workflow come from those upstream projects. Seed Quarry retains
+their copyright and licence notices and does not claim those parts as
+original work. It is not an official release of either upstream project.
 
-## Highlights
+## Project lineage and references
 
-- Interactive biome and structure map backed by `cubiomes`.
-- Search conditions for structure-generation variants, including ruined
-  portal placement details.
+```text
+Cubiomes Viewer
+    -> Seed Atlas
+        -> Seed Quarry
+
+MineMap 1.0.26 + SeedFinding libraries
+    -> references for portions of the Java 1.16 Loot implementation
+```
+
+Some fixed-structure Loot behavior and validation data were implemented with
+reference to [MineMap](https://github.com/hube12/MineMap) and its pinned
+SeedFinding Java dependencies. Seed Quarry does not bundle the MineMap
+application or its user interface. Exact versions and implementation notes
+are recorded in [LOOT_INTEGRATION_JA.md](LOOT_INTEGRATION_JA.md), with licence
+details in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+## Seed Quarry additions
+
+- Searchable structure-generation variants, including ruined-portal
+  placement details.
 - Java 1.16 Loot filters for desert pyramids, shipwrecks, buried treasure,
   ruined portals, villages, and bastion remnants.
 - Item-count, AND/OR, per-chest, per-structure, area-total, enchantment, and
   chest-coordinate rules.
 - Exact and explicitly labelled fast sampled Loot modes for 48-bit searches.
-- English source interface with an optional, intentionally partial Japanese
-  translation. Language changes take effect after restarting the application.
-- Headless search sessions and regression tests for the Loot pipeline.
+- Experimental village and bastion layout and chest-position analysis.
+- Resizable condition dialogs, development scripts, Windows packaging, and a
+  partial Japanese translation.
+
+The underlying interactive map, much of the existing condition system, and
+general seed-search functionality remain upstream work.
 
 ## Search accuracy
 
@@ -83,12 +104,16 @@ Other viewer and fixed-structure Loot functions build without it.
 
 The fork is under active development. Java 1.16 is the priority for the
 structure-Loot work; support shown for other Minecraft versions mostly comes
-from the underlying viewer and `cubiomes`. See [VERSION_SUPPORT.md](VERSION_SUPPORT.md)
-for the broader version matrix and `docs/` for implementation notes.
+from the underlying viewer and `cubiomes`. See
+[VERSION_SUPPORT.md](VERSION_SUPPORT.md) for the broader version matrix and
+`docs/` for implementation notes.
 
-## License and attribution
+## Licence and attribution
 
 Seed Quarry is distributed under GPLv3. See [LICENSE](LICENSE),
 [LEGAL_NOTICE.md](LEGAL_NOTICE.md), and
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Contributions must preserve
-the notices and licence obligations of upstream and bundled components.
+the notices and licence obligations of upstream and referenced components.
+
+Seed Quarry is not an official Minecraft product and is not approved by or
+associated with Mojang or Microsoft.
