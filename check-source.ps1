@@ -208,8 +208,12 @@ Assert-SourceCheck ($villageLootSeedSourceText.Contains("assignVillageLootSeedsS
     "src/villagelootseed.cpp is missing Village LootTableSeed assignment."
 Assert-SourceCheck ($searchText.Contains("env->fastFamilyLoot")) `
     "src/search.cpp is missing the optional 48-bit Loot precheck wiring."
-Assert-SourceCheck ($formSearchUiText.Contains('name="checkLootFast"')) `
-    "formsearchcontrol.ui is missing the Loot speed-search checkbox."
+Assert-SourceCheck ($formSearchUiText.Contains('name="comboLootMode"')) `
+    "formsearchcontrol.ui is missing the Loot search-mode selector."
+Assert-SourceCheck ($formSearchSourceText.Contains('tr("Exact Loot search")')) `
+    "The exhaustive Loot search mode is missing."
+Assert-SourceCheck ($formSearchSourceText.Contains('tr("Fast sampled Loot search")')) `
+    "The sampled Loot search mode is missing."
 Assert-SourceCheck ($formSearchSourceText.Contains("fastFamilyLoot")) `
     "formsearchcontrol.cpp is missing the Loot speed-search setting."
 Assert-SourceCheck ([regex]::IsMatch(

@@ -2,6 +2,7 @@
 
 #include <QCheckBox>
 #include <QComboBox>
+#include <QCoreApplication>
 #include <QFormLayout>
 #include <QGridLayout>
 #include <QHBoxLayout>
@@ -13,73 +14,264 @@
 
 namespace {
 
+// Keep custom translation-wrapper strings visible to lupdate.
+static const char *const lootEditorTranslationKeys[] = {
+    QT_TRANSLATE_NOOP("LootEditor", "No maximum"),
+    QT_TRANSLATE_NOOP("LootEditor", "Any enchantment"),
+    QT_TRANSLATE_NOOP("LootEditor", "Remove"),
+    QT_TRANSLATE_NOOP("LootEditor", "Count"),
+    QT_TRANSLATE_NOOP("LootEditor", "Enchantment"),
+    QT_TRANSLATE_NOOP("LootEditor", "Level"),
+    QT_TRANSLATE_NOOP("LootEditor", "Chest content conditions"),
+    QT_TRANSLATE_NOOP("LootEditor", "Filter by chest contents"),
+    QT_TRANSLATE_NOOP("LootEditor", "Match all (AND)"),
+    QT_TRANSLATE_NOOP("LootEditor", "Match any (OR)"),
+    QT_TRANSLATE_NOOP("LootEditor", "Item conditions"),
+    QT_TRANSLATE_NOOP("LootEditor", "Any structure matches"),
+    QT_TRANSLATE_NOOP("LootEditor", "Every structure matches"),
+    QT_TRANSLATE_NOOP("LootEditor", "Total across structures in range"),
+    QT_TRANSLATE_NOOP("LootEditor", "Multiple structures"),
+    QT_TRANSLATE_NOOP("LootEditor", "Chests within structure"),
+    QT_TRANSLATE_NOOP("LootEditor", "Chest coordinates"),
+    QT_TRANSLATE_NOOP("LootEditor", "+ Add item condition"),
+    QT_TRANSLATE_NOOP("LootEditor", "Total across all chests"),
+    QT_TRANSLATE_NOOP("LootEditor", "Any single chest matches"),
+    QT_TRANSLATE_NOOP("LootEditor", "Every chest matches"),
+    QT_TRANSLATE_NOOP("LootEditor", "Generation-order chest %1"),
+    QT_TRANSLATE_NOOP("LootEditor", "Supply chest"),
+    QT_TRANSLATE_NOOP("LootEditor", "Map chest"),
+    QT_TRANSLATE_NOOP("LootEditor", "Treasure chest"),
+    QT_TRANSLATE_NOOP("LootEditor", "Only chest"),
+    QT_TRANSLATE_NOOP("LootEditor", "Any position"),
+    QT_TRANSLATE_NOOP("LootEditor", "Absolute world coordinates"),
+    QT_TRANSLATE_NOOP("LootEditor", "Relative to bastion start-chunk origin"),
+    QT_TRANSLATE_NOOP("LootEditor", "Relative to Location reference (X/Z)"),
+    QT_TRANSLATE_NOOP("LootEditor",
+        "Relative X/Z use the bastion start-chunk origin. Relative Y uses "
+        "Y=32 as its origin. Range endpoints are inclusive."),
+    QT_TRANSLATE_NOOP("LootEditor",
+        "X/Z are relative to the result selected by this condition's "
+        "'Location is relative to' setting. Y remains an absolute world "
+        "coordinate. With no reference, X/Z are relative to the search origin."),
+    QT_TRANSLATE_NOOP("LootEditor",
+        "Village pieces and Loot-container coordinates include surface-height "
+        "calculation. Candidates whose content RNG cannot be determined safely "
+        "are treated as unknown and are not mixed into final results. "
+        "Position-only searches remain available. Count ranges are inclusive."),
+    QT_TRANSLATE_NOOP("LootEditor",
+        "Count ranges are inclusive and may have no maximum. Selecting an "
+        "enchanted book also enables enchantment and level filters."),
+};
+
 QString itemDisplayName(int item)
 {
-    static const char *japanese[DP_LOOT_ITEM_COUNT] = {
-        "ダイヤモンド", "鉄インゴット", "金インゴット", "エメラルド",
-        "骨", "クモの目", "腐った肉", "サドル", "鉄の馬鎧",
-        "金の馬鎧", "ダイヤモンドの馬鎧", "エンチャントの本",
-        "金のリンゴ", "エンチャントされた金のリンゴ",
-        "火薬", "糸", "砂",
-        "海洋の心", "TNT", "プリズマリンクリスタル",
-        "革のチェストプレート", "鉄の剣", "焼き鱈", "焼き鮭",
-        "黒曜石", "火打石", "鉄塊", "火打石と打ち金",
-        "ファイヤーチャージ", "金塊", "金の剣", "金の斧",
-        "金のクワ", "金のシャベル", "金のツルハシ", "金のブーツ",
-        "金のチェストプレート", "金のヘルメット", "金のレギンス",
-        "きらめくスイカの薄切り", "軽量用感圧板", "金のニンジン",
-        "時計", "金ブロック", "鐘",
-        "宝の地図", "コンパス", "白紙の地図", "紙", "羽根", "本",
-        "ジャガイモ", "青くなったジャガイモ", "ニンジン", "小麦",
-        "怪しげなシチュー", "石炭", "カボチャ", "竹",
-        "革の帽子", "革のズボン", "革のブーツ",
-        "エンチャントの瓶", "ラピスラズリ",
-        "パン", "鉄のヘルメット", "生の豚肉", "生の牛肉", "生の羊肉",
-        "棒", "粘土玉", "緑色の染料", "サボテン", "生鱈", "生鮭",
-        "水入りバケツ", "樽", "小麦の種", "矢", "卵", "植木鉢",
-        "石", "石レンガ", "黄色の染料", "滑らかな石", "タンポポ",
-        "ポピー", "リンゴ", "オークの苗木", "草", "背の高い草",
-        "アカシアの苗木", "松明", "バケツ", "白色の羊毛",
-        "黒色の羊毛", "灰色の羊毛", "茶色の羊毛", "薄灰色の羊毛",
-        "ハサミ", "青氷", "雪ブロック", "ビートルートの種",
-        "ビートルートスープ", "かまど", "雪玉", "シダ", "大きなシダ",
-        "スイートベリー", "カボチャの種", "パンプキンパイ",
-        "トウヒの苗木", "トウヒの看板", "トウヒの原木", "革",
-        "レッドストーンダスト", "鉄のツルハシ", "鉄のシャベル",
-        "鉄のチェストプレート", "鉄のレギンス", "鉄のブーツ",
-        "ロードストーン", "クロスボウ", "光の矢",
-        "きらめくブラックストーン", "泣く黒曜石",
-        "ダイヤモンドのシャベル", "ネザライトの欠片", "古代の残骸",
-        "グロウストーン", "ソウルサンド", "真紅のナイリウム",
-        "焼き豚", "真紅のキノコ", "真紅の根", "ピグリンの旗の模様",
-        "レコード（Pigstep）", "鎖", "マグマクリーム", "骨ブロック",
-        "ネザライトインゴット", "ダイヤモンドの剣",
-        "ダイヤモンドのチェストプレート", "ダイヤモンドのヘルメット",
-        "ダイヤモンドのレギンス", "ダイヤモンドのブーツ",
-        "ネザークォーツ", "枯れ木",
-        "アイテム不問（Lootコンテナ位置・個数のみ）",
+    static const char *english[DP_LOOT_ITEM_COUNT] = {
+        QT_TRANSLATE_NOOP("LootItem", "Diamond"),
+        QT_TRANSLATE_NOOP("LootItem", "Iron Ingot"),
+        QT_TRANSLATE_NOOP("LootItem", "Gold Ingot"),
+        QT_TRANSLATE_NOOP("LootItem", "Emerald"),
+        QT_TRANSLATE_NOOP("LootItem", "Bone"),
+        QT_TRANSLATE_NOOP("LootItem", "Spider Eye"),
+        QT_TRANSLATE_NOOP("LootItem", "Rotten Flesh"),
+        QT_TRANSLATE_NOOP("LootItem", "Saddle"),
+        QT_TRANSLATE_NOOP("LootItem", "Iron Horse Armor"),
+        QT_TRANSLATE_NOOP("LootItem", "Golden Horse Armor"),
+        QT_TRANSLATE_NOOP("LootItem", "Diamond Horse Armor"),
+        QT_TRANSLATE_NOOP("LootItem", "Enchanted Book"),
+        QT_TRANSLATE_NOOP("LootItem", "Golden Apple"),
+        QT_TRANSLATE_NOOP("LootItem", "Enchanted Golden Apple"),
+        QT_TRANSLATE_NOOP("LootItem", "Gunpowder"),
+        QT_TRANSLATE_NOOP("LootItem", "String"),
+        QT_TRANSLATE_NOOP("LootItem", "Sand"),
+        QT_TRANSLATE_NOOP("LootItem", "Heart of the Sea"),
+        QT_TRANSLATE_NOOP("LootItem", "TNT"),
+        QT_TRANSLATE_NOOP("LootItem", "Prismarine Crystals"),
+        QT_TRANSLATE_NOOP("LootItem", "Leather Chestplate"),
+        QT_TRANSLATE_NOOP("LootItem", "Iron Sword"),
+        QT_TRANSLATE_NOOP("LootItem", "Cooked Cod"),
+        QT_TRANSLATE_NOOP("LootItem", "Cooked Salmon"),
+        QT_TRANSLATE_NOOP("LootItem", "Obsidian"),
+        QT_TRANSLATE_NOOP("LootItem", "Flint"),
+        QT_TRANSLATE_NOOP("LootItem", "Iron Nugget"),
+        QT_TRANSLATE_NOOP("LootItem", "Flint and Steel"),
+        QT_TRANSLATE_NOOP("LootItem", "Fire Charge"),
+        QT_TRANSLATE_NOOP("LootItem", "Gold Nugget"),
+        QT_TRANSLATE_NOOP("LootItem", "Golden Sword"),
+        QT_TRANSLATE_NOOP("LootItem", "Golden Axe"),
+        QT_TRANSLATE_NOOP("LootItem", "Golden Hoe"),
+        QT_TRANSLATE_NOOP("LootItem", "Golden Shovel"),
+        QT_TRANSLATE_NOOP("LootItem", "Golden Pickaxe"),
+        QT_TRANSLATE_NOOP("LootItem", "Golden Boots"),
+        QT_TRANSLATE_NOOP("LootItem", "Golden Chestplate"),
+        QT_TRANSLATE_NOOP("LootItem", "Golden Helmet"),
+        QT_TRANSLATE_NOOP("LootItem", "Golden Leggings"),
+        QT_TRANSLATE_NOOP("LootItem", "Glistering Melon Slice"),
+        QT_TRANSLATE_NOOP("LootItem", "Light Weighted Pressure Plate"),
+        QT_TRANSLATE_NOOP("LootItem", "Golden Carrot"),
+        QT_TRANSLATE_NOOP("LootItem", "Clock"),
+        QT_TRANSLATE_NOOP("LootItem", "Block of Gold"),
+        QT_TRANSLATE_NOOP("LootItem", "Bell"),
+        QT_TRANSLATE_NOOP("LootItem", "Treasure Map"),
+        QT_TRANSLATE_NOOP("LootItem", "Compass"),
+        QT_TRANSLATE_NOOP("LootItem", "Empty Map"),
+        QT_TRANSLATE_NOOP("LootItem", "Paper"),
+        QT_TRANSLATE_NOOP("LootItem", "Feather"),
+        QT_TRANSLATE_NOOP("LootItem", "Book"),
+        QT_TRANSLATE_NOOP("LootItem", "Potato"),
+        QT_TRANSLATE_NOOP("LootItem", "Poisonous Potato"),
+        QT_TRANSLATE_NOOP("LootItem", "Carrot"),
+        QT_TRANSLATE_NOOP("LootItem", "Wheat"),
+        QT_TRANSLATE_NOOP("LootItem", "Suspicious Stew"),
+        QT_TRANSLATE_NOOP("LootItem", "Coal"),
+        QT_TRANSLATE_NOOP("LootItem", "Pumpkin"),
+        QT_TRANSLATE_NOOP("LootItem", "Bamboo"),
+        QT_TRANSLATE_NOOP("LootItem", "Leather Cap"),
+        QT_TRANSLATE_NOOP("LootItem", "Leather Pants"),
+        QT_TRANSLATE_NOOP("LootItem", "Leather Boots"),
+        QT_TRANSLATE_NOOP("LootItem", "Bottle o' Enchanting"),
+        QT_TRANSLATE_NOOP("LootItem", "Lapis Lazuli"),
+        QT_TRANSLATE_NOOP("LootItem", "Bread"),
+        QT_TRANSLATE_NOOP("LootItem", "Iron Helmet"),
+        QT_TRANSLATE_NOOP("LootItem", "Raw Porkchop"),
+        QT_TRANSLATE_NOOP("LootItem", "Raw Beef"),
+        QT_TRANSLATE_NOOP("LootItem", "Raw Mutton"),
+        QT_TRANSLATE_NOOP("LootItem", "Stick"),
+        QT_TRANSLATE_NOOP("LootItem", "Clay Ball"),
+        QT_TRANSLATE_NOOP("LootItem", "Green Dye"),
+        QT_TRANSLATE_NOOP("LootItem", "Cactus"),
+        QT_TRANSLATE_NOOP("LootItem", "Raw Cod"),
+        QT_TRANSLATE_NOOP("LootItem", "Raw Salmon"),
+        QT_TRANSLATE_NOOP("LootItem", "Water Bucket"),
+        QT_TRANSLATE_NOOP("LootItem", "Barrel"),
+        QT_TRANSLATE_NOOP("LootItem", "Wheat Seeds"),
+        QT_TRANSLATE_NOOP("LootItem", "Arrow"),
+        QT_TRANSLATE_NOOP("LootItem", "Egg"),
+        QT_TRANSLATE_NOOP("LootItem", "Flower Pot"),
+        QT_TRANSLATE_NOOP("LootItem", "Stone"),
+        QT_TRANSLATE_NOOP("LootItem", "Stone Bricks"),
+        QT_TRANSLATE_NOOP("LootItem", "Yellow Dye"),
+        QT_TRANSLATE_NOOP("LootItem", "Smooth Stone"),
+        QT_TRANSLATE_NOOP("LootItem", "Dandelion"),
+        QT_TRANSLATE_NOOP("LootItem", "Poppy"),
+        QT_TRANSLATE_NOOP("LootItem", "Apple"),
+        QT_TRANSLATE_NOOP("LootItem", "Oak Sapling"),
+        QT_TRANSLATE_NOOP("LootItem", "Grass"),
+        QT_TRANSLATE_NOOP("LootItem", "Tall Grass"),
+        QT_TRANSLATE_NOOP("LootItem", "Acacia Sapling"),
+        QT_TRANSLATE_NOOP("LootItem", "Torch"),
+        QT_TRANSLATE_NOOP("LootItem", "Bucket"),
+        QT_TRANSLATE_NOOP("LootItem", "White Wool"),
+        QT_TRANSLATE_NOOP("LootItem", "Black Wool"),
+        QT_TRANSLATE_NOOP("LootItem", "Gray Wool"),
+        QT_TRANSLATE_NOOP("LootItem", "Brown Wool"),
+        QT_TRANSLATE_NOOP("LootItem", "Light Gray Wool"),
+        QT_TRANSLATE_NOOP("LootItem", "Shears"),
+        QT_TRANSLATE_NOOP("LootItem", "Blue Ice"),
+        QT_TRANSLATE_NOOP("LootItem", "Snow Block"),
+        QT_TRANSLATE_NOOP("LootItem", "Beetroot Seeds"),
+        QT_TRANSLATE_NOOP("LootItem", "Beetroot Soup"),
+        QT_TRANSLATE_NOOP("LootItem", "Furnace"),
+        QT_TRANSLATE_NOOP("LootItem", "Snowball"),
+        QT_TRANSLATE_NOOP("LootItem", "Fern"),
+        QT_TRANSLATE_NOOP("LootItem", "Large Fern"),
+        QT_TRANSLATE_NOOP("LootItem", "Sweet Berries"),
+        QT_TRANSLATE_NOOP("LootItem", "Pumpkin Seeds"),
+        QT_TRANSLATE_NOOP("LootItem", "Pumpkin Pie"),
+        QT_TRANSLATE_NOOP("LootItem", "Spruce Sapling"),
+        QT_TRANSLATE_NOOP("LootItem", "Spruce Sign"),
+        QT_TRANSLATE_NOOP("LootItem", "Spruce Log"),
+        QT_TRANSLATE_NOOP("LootItem", "Leather"),
+        QT_TRANSLATE_NOOP("LootItem", "Redstone Dust"),
+        QT_TRANSLATE_NOOP("LootItem", "Iron Pickaxe"),
+        QT_TRANSLATE_NOOP("LootItem", "Iron Shovel"),
+        QT_TRANSLATE_NOOP("LootItem", "Iron Chestplate"),
+        QT_TRANSLATE_NOOP("LootItem", "Iron Leggings"),
+        QT_TRANSLATE_NOOP("LootItem", "Iron Boots"),
+        QT_TRANSLATE_NOOP("LootItem", "Lodestone"),
+        QT_TRANSLATE_NOOP("LootItem", "Crossbow"),
+        QT_TRANSLATE_NOOP("LootItem", "Spectral Arrow"),
+        QT_TRANSLATE_NOOP("LootItem", "Gilded Blackstone"),
+        QT_TRANSLATE_NOOP("LootItem", "Crying Obsidian"),
+        QT_TRANSLATE_NOOP("LootItem", "Diamond Shovel"),
+        QT_TRANSLATE_NOOP("LootItem", "Netherite Scrap"),
+        QT_TRANSLATE_NOOP("LootItem", "Ancient Debris"),
+        QT_TRANSLATE_NOOP("LootItem", "Glowstone"),
+        QT_TRANSLATE_NOOP("LootItem", "Soul Sand"),
+        QT_TRANSLATE_NOOP("LootItem", "Crimson Nylium"),
+        QT_TRANSLATE_NOOP("LootItem", "Cooked Porkchop"),
+        QT_TRANSLATE_NOOP("LootItem", "Crimson Fungus"),
+        QT_TRANSLATE_NOOP("LootItem", "Crimson Roots"),
+        QT_TRANSLATE_NOOP("LootItem", "Snout Banner Pattern"),
+        QT_TRANSLATE_NOOP("LootItem", "Music Disc (Pigstep)"),
+        QT_TRANSLATE_NOOP("LootItem", "Chain"),
+        QT_TRANSLATE_NOOP("LootItem", "Magma Cream"),
+        QT_TRANSLATE_NOOP("LootItem", "Bone Block"),
+        QT_TRANSLATE_NOOP("LootItem", "Netherite Ingot"),
+        QT_TRANSLATE_NOOP("LootItem", "Diamond Sword"),
+        QT_TRANSLATE_NOOP("LootItem", "Diamond Chestplate"),
+        QT_TRANSLATE_NOOP("LootItem", "Diamond Helmet"),
+        QT_TRANSLATE_NOOP("LootItem", "Diamond Leggings"),
+        QT_TRANSLATE_NOOP("LootItem", "Diamond Boots"),
+        QT_TRANSLATE_NOOP("LootItem", "Nether Quartz"),
+        QT_TRANSLATE_NOOP("LootItem", "Dead Bush"),
+        QT_TRANSLATE_NOOP("LootItem", "Any item (Loot container position/count only)"),
     };
-    return QString::fromUtf8(japanese[item]) + " (" +
+    return QCoreApplication::translate("LootItem", english[item]) + " (" +
         QString::fromLatin1(structureLootItemName(item)) + ")";
 }
 
 QString enchantmentDisplayName(int enchantment)
 {
-    static const char *japanese[DP_ENCH_COUNT] = {
-        "ダメージ軽減", "火炎耐性", "落下耐性", "爆発耐性",
-        "飛び道具耐性", "水中呼吸", "水中採掘", "棘の鎧",
-        "水中歩行", "氷渡り", "束縛の呪い", "ダメージ増加",
-        "アンデッド特効", "虫特効", "ノックバック", "火属性",
-        "ドロップ増加", "範囲ダメージ増加", "効率強化",
-        "シルクタッチ", "耐久力", "幸運", "射撃ダメージ増加",
-        "パンチ", "フレイム", "無限", "宝釣り", "入れ食い",
-        "忠誠", "水生特効", "激流", "召雷", "拡散", "高速装填",
-        "貫通", "修繕", "消滅の呪い",
-        "ソウルスピード",
+    static const char *english[DP_ENCH_COUNT] = {
+        QT_TRANSLATE_NOOP("LootEnchantment", "Protection"),
+        QT_TRANSLATE_NOOP("LootEnchantment", "Fire Protection"),
+        QT_TRANSLATE_NOOP("LootEnchantment", "Feather Falling"),
+        QT_TRANSLATE_NOOP("LootEnchantment", "Blast Protection"),
+        QT_TRANSLATE_NOOP("LootEnchantment", "Projectile Protection"),
+        QT_TRANSLATE_NOOP("LootEnchantment", "Respiration"),
+        QT_TRANSLATE_NOOP("LootEnchantment", "Aqua Affinity"),
+        QT_TRANSLATE_NOOP("LootEnchantment", "Thorns"),
+        QT_TRANSLATE_NOOP("LootEnchantment", "Depth Strider"),
+        QT_TRANSLATE_NOOP("LootEnchantment", "Frost Walker"),
+        QT_TRANSLATE_NOOP("LootEnchantment", "Curse of Binding"),
+        QT_TRANSLATE_NOOP("LootEnchantment", "Sharpness"),
+        QT_TRANSLATE_NOOP("LootEnchantment", "Smite"),
+        QT_TRANSLATE_NOOP("LootEnchantment", "Bane of Arthropods"),
+        QT_TRANSLATE_NOOP("LootEnchantment", "Knockback"),
+        QT_TRANSLATE_NOOP("LootEnchantment", "Fire Aspect"),
+        QT_TRANSLATE_NOOP("LootEnchantment", "Looting"),
+        QT_TRANSLATE_NOOP("LootEnchantment", "Sweeping Edge"),
+        QT_TRANSLATE_NOOP("LootEnchantment", "Efficiency"),
+        QT_TRANSLATE_NOOP("LootEnchantment", "Silk Touch"),
+        QT_TRANSLATE_NOOP("LootEnchantment", "Unbreaking"),
+        QT_TRANSLATE_NOOP("LootEnchantment", "Fortune"),
+        QT_TRANSLATE_NOOP("LootEnchantment", "Power"),
+        QT_TRANSLATE_NOOP("LootEnchantment", "Punch"),
+        QT_TRANSLATE_NOOP("LootEnchantment", "Flame"),
+        QT_TRANSLATE_NOOP("LootEnchantment", "Infinity"),
+        QT_TRANSLATE_NOOP("LootEnchantment", "Luck of the Sea"),
+        QT_TRANSLATE_NOOP("LootEnchantment", "Lure"),
+        QT_TRANSLATE_NOOP("LootEnchantment", "Loyalty"),
+        QT_TRANSLATE_NOOP("LootEnchantment", "Impaling"),
+        QT_TRANSLATE_NOOP("LootEnchantment", "Riptide"),
+        QT_TRANSLATE_NOOP("LootEnchantment", "Channeling"),
+        QT_TRANSLATE_NOOP("LootEnchantment", "Multishot"),
+        QT_TRANSLATE_NOOP("LootEnchantment", "Quick Charge"),
+        QT_TRANSLATE_NOOP("LootEnchantment", "Piercing"),
+        QT_TRANSLATE_NOOP("LootEnchantment", "Mending"),
+        QT_TRANSLATE_NOOP("LootEnchantment", "Curse of Vanishing"),
+        QT_TRANSLATE_NOOP("LootEnchantment", "Soul Speed"),
     };
-    return QString::fromUtf8(japanese[enchantment]) + " (" +
+    return QCoreApplication::translate(
+        "LootEnchantment", english[enchantment]) + " (" +
         QString::fromLatin1(
             desertPyramidEnchantmentName(enchantment)) + ")";
+}
+
+QString lootTr(const char *source)
+{
+    Q_UNUSED(lootEditorTranslationKeys);
+    return QCoreApplication::translate("LootEditor", source);
 }
 
 }
@@ -104,11 +296,11 @@ public:
         minCount->setValue(1);
         maxCount = new QSpinBox(this);
         maxCount->setRange(-1, 2000000000);
-        maxCount->setSpecialValueText(QString::fromUtf8("上限なし"));
+        maxCount->setSpecialValueText(lootTr("No maximum"));
         maxCount->setValue(-1);
 
         enchantment = new QComboBox(this);
-        enchantment->addItem(QString::fromUtf8("種類を指定しない"), -1);
+        enchantment->addItem(lootTr("Any enchantment"), -1);
         for (int i = 0; i < DP_ENCH_COUNT; i++)
             enchantment->addItem(enchantmentDisplayName(i), i);
 
@@ -119,23 +311,23 @@ public:
         minLevel->setValue(1);
         maxLevel->setValue(DP_ENCH_MAX_LEVEL);
 
-        remove = new QPushButton(QString::fromUtf8("削除"), this);
+        remove = new QPushButton(lootTr("Remove"), this);
 
         layout->addWidget(item, 0, 0, 1, 3);
         layout->addWidget(
-            new QLabel(QString::fromUtf8("個数"), this), 0, 3);
+            new QLabel(lootTr("Count"), this), 0, 3);
         layout->addWidget(minCount, 0, 4);
-        layout->addWidget(new QLabel("～", this), 0, 5);
+        layout->addWidget(new QLabel("–", this), 0, 5);
         layout->addWidget(maxCount, 0, 6);
         layout->addWidget(remove, 0, 7);
 
         layout->addWidget(
-            new QLabel(QString::fromUtf8("エンチャント"), this), 1, 0);
+            new QLabel(lootTr("Enchantment"), this), 1, 0);
         layout->addWidget(enchantment, 1, 1, 1, 3);
         layout->addWidget(
-            new QLabel(QString::fromUtf8("Lv."), this), 1, 4);
+            new QLabel(lootTr("Level"), this), 1, 4);
         layout->addWidget(minLevel, 1, 5);
-        layout->addWidget(new QLabel("～", this), 1, 6);
+        layout->addWidget(new QLabel("–", this), 1, 6);
         layout->addWidget(maxLevel, 1, 7);
         layout->setColumnStretch(2, 1);
 
@@ -221,41 +413,40 @@ public:
 };
 
 LootRuleEditor::LootRuleEditor(QWidget *parent)
-    : QGroupBox(QString::fromUtf8("チェスト内容の条件"), parent)
+    : QGroupBox(lootTr("Chest content conditions"), parent)
     , m_structureType(Desert_Pyramid)
     , m_mc(MC_1_16_1)
     , m_areaTotal(false)
 {
     QVBoxLayout *outer = new QVBoxLayout(this);
-    m_enabled = new QCheckBox(
-        QString::fromUtf8("チェスト内容で絞り込む"), this);
+    m_enabled = new QCheckBox(lootTr("Filter by chest contents"), this);
     outer->addWidget(m_enabled);
 
     QFormLayout *options = new QFormLayout();
     m_logic = new QComboBox(this);
     m_logic->addItem(
-        QString::fromUtf8("すべて満たす (AND)"),
+        lootTr("Match all (AND)"),
         LootRuleSet::LOGIC_ALL);
     m_logic->addItem(
-        QString::fromUtf8("いずれかを満たす (OR)"),
+        lootTr("Match any (OR)"),
         LootRuleSet::LOGIC_ANY);
-    options->addRow(QString::fromUtf8("条件同士"), m_logic);
+    options->addRow(lootTr("Item conditions"), m_logic);
 
     m_instanceMode = new QComboBox(this);
     m_instanceMode->addItem(
-        QString::fromUtf8("いずれかの構造物が満たす"),
+        lootTr("Any structure matches"),
         LootRuleSet::INSTANCE_ANY);
     m_instanceMode->addItem(
-        QString::fromUtf8("各構造物がそれぞれ満たす"),
+        lootTr("Every structure matches"),
         LootRuleSet::INSTANCE_EVERY);
     m_instanceMode->addItem(
-        QString::fromUtf8("範囲内の全構造物を合計"),
+        lootTr("Total across structures in range"),
         LootRuleSet::INSTANCE_TOTAL);
-    options->addRow(QString::fromUtf8("複数の構造物"), m_instanceMode);
+    options->addRow(lootTr("Multiple structures"), m_instanceMode);
 
     m_chestMode = new QComboBox(this);
     updateChestModes();
-    options->addRow(QString::fromUtf8("構造物内の集計"), m_chestMode);
+    options->addRow(lootTr("Chests within structure"), m_chestMode);
     outer->addLayout(options);
 
     m_positionPanel = new QWidget(this);
@@ -265,7 +456,7 @@ LootRuleEditor::LootRuleEditor(QWidget *parent)
     m_positionMode = new QComboBox(m_positionPanel);
     updatePositionModes();
     positionOptions->addRow(
-        QString::fromUtf8("チェスト座標"), m_positionMode);
+        lootTr("Chest coordinates"), m_positionMode);
     positionOuter->addLayout(positionOptions);
 
     m_positionRange = new QWidget(m_positionPanel);
@@ -302,7 +493,7 @@ LootRuleEditor::LootRuleEditor(QWidget *parent)
                        m_positionRange),
             axis, 0);
         positionGrid->addWidget(minimums[axis], axis, 1);
-        positionGrid->addWidget(new QLabel("～", m_positionRange),
+        positionGrid->addWidget(new QLabel("–", m_positionRange),
                                 axis, 2);
         positionGrid->addWidget(maximums[axis], axis, 3);
     }
@@ -327,7 +518,7 @@ LootRuleEditor::LootRuleEditor(QWidget *parent)
     scroll->setWidget(m_rowsWidget);
     outer->addWidget(scroll);
 
-    m_add = new QPushButton(QString::fromUtf8("＋ アイテム条件を追加"), this);
+    m_add = new QPushButton(lootTr("+ Add item condition"), this);
     outer->addWidget(m_add, 0, Qt::AlignLeft);
 
     connect(m_enabled, &QCheckBox::toggled,
@@ -448,13 +639,13 @@ void LootRuleEditor::updateChestModes()
     int oldMode = m_chestMode->currentData().toInt();
     m_chestMode->clear();
     m_chestMode->addItem(
-        QString::fromUtf8("構造物内の全チェストを合計"),
+        lootTr("Total across all chests"),
         LootRuleSet::CHESTS_TOTAL);
     m_chestMode->addItem(
-        QString::fromUtf8("いずれか1個のチェストが満たす"),
+        lootTr("Any single chest matches"),
         LootRuleSet::CHEST_ANY);
     m_chestMode->addItem(
-        QString::fromUtf8("各チェストがそれぞれ満たす"),
+        lootTr("Every chest matches"),
         LootRuleSet::CHEST_EVERY);
 
     if (m_structureType == Desert_Pyramid)
@@ -462,27 +653,27 @@ void LootRuleEditor::updateChestModes()
         for (int i = 0; i < 4; i++)
         {
             m_chestMode->addItem(
-                QString::fromUtf8("生成順チェスト %1").arg(i + 1),
+                lootTr("Generation-order chest %1").arg(i + 1),
                 LootRuleSet::CHEST_1 + i);
         }
     }
     else if (m_structureType == Shipwreck)
     {
         m_chestMode->addItem(
-            QString::fromUtf8("物資チェスト"),
+            lootTr("Supply chest"),
             LootRuleSet::CHEST_1);
         m_chestMode->addItem(
-            QString::fromUtf8("地図チェスト"),
+            lootTr("Map chest"),
             LootRuleSet::CHEST_2);
         m_chestMode->addItem(
-            QString::fromUtf8("宝物チェスト"),
+            lootTr("Treasure chest"),
             LootRuleSet::CHEST_3);
     }
     else if (m_structureType != Bastion &&
              m_structureType != Village)
     {
         m_chestMode->addItem(
-            QString::fromUtf8("唯一のチェスト"),
+            lootTr("Only chest"),
             LootRuleSet::CHEST_1);
     }
     int index = m_chestMode->findData(oldMode);
@@ -494,22 +685,22 @@ void LootRuleEditor::updatePositionModes()
     int oldMode = m_positionMode->currentData().toInt();
     m_positionMode->clear();
     m_positionMode->addItem(
-        QString::fromUtf8("指定しない"),
+        lootTr("Any position"),
         LootRuleSet::CHEST_POSITION_ANY);
     m_positionMode->addItem(
-        QString::fromUtf8("ワールド絶対座標"),
+        lootTr("Absolute world coordinates"),
         LootRuleSet::CHEST_POSITION_ABSOLUTE);
     if (m_structureType == Bastion)
     {
         m_positionMode->addItem(
-            QString::fromUtf8("砦の開始チャンク原点との差"),
+            lootTr("Relative to bastion start-chunk origin"),
             LootRuleSet::CHEST_POSITION_RELATIVE);
     }
     if (m_structureType == Bastion ||
         m_structureType == Village)
     {
         m_positionMode->addItem(
-            QString::fromUtf8("Location基準点との差（X/Z）"),
+            lootTr("Relative to Location reference (X/Z)"),
             LootRuleSet::CHEST_POSITION_LOCATION_REFERENCE);
     }
     int index = m_positionMode->findData(oldMode);
@@ -527,19 +718,17 @@ void LootRuleEditor::updatePositionState()
             LootRuleSet::CHEST_POSITION_LOCATION_REFERENCE);
     if (mode == LootRuleSet::CHEST_POSITION_RELATIVE)
     {
-        m_positionHint->setText(QString::fromUtf8(
-            "相対X/Zは砦の開始チャンク原点、"
-            "相対Yは基準Y=32からの差です。"
-            "範囲の両端を含みます。"));
+        m_positionHint->setText(lootTr(
+            "Relative X/Z use the bastion start-chunk origin. Relative Y uses "
+            "Y=32 as its origin. Range endpoints are inclusive."));
     }
     else if (mode ==
              LootRuleSet::CHEST_POSITION_LOCATION_REFERENCE)
     {
-        m_positionHint->setText(QString::fromUtf8(
-            "X/Zは、この条件の「Location is relative to」で"
-            "選んだ結果位置からの差です。"
-            "Yはワールド座標のままです。"
-            "基準未指定時は検索原点との差になります。"));
+        m_positionHint->setText(lootTr(
+            "X/Z are relative to the result selected by this condition's "
+            "'Location is relative to' setting. Y remains an absolute world "
+            "coordinate. With no reference, X/Z are relative to the search origin."));
     }
     else
     {
@@ -555,21 +744,28 @@ void LootRuleEditor::updateEnabledState()
     if (!supported)
     {
         m_support->setText(unsupported);
+        m_support->show();
+        setToolTip(QString());
     }
     else if (m_structureType == Village)
     {
-        m_support->setText(QString::fromUtf8(
-            "村のピースとLootコンテナ座標は地表高度を含めて計算します。"
-            "木・ブロック山・サボテン等が同じチャンクで先行し、"
-            "内容乱数を安全に確定できない候補は「未確定」として"
-            "最終結果へ混ぜません。位置だけの検索は常に利用できます。"
-            "個数範囲は両端を含みます。"));
+        const QString help = lootTr(
+            "Village pieces and Loot-container coordinates include surface-height "
+            "calculation. Candidates whose content RNG cannot be determined safely "
+            "are treated as unknown and are not mixed into final results. "
+            "Position-only searches remain available. Count ranges are inclusive.");
+        m_support->hide();
+        setToolTip(help);
+        m_enabled->setToolTip(help);
     }
     else
     {
-        m_support->setText(QString::fromUtf8(
-            "個数は両端を含みます。最大を「上限なし」にできます。"
-            "エンチャントの本を選ぶと種類とレベルも指定できます。"));
+        const QString help = lootTr(
+            "Count ranges are inclusive and may have no maximum. Selecting an "
+            "enchanted book also enables enchantment and level filters.");
+        m_support->hide();
+        setToolTip(help);
+        m_enabled->setToolTip(help);
     }
 
     m_enabled->setVisible(!m_areaTotal);

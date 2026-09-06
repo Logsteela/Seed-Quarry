@@ -14,6 +14,7 @@
 ConfigDialog::ConfigDialog(QWidget *parent, Config *config)
     : QDialog(parent)
     , ui(new Ui::ConfigDialog)
+    , comboLanguage(nullptr)
 {
     ui->setupUi(this);
 
@@ -105,6 +106,16 @@ void ConfigDialog::setupCategories()
 
     ui->groupBox_2->setTitle(tr("Grid and map coordinates"));
     QVBoxLayout *application = addCategory(tr("General"));
+
+    QGroupBox *languageGroup = new QGroupBox(tr("Language"), this);
+    QFormLayout *languageLayout = new QFormLayout(languageGroup);
+    comboLanguage = new QComboBox(languageGroup);
+    comboLanguage->addItem(tr("English"), QStringLiteral("en"));
+    comboLanguage->addItem(tr("Japanese"), QStringLiteral("ja"));
+    comboLanguage->setToolTip(tr(
+        "The selected language is applied the next time Seed Atlas starts."));
+    languageLayout->addRow(tr("Interface language:"), comboLanguage);
+    application->insertWidget(application->count()-1, languageGroup);
     moveGroup(application, ui->groupSession);
     moveGroup(application, ui->groupBox);
     moveGroup(application, ui->groupMisc);
@@ -143,6 +154,8 @@ void ConfigDialog::initConfig(Config *config)
     ui->comboGridMult->setCurrentText(config->gridMultiplier ? QString::number(config->gridMultiplier) : tr("None"));
     ui->spinCacheSize->setValue(config->mapCacheSize);
     ui->spinThreads->setValue(config->mapThreads ? config->mapThreads : (QThread::idealThreadCount() + 1) / 2);
+    int languageIndex = comboLanguage->findData(config->language);
+    comboLanguage->setCurrentIndex(languageIndex >= 0 ? languageIndex : 0);
     ui->lineSep->setText(config->separator);
     int idx = config->quote == "\'" ? 1 : config->quote== "\"" ? 2 : 0;
     ui->comboQuote->setCurrentIndex(idx);
@@ -168,6 +181,7 @@ Config ConfigDialog::getConfig()
     conf.gridMultiplier = ui->comboGridMult->currentText().toInt();
     conf.mapCacheSize = ui->spinCacheSize->value();
     conf.mapThreads = ui->spinThreads->value();
+    conf.language = comboLanguage->currentData().toString();
     conf.separator = ui->lineSep->text();
     int idx = ui->comboQuote->currentIndex();
     conf.quote = idx == 1 ? "\'" : idx == 2 ? "\"" : "";

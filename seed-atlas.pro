@@ -249,6 +249,12 @@ RESOURCES += \
         rc/examples.qrc \
         rc/qh.qrc
 
+# Keep English source strings and embed the optional Japanese catalog into
+# the executable. New languages can be added by appending another .ts file.
+TRANSLATIONS += translations/seed-atlas_ja.ts
+CONFIG += lrelease embed_translations
+QM_FILES_RESOURCE_PREFIX = /i18n
+
 
 # enable network features with: qmake CONFIG+=with_network
 with_network: {

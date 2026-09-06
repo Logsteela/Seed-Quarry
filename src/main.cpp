@@ -10,10 +10,14 @@
 #include <QDir>
 #include <QFontDatabase>
 #include <QGuiApplication>
+#include <QLibraryInfo>
 #include <QLineEdit>
+#include <QLocale>
+#include <QSettings>
 #include <QStandardPaths>
 #include <QTabWidget>
 #include <QTimer>
+#include <QTranslator>
 
 extern "C"
 int getStructureConfig_override(int stype, int mc, StructureConfig *sconf)
@@ -127,6 +131,33 @@ int main(int argc, char *argv[])
         QApplication::setAttribute(Qt::AA_UseStyleSheetPropagationInWidgetStyles, false);
 
         QApplication app(argc, argv);
+
+        QSettings settings(APP_STRING, APP_STRING);
+        const QString language = settings.value(
+            "config/lang", QStringLiteral("en")).toString();
+        QTranslator appTranslator;
+        QTranslator qtTranslator;
+        if (language == QLatin1String("ja"))
+        {
+            const QLocale locale(QLocale::Japanese, QLocale::Japan);
+            QLocale::setDefault(locale);
+            if (appTranslator.load(QStringLiteral(
+                    ":/i18n/seed-atlas_ja.qm")))
+            {
+                app.installTranslator(&appTranslator);
+            }
+            if (qtTranslator.load(
+                    locale, QStringLiteral("qt"), QStringLiteral("_"),
+                    QLibraryInfo::path(QLibraryInfo::TranslationsPath)))
+            {
+                app.installTranslator(&qtTranslator);
+            }
+        }
+        else
+        {
+            QLocale::setDefault(QLocale(
+                QLocale::English, QLocale::UnitedStates));
+        }
 
         MainWindow mw(sessionpath, resultspath);
         mw.show();

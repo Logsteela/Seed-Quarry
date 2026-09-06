@@ -1680,7 +1680,7 @@ QPushButton:hover {
                <item row="1" column="0">
                 <widget class="QLabel" name="labelVillageRotation">
                  <property name="text">
-                  <string>回転</string>
+                  <string>Rotation</string>
                  </property>
                 </widget>
                </item>
@@ -1688,7 +1688,7 @@ QPushButton:hover {
                 <widget class="QComboBox" name="comboVillageRotation">
                  <item>
                   <property name="text">
-                   <string>指定なし</string>
+                   <string>Any</string>
                   </property>
                  </item>
                  <item>
@@ -1765,7 +1765,7 @@ QPushButton:hover {
                <item row="1" column="0">
                 <widget class="QLabel" name="labelBastionRotation">
                  <property name="text">
-                  <string>回転</string>
+                  <string>Rotation</string>
                  </property>
                 </widget>
                </item>
@@ -1773,7 +1773,7 @@ QPushButton:hover {
                 <widget class="QComboBox" name="comboBastionRotation">
                  <item>
                   <property name="text">
-                   <string>指定なし</string>
+                   <string>Any</string>
                   </property>
                  </item>
                  <item>
@@ -1888,10 +1888,10 @@ QPushButton:hover {
                <item row="0" column="0">
                 <widget class="QCheckBox" name="checkPortalUnderground">
                  <property name="toolTip">
-                  <string>中間状態=必須、チェック状態=禁止、未選択=条件なし</string>
+                  <string>Partially checked: required; checked: forbidden; unchecked: ignored.</string>
                  </property>
                  <property name="text">
-                  <string>地下に生成</string>
+                  <string>Generated underground</string>
                  </property>
                  <property name="tristate">
                   <bool>true</bool>
@@ -1901,10 +1901,10 @@ QPushButton:hover {
                <item row="0" column="1">
                 <widget class="QCheckBox" name="checkPortalAirpocket">
                  <property name="toolTip">
-                  <string>中間状態=必須、チェック状態=禁止、未選択=条件なし</string>
+                  <string>Partially checked: required; checked: forbidden; unchecked: ignored.</string>
                  </property>
                  <property name="text">
-                  <string>空洞（エアポケット）あり</string>
+                  <string>Has air pocket</string>
                  </property>
                  <property name="tristate">
                   <bool>true</bool>
@@ -1914,10 +1914,10 @@ QPushButton:hover {
                <item row="1" column="0">
                 <widget class="QCheckBox" name="checkPortalGiant">
                  <property name="toolTip">
-                  <string>中間状態=必須、チェック状態=禁止、未選択=条件なし</string>
+                  <string>Partially checked: required; checked: forbidden; unchecked: ignored.</string>
                  </property>
                  <property name="text">
-                  <string>巨大ポータル</string>
+                  <string>Giant portal</string>
                  </property>
                  <property name="tristate">
                   <bool>true</bool>
@@ -1927,10 +1927,10 @@ QPushButton:hover {
                <item row="1" column="1">
                 <widget class="QCheckBox" name="checkPortalMirrored">
                  <property name="toolTip">
-                  <string>中間状態=必須、チェック状態=禁止、未選択=条件なし</string>
+                  <string>Partially checked: required; checked: forbidden; unchecked: ignored.</string>
                  </property>
                  <property name="text">
-                  <string>左右反転</string>
+                  <string>Mirrored</string>
                  </property>
                  <property name="tristate">
                   <bool>true</bool>
@@ -1940,7 +1940,7 @@ QPushButton:hover {
                <item row="2" column="0">
                 <widget class="QLabel" name="labelPortalCategory">
                  <property name="text">
-                  <string>生成カテゴリ</string>
+                  <string>Generation category</string>
                  </property>
                 </widget>
                </item>
@@ -1948,42 +1948,42 @@ QPushButton:hover {
                 <widget class="QComboBox" name="comboPortalCategory">
                  <item>
                   <property name="text">
-                   <string>指定なし</string>
+                   <string>Any</string>
                   </property>
                  </item>
                  <item>
                   <property name="text">
-                   <string>標準</string>
+                   <string>Standard</string>
                   </property>
                  </item>
                  <item>
                   <property name="text">
-                   <string>砂漠</string>
+                   <string>Desert</string>
                   </property>
                  </item>
                  <item>
                   <property name="text">
-                   <string>ジャングル</string>
+                   <string>Jungle</string>
                   </property>
                  </item>
                  <item>
                   <property name="text">
-                   <string>湿地</string>
+                   <string>Swamp</string>
                   </property>
                  </item>
                  <item>
                   <property name="text">
-                   <string>山岳</string>
+                   <string>Mountain</string>
                   </property>
                  </item>
                  <item>
                   <property name="text">
-                   <string>海洋</string>
+                   <string>Ocean</string>
                   </property>
                  </item>
                  <item>
                   <property name="text">
-                   <string>ネザー</string>
+                   <string>Nether</string>
                   </property>
                  </item>
                 </widget>
@@ -1991,7 +1991,7 @@ QPushButton:hover {
                <item row="3" column="0">
                 <widget class="QLabel" name="labelPortalRotation">
                  <property name="text">
-                  <string>回転</string>
+                  <string>Rotation</string>
                  </property>
                 </widget>
                </item>
@@ -1999,7 +1999,7 @@ QPushButton:hover {
                 <widget class="QComboBox" name="comboPortalRotation">
                  <item>
                   <property name="text">
-                   <string>指定なし</string>
+                   <string>Any</string>
                   </property>
                  </item>
                  <item>
@@ -2134,7 +2134,7 @@ QPushButton:hover {
                <item row="1" column="0">
                 <widget class="QLabel" name="labelIglooOrientation">
                  <property name="text">
-                  <string>入口の向き</string>
+                  <string>Entrance direction</string>
                  </property>
                 </widget>
                </item>
@@ -2142,27 +2142,27 @@ QPushButton:hover {
                 <widget class="QComboBox" name="comboIglooOrientation">
                  <item>
                   <property name="text">
-                   <string>指定なし</string>
+                   <string>Any</string>
                   </property>
                  </item>
                  <item>
                   <property name="text">
-                   <string>北</string>
+                   <string>North</string>
                   </property>
                  </item>
                  <item>
                   <property name="text">
-                   <string>東</string>
+                   <string>East</string>
                   </property>
                  </item>
                  <item>
                   <property name="text">
-                   <string>南</string>
+                   <string>South</string>
                   </property>
                  </item>
                  <item>
                   <property name="text">
-                   <string>西</string>
+                   <string>West</string>
                   </property>
                  </item>
                 </widget>
@@ -2170,7 +2170,7 @@ QPushButton:hover {
                <item row="2" column="0">
                 <widget class="QLabel" name="labelIglooSize">
                  <property name="text">
-                  <string>地下への縦穴</string>
+                  <string>Basement shaft</string>
                  </property>
                 </widget>
                </item>
@@ -2178,47 +2178,47 @@ QPushButton:hover {
                 <widget class="QComboBox" name="comboIglooSize">
                  <item>
                   <property name="text">
-                   <string>指定なし</string>
+                   <string>Any</string>
                   </property>
                  </item>
                  <item>
                   <property name="text">
-                   <string>中間部4（はしご16）</string>
+                   <string>4 middle sections (16 ladder blocks)</string>
                   </property>
                  </item>
                  <item>
                   <property name="text">
-                   <string>中間部5（はしご19）</string>
+                   <string>5 middle sections (19 ladder blocks)</string>
                   </property>
                  </item>
                  <item>
                   <property name="text">
-                   <string>中間部6（はしご22）</string>
+                   <string>6 middle sections (22 ladder blocks)</string>
                   </property>
                  </item>
                  <item>
                   <property name="text">
-                   <string>中間部7（はしご25）</string>
+                   <string>7 middle sections (25 ladder blocks)</string>
                   </property>
                  </item>
                  <item>
                   <property name="text">
-                   <string>中間部8（はしご28）</string>
+                   <string>8 middle sections (28 ladder blocks)</string>
                   </property>
                  </item>
                  <item>
                   <property name="text">
-                   <string>中間部9（はしご31）</string>
+                   <string>9 middle sections (31 ladder blocks)</string>
                   </property>
                  </item>
                  <item>
                   <property name="text">
-                   <string>中間部10（はしご34）</string>
+                   <string>10 middle sections (34 ladder blocks)</string>
                   </property>
                  </item>
                  <item>
                   <property name="text">
-                   <string>中間部11（はしご37）</string>
+                   <string>11 middle sections (37 ladder blocks)</string>
                   </property>
                  </item>
                 </widget>
@@ -2258,13 +2258,13 @@ QPushButton:hover {
            <item row="0" column="0">
             <widget class="QGroupBox" name="groupBoxAncientCity">
              <property name="title">
-              <string>古代都市の生成バリアント</string>
+              <string>Ancient city generation variant</string>
              </property>
              <layout class="QGridLayout" name="gridLayoutAncientCity2">
               <item row="0" column="0">
                <widget class="QLabel" name="labelAncientStart">
                 <property name="text">
-                 <string>中央テンプレート</string>
+                 <string>Central template</string>
                 </property>
                </widget>
               </item>
@@ -2272,7 +2272,7 @@ QPushButton:hover {
                <widget class="QComboBox" name="comboAncientStart">
                 <item>
                  <property name="text">
-                  <string>指定なし</string>
+                  <string>Any</string>
                  </property>
                 </item>
                 <item>
@@ -2295,7 +2295,7 @@ QPushButton:hover {
               <item row="1" column="0">
                <widget class="QLabel" name="labelAncientRotation">
                 <property name="text">
-                 <string>回転</string>
+                 <string>Rotation</string>
                 </property>
                </widget>
               </item>
@@ -2303,7 +2303,7 @@ QPushButton:hover {
                <widget class="QComboBox" name="comboAncientRotation">
                 <item>
                  <property name="text">
-                  <string>指定なし</string>
+                  <string>Any</string>
                  </property>
                 </item>
                 <item>
@@ -2363,13 +2363,13 @@ QPushButton:hover {
            <item row="0" column="0">
             <widget class="QGroupBox" name="groupBoxChambers">
              <property name="title">
-              <string>試練の間の生成バリアント</string>
+              <string>Trial chambers generation variant</string>
              </property>
              <layout class="QGridLayout" name="gridLayoutChambers2">
               <item row="0" column="0">
                <widget class="QLabel" name="labelChambersStart">
                 <property name="text">
-                 <string>開始テンプレート</string>
+                 <string>Start template</string>
                 </property>
                </widget>
               </item>
@@ -2377,7 +2377,7 @@ QPushButton:hover {
                <widget class="QComboBox" name="comboChambersStart">
                 <item>
                  <property name="text">
-                  <string>指定なし</string>
+                  <string>Any</string>
                  </property>
                 </item>
                 <item>
@@ -2395,7 +2395,7 @@ QPushButton:hover {
               <item row="1" column="0">
                <widget class="QLabel" name="labelChambersRotation">
                 <property name="text">
-                 <string>回転</string>
+                 <string>Rotation</string>
                 </property>
                </widget>
               </item>
@@ -2403,7 +2403,7 @@ QPushButton:hover {
                <widget class="QComboBox" name="comboChambersRotation">
                 <item>
                  <property name="text">
-                  <string>指定なし</string>
+                  <string>Any</string>
                  </property>
                 </item>
                 <item>
@@ -2463,13 +2463,13 @@ QPushButton:hover {
            <item row="0" column="0">
             <widget class="QGroupBox" name="groupBoxTemple">
              <property name="title">
-              <string>固定構造物の生成バリアント</string>
+              <string>Fixed structure generation variant</string>
              </property>
              <layout class="QGridLayout" name="gridLayoutTemple2">
               <item row="0" column="0">
                <widget class="QLabel" name="labelTempleOrientation">
                 <property name="text">
-                 <string>入口の向き</string>
+                 <string>Entrance direction</string>
                 </property>
                </widget>
               </item>
@@ -2477,27 +2477,27 @@ QPushButton:hover {
                <widget class="QComboBox" name="comboTempleOrientation">
                 <item>
                  <property name="text">
-                  <string>指定なし</string>
+                  <string>Any</string>
                  </property>
                 </item>
                 <item>
                  <property name="text">
-                  <string>北</string>
+                  <string>North</string>
                  </property>
                 </item>
                 <item>
                  <property name="text">
-                  <string>東</string>
+                  <string>East</string>
                  </property>
                 </item>
                 <item>
                  <property name="text">
-                  <string>南</string>
+                  <string>South</string>
                  </property>
                 </item>
                 <item>
                  <property name="text">
-                  <string>西</string>
+                  <string>West</string>
                  </property>
                 </item>
                </widget>

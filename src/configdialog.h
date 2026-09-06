@@ -10,6 +10,8 @@ namespace Ui {
 class ConfigDialog;
 }
 
+class QComboBox;
+
 
 class ConfigDialog : public QDialog
 {
@@ -39,6 +41,7 @@ private:
 
 private:
     Ui::ConfigDialog *ui;
+    QComboBox *comboLanguage;
     Config conf;
 };
 

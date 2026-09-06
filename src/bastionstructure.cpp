@@ -258,17 +258,17 @@ BastionData16 loadBastionData16()
     }
     if (data.path.isEmpty())
     {
-        data.error = QString::fromUtf8(
-            "1.16.1の構造データ jigsaw-1.16.1.json が見つかりません。"
-            " rebuild を実行して構造データを配置してください。");
+        data.error = QCoreApplication::translate("BastionStructure",
+            "The Java 1.16.1 structure data file jigsaw-1.16.1.json was not found. "
+            "Run rebuild to deploy it.");
         return data;
     }
 
     QFile file(data.path);
     if (!file.open(QIODevice::ReadOnly))
     {
-        data.error = QString::fromUtf8(
-            "1.16.1の構造データを読み込めません: ") +
+        data.error = QCoreApplication::translate("BastionStructure",
+            "Could not read the Java 1.16.1 structure data: ") +
             file.errorString();
         return data;
     }
@@ -278,8 +278,8 @@ BastionData16 loadBastionData16()
     if (parseError.error != QJsonParseError::NoError ||
         !document.isObject())
     {
-        data.error = QString::fromUtf8(
-            "1.16.1の構造データが壊れています: ") +
+        data.error = QCoreApplication::translate("BastionStructure",
+            "The Java 1.16.1 structure data is invalid: ") +
             parseError.errorString();
         return data;
     }
@@ -291,8 +291,8 @@ BastionData16 loadBastionData16()
         root.value(QStringLiteral("jar_sha1")).toString() !=
             QLatin1String("c9abbe8ee4fa490751ca70635340b7cf00db83ff"))
     {
-        data.error = QString::fromUtf8(
-            "構造データの形式・Minecraft版・公式jar SHA-1が一致しません。");
+        data.error = QCoreApplication::translate("BastionStructure",
+            "The structure-data format, Minecraft version, or official JAR SHA-1 does not match.");
         return data;
     }
 
@@ -472,9 +472,9 @@ BastionData16 loadBastionData16()
     if (!ok || data.templates.size() != 167 ||
         data.pools.size() != 63 || containerCount != 37)
     {
-        data.error = QString::fromUtf8(
-            "構造データの内容が公式Java 1.16.1の期待値"
-            "（167テンプレート、63プール、37コンテナ）と一致しません。");
+        data.error = QCoreApplication::translate("BastionStructure",
+            "The structure data does not match the expected Java 1.16.1 contents "
+            "(167 templates, 63 pools, and 37 containers).");
         data.templates.clear();
         data.pools.clear();
         data.templateByName.clear();
@@ -800,8 +800,8 @@ bool generateBastionLayout16(
     if (startPool.templates.isEmpty())
     {
         if (error)
-            *error = QString::fromUtf8(
-                "砦の開始プールが空です。");
+            *error = QCoreApplication::translate(
+                "BastionStructure", "The bastion start pool is empty.");
         return false;
     }
     const int startTemplateIndex =
@@ -931,8 +931,9 @@ bool generateBastionLayout16(
                         {
                             if (error)
                             {
-                                *error = QString::fromUtf8(
-                                    "砦のピース数が安全上限を超えました。");
+                                *error = QCoreApplication::translate(
+                                    "BastionStructure",
+                                    "The bastion piece count exceeded the safety limit.");
                             }
                             return false;
                         }

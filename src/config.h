@@ -186,6 +186,7 @@ struct Config
     int gridMultiplier;
     int mapCacheSize;
     int mapThreads;
+    QString language;
     QString biomeColorPath;
     QString separator;
     QString quote;

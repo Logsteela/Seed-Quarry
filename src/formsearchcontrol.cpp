@@ -131,6 +131,9 @@ FormSearchControl::FormSearchControl(MainWindow *parent)
     ui->comboSearchType->addItem(tr("48-bit family blocks"), SEARCH_BLOCKS);
     ui->comboSearchType->addItem(tr("seed list from file..."), SEARCH_LIST);
 
+    ui->comboLootMode->addItem(tr("Exact Loot search"), false);
+    ui->comboLootMode->addItem(tr("Fast sampled Loot search"), true);
+
     model = new SeedTableModel(ui->results);
     proxy = new SeedSortProxy(ui->results);
 
@@ -200,7 +203,7 @@ SearchConfig FormSearchControl::getSearchConfig()
     s.stoponres = ui->checkStop->isChecked();
     s.fastFamilyLoot =
         supportsFast48Loot(s.searchtype) &&
-        ui->checkLootFast->isChecked();
+        ui->comboLootMode->currentData().toBool();
     s.smin = smin;
     s.smax = smax;
     return s;
@@ -221,7 +224,8 @@ bool FormSearchControl::setSearchConfig(SearchConfig s, bool quiet)
 
     ui->spinThreads->setValue(s.threads);
     ui->checkStop->setChecked(s.stoponres);
-    ui->checkLootFast->setChecked(s.fastFamilyLoot);
+    ui->comboLootMode->setCurrentIndex(
+        ui->comboLootMode->findData(s.fastFamilyLoot));
     smin = s.smin;
     smax = s.smax;
 
@@ -311,7 +315,7 @@ void FormSearchControl::searchLockUi(bool lock)
         ui->comboSearchType->setEnabled(false);
         ui->spinThreads->setEnabled(false);
         ui->buttonMore->setEnabled(false);
-        ui->checkLootFast->setEnabled(false);
+        ui->comboLootMode->setEnabled(false);
     }
     else
     {
@@ -323,7 +327,7 @@ void FormSearchControl::searchLockUi(bool lock)
         ui->spinThreads->setEnabled(true);
         int type = ui->comboSearchType->currentData().toInt();
         ui->buttonMore->setEnabled(type == SEARCH_INC || type == SEARCH_LIST);
-        ui->checkLootFast->setEnabled(supportsFast48Loot(type));
+        ui->comboLootMode->setEnabled(supportsFast48Loot(type));
     }
     emit searchStatusChanged(lock);
 }
@@ -533,16 +537,15 @@ void FormSearchControl::on_buttonSearchHelp_clicked()
         "16-bits. This search type can be a better match for exhaustive searches "
         "and those with very restrictive structure requirements."
         "</p><p>"
-        "<b>Loot高速化（48-bit検索）</b>を有効にすると、構造物の下位48bit候補を"
-        "Lootで事前に絞り込みます。難破船は浜辺型と海中型の両方を候補として"
-        "確認します。48-bit onlyでは上位16bitで成立し得る候補を返し、"
-        "48-bit family blocksでは、その後に各64-bit Seedの構造物生成可否、"
-        "バイオーム、実際の難破船型を通常どおり確定判定します。"
-        "村Lootの場合は、Loot以外の条件を満たす最初の上位16bitを代表として"
-        "Lootを確認し、不一致なら同じ48-bit familyの残りを省略します。"
-        "これは一件を早く探すための非網羅モードです。"
-        "NOT・ORゲート・Lua、または村Lootの除外条件（個数0）を含む検索では、"
-        "村のfamily省略を自動的に無効にします。Loot内のアイテムAND/ORは利用できます。"
+        "<b>Exact Loot search</b> checks every eligible upper-16-bit seed. "
+        "This is the exhaustive option for 48-bit family blocks."
+        "</p><p>"
+        "<b>Fast sampled Loot search</b> uses lower-48-bit Loot checks where "
+        "possible. For village Loot, it tests the first upper-16-bit seed "
+        "that satisfies every non-Loot condition and may skip the rest of "
+        "that 48-bit family if the sample fails. This can miss matching seeds. "
+        "Unsafe logical combinations automatically disable village-family "
+        "sampling."
         "</p><p>"
         "Load a <b>seed list from a file</b> to search through an "
         "existing set of seeds. The seeds should be in decimal ASCII text, "
@@ -558,7 +561,7 @@ void FormSearchControl::on_comboSearchType_currentIndexChanged(int)
 {
     int type = ui->comboSearchType->currentData().toInt();
     ui->buttonMore->setEnabled(type == SEARCH_INC || type == SEARCH_LIST);
-    ui->checkLootFast->setEnabled(supportsFast48Loot(type));
+    ui->comboLootMode->setEnabled(supportsFast48Loot(type));
     searchProgressReset();
 }
 

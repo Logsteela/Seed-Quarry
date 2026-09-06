@@ -5,6 +5,7 @@
 #include "villagestructure.h"
 
 #include <QDataStream>
+#include <QCoreApplication>
 #include <QHash>
 #include <QIODevice>
 #include <QMutex>
@@ -16,6 +17,52 @@
 #include <utility>
 
 namespace {
+
+static const char *const lootConditionTranslationKeys[] = {
+    QT_TRANSLATE_NOOP("LootCondition",
+        "Exact bastion chest search currently supports Java 1.16.1 only."),
+    QT_TRANSLATE_NOOP("LootCondition",
+        "Exact village piece and chest-position search currently supports Java 1.16 only."),
+    QT_TRANSLATE_NOOP("LootCondition",
+        "Chest-content calculation is not implemented for this structure."),
+    QT_TRANSLATE_NOOP("LootCondition",
+        "This chest search supports Java 1.16.1 / 1.16.5 only."),
+    QT_TRANSLATE_NOOP("LootCondition", "The AND/OR setting is invalid."),
+    QT_TRANSLATE_NOOP("LootCondition", "The structure aggregation mode is invalid."),
+    QT_TRANSLATE_NOOP("LootCondition", "The chest aggregation mode is invalid."),
+    QT_TRANSLATE_NOOP("LootCondition",
+        "This structure has a variable number of containers. Select total, any, or every container."),
+    QT_TRANSLATE_NOOP("LootCondition",
+        "The selected chest does not exist in this structure."),
+    QT_TRANSLATE_NOOP("LootCondition", "Shipwrecks do not have a fourth chest type."),
+    QT_TRANSLATE_NOOP("LootCondition", "The chest-coordinate mode is invalid."),
+    QT_TRANSLATE_NOOP("LootCondition",
+        "Chest-coordinate filters currently support villages and bastions."),
+    QT_TRANSLATE_NOOP("LootCondition",
+        "Coordinates relative to a bastion start-chunk origin are bastion-only. "
+        "For villages, select coordinates relative to the Location reference."),
+    QT_TRANSLATE_NOOP("LootCondition",
+        "A minimum chest coordinate is greater than its maximum."),
+    QT_TRANSLATE_NOOP("LootCondition", "Add at least one item condition."),
+    QT_TRANSLATE_NOOP("LootCondition", "The item selection is invalid."),
+    QT_TRANSLATE_NOOP("LootCondition",
+        "The selected item does not occur in this structure's chests."),
+    QT_TRANSLATE_NOOP("LootCondition", "The item-count range is invalid."),
+    QT_TRANSLATE_NOOP("LootCondition", "The enchantment selection is invalid."),
+    QT_TRANSLATE_NOOP("LootCondition", "The enchantment-level range is invalid."),
+    QT_TRANSLATE_NOOP("LootCondition", "The Loot-condition data format is invalid."),
+    QT_TRANSLATE_NOOP("LootCondition", "The Loot-condition data is truncated."),
+    QT_TRANSLATE_NOOP("LootCondition",
+        "The Loot-condition chest-coordinate data is truncated."),
+    QT_TRANSLATE_NOOP("LootCondition",
+        "The Loot-condition data has unrecognized trailing data."),
+};
+
+QString lootConditionTr(const char *source)
+{
+    Q_UNUSED(lootConditionTranslationKeys);
+    return QCoreApplication::translate("LootCondition", source);
+}
 
 const quint32 LOOT_RULE_MAGIC = 0x31524c53; // "SLR1"
 const quint16 LOOT_RULE_VERSION_LEGACY = 1;
@@ -773,8 +820,8 @@ QString lootSupportDescription(int structureType, int mc)
     {
         if (mc != MC_1_16_1)
         {
-            return QString::fromUtf8(
-                "砦の遺跡の正確なチェスト検索は、現在Java 1.16.1専用です。");
+            return lootConditionTr(
+                "Exact bastion chest search currently supports Java 1.16.1 only.");
         }
         QString error;
         isBastionStructureData16Available(&error);
@@ -784,9 +831,8 @@ QString lootSupportDescription(int structureType, int mc)
     {
         if (mc != MC_1_16_1)
         {
-            return QString::fromUtf8(
-                "村の正確なピース・チェスト位置検索は、"
-                "現在Java 1.16専用です。");
+            return lootConditionTr(
+                "Exact village piece and chest-position search currently supports Java 1.16 only.");
         }
         QString error;
         isVillageStructureData16Available(&error);
@@ -799,11 +845,11 @@ QString lootSupportDescription(int structureType, int mc)
         structureType != Ruined_Portal_N &&
         structureType != Bastion)
     {
-        return QString::fromUtf8(
-            "この構造物のチェスト内容計算にはまだ対応していません。");
+        return lootConditionTr(
+            "Chest-content calculation is not implemented for this structure.");
     }
-    return QString::fromUtf8(
-        "このチェスト検索は Java 1.16.1 / 1.16.5 専用です。");
+    return lootConditionTr(
+        "This chest search supports Java 1.16.1 / 1.16.5 only.");
 }
 
 QString validateLootRuleSet(const LootRuleSet& rules, int mc)
@@ -813,58 +859,55 @@ QString validateLootRuleSet(const LootRuleSet& rules, int mc)
         return unsupported;
     if (rules.logic < LootRuleSet::LOGIC_ALL ||
         rules.logic > LootRuleSet::LOGIC_ANY)
-        return QString::fromUtf8("AND/OR の指定が不正です。");
+        return lootConditionTr("The AND/OR setting is invalid.");
     if (rules.instanceMode < LootRuleSet::INSTANCE_ANY ||
         rules.instanceMode > LootRuleSet::INSTANCE_TOTAL)
-        return QString::fromUtf8("構造物の集計方法が不正です。");
+        return lootConditionTr("The structure aggregation mode is invalid.");
     if (rules.chestMode < LootRuleSet::CHESTS_TOTAL ||
         rules.chestMode > LootRuleSet::CHEST_4)
-        return QString::fromUtf8("チェストの集計方法が不正です。");
+        return lootConditionTr("The chest aggregation mode is invalid.");
     if ((rules.structureType == Bastion ||
          rules.structureType == Village) &&
         rules.chestMode >= LootRuleSet::CHEST_1)
     {
-        return QString::fromUtf8(
-            "この構造物はコンテナ数が変動するため、"
-            "合計・いずれか・各コンテナのいずれかを選んでください。");
+        return lootConditionTr(
+            "This structure has a variable number of containers. Select total, any, or every container.");
     }
     if ((rules.structureType == Treasure ||
          rules.structureType == Ruined_Portal ||
          rules.structureType == Ruined_Portal_N) &&
         rules.chestMode > LootRuleSet::CHEST_1)
     {
-        return QString::fromUtf8(
-            "この構造物には指定したチェストがありません。");
+        return lootConditionTr(
+            "The selected chest does not exist in this structure.");
     }
     if (rules.structureType == Shipwreck &&
         rules.chestMode > LootRuleSet::CHEST_3)
     {
-        return QString::fromUtf8(
-            "難破船には4番目のチェスト種別がありません。");
+        return lootConditionTr("Shipwrecks do not have a fourth chest type.");
     }
     if (rules.chestPositionMode <
             LootRuleSet::CHEST_POSITION_ANY ||
         rules.chestPositionMode >
             LootRuleSet::CHEST_POSITION_LOCATION_REFERENCE)
     {
-        return QString::fromUtf8(
-            "チェスト座標の指定方法が不正です。");
+        return lootConditionTr("The chest-coordinate mode is invalid.");
     }
     if (rules.chestPositionMode !=
             LootRuleSet::CHEST_POSITION_ANY &&
         rules.structureType != Bastion &&
         rules.structureType != Village)
     {
-        return QString::fromUtf8(
-            "チェスト座標による絞り込みは、現在は村と砦の遺跡に対応しています。");
+        return lootConditionTr(
+            "Chest-coordinate filters currently support villages and bastions.");
     }
     if (rules.chestPositionMode ==
             LootRuleSet::CHEST_POSITION_RELATIVE &&
         rules.structureType != Bastion)
     {
-        return QString::fromUtf8(
-            "砦の開始チャンク原点からの相対座標は砦専用です。"
-            "村では「Location基準点との差」を選んでください。");
+        return lootConditionTr(
+            "Coordinates relative to a bastion start-chunk origin are bastion-only. "
+            "For villages, select coordinates relative to the Location reference.");
     }
     if (rules.chestPositionMode !=
             LootRuleSet::CHEST_POSITION_ANY &&
@@ -872,28 +915,28 @@ QString validateLootRuleSet(const LootRuleSet& rules, int mc)
          rules.chestMinY > rules.chestMaxY ||
          rules.chestMinZ > rules.chestMaxZ))
     {
-        return QString::fromUtf8(
-            "チェスト座標の最小値が最大値を超えています。");
+        return lootConditionTr(
+            "A minimum chest coordinate is greater than its maximum.");
     }
     if (rules.rules.isEmpty())
-        return QString::fromUtf8("アイテム条件を1個以上追加してください。");
+        return lootConditionTr("Add at least one item condition.");
 
     for (const LootRule& rule : rules.rules)
     {
         if (rule.item < 0 || rule.item >= DP_LOOT_ITEM_COUNT)
-            return QString::fromUtf8("アイテムの指定が不正です。");
+            return lootConditionTr("The item selection is invalid.");
         if (!structureLootItemAvailable(
                 rules.structureType, rule.item))
         {
-            return QString::fromUtf8(
-                "この構造物のチェストには指定したアイテムがありません。");
+            return lootConditionTr(
+                "The selected item does not occur in this structure's chests.");
         }
         if (rule.minCount < 0 || rule.maxCount < -1 ||
             (rule.maxCount >= 0 && rule.minCount > rule.maxCount))
-            return QString::fromUtf8("アイテム数の範囲が不正です。");
+            return lootConditionTr("The item-count range is invalid.");
         if (rule.enchantment < -1 ||
             rule.enchantment >= DP_ENCH_COUNT)
-            return QString::fromUtf8("エンチャントの指定が不正です。");
+            return lootConditionTr("The enchantment selection is invalid.");
         if (rule.item == DP_LOOT_ENCHANTED_BOOK &&
             rule.enchantment >= 0 &&
             (rule.minLevel < 1 ||
@@ -901,7 +944,7 @@ QString validateLootRuleSet(const LootRuleSet& rules, int mc)
                  rule.enchantment) ||
              rule.minLevel > rule.maxLevel))
         {
-            return QString::fromUtf8("エンチャントレベルの範囲が不正です。");
+            return lootConditionTr("The enchantment-level range is invalid.");
         }
     }
     return QString();
@@ -968,7 +1011,7 @@ bool deserializeLootRuleSet(
         count > 100000)
     {
         if (error)
-            *error = QString::fromUtf8("Loot条件データの形式が不正です。");
+            *error = lootConditionTr("The Loot-condition data format is invalid.");
         return false;
     }
 
@@ -987,7 +1030,7 @@ bool deserializeLootRuleSet(
         if (stream.status() != QDataStream::Ok)
         {
             if (error)
-                *error = QString::fromUtf8("Loot条件データが途中で切れています。");
+                *error = lootConditionTr("The Loot-condition data is truncated.");
             return false;
         }
         LootRule rule;
@@ -1010,8 +1053,8 @@ bool deserializeLootRuleSet(
         if (stream.status() != QDataStream::Ok)
         {
             if (error)
-                *error = QString::fromUtf8(
-                    "Loot条件のチェスト座標データが途中で切れています。");
+                *error = lootConditionTr(
+                    "The Loot-condition chest-coordinate data is truncated.");
             return false;
         }
         decoded.chestPositionMode = positionMode;
@@ -1025,7 +1068,8 @@ bool deserializeLootRuleSet(
     if (!stream.atEnd())
     {
         if (error)
-            *error = QString::fromUtf8("Loot条件データの末尾に不明なデータがあります。");
+            *error = lootConditionTr(
+                "The Loot-condition data has unrecognized trailing data.");
         return false;
     }
     *rules = decoded;

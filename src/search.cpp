@@ -68,10 +68,10 @@ QString Condition::summary(bool aligntab) const
     {
         LootRuleSet rules;
         if (lookupLootRuleSet(hash, &rules))
-            txts += QString::fromUtf8(" [Loot条件 %1件]")
+            txts += QApplication::translate("Filter", " [Loot: %1 rule(s)]")
                 .arg(rules.rules.size());
         else
-            txts += QString::fromUtf8(" [Loot設定なし]");
+            txts += QApplication::translate("Filter", " [Loot data missing]");
     }
 
     if (aligntab)
@@ -380,20 +380,22 @@ QString SearchThreadEnv::init(
                 c.type != F_VILLAGE &&
                 c.type != F_BASTION &&
                 c.type != F_LOOT)
-                return QString::fromUtf8(
-                    "条件 %1 はLoot検索を利用できない種類です。").arg(c.save);
+                return QApplication::translate(
+                    "Filter", "Condition %1 cannot use Loot search.").arg(c.save);
             LootRuleSet rules;
             if (!lookupLootRuleSet(c.hash, &rules))
-                return QString::fromUtf8("条件 %1 のLoot設定が見つかりません。").arg(c.save);
+                return QApplication::translate(
+                    "Filter", "Loot data for condition %1 was not found.").arg(c.save);
             if (c.type != F_LOOT &&
                 rules.structureType != g_filterinfo.list[c.type].stype)
             {
-                return QString::fromUtf8(
-                    "条件 %1 の構造物とLoot設定が一致しません。").arg(c.save);
+                return QApplication::translate(
+                    "Filter", "The structure and Loot data for condition %1 do not match.").arg(c.save);
             }
             QString error = validateLootRuleSet(rules, mc);
             if (!error.isEmpty())
-                return QString::fromUtf8("条件 %1: %2").arg(c.save).arg(error);
+                return QApplication::translate(
+                    "Filter", "Condition %1: %2").arg(c.save).arg(error);
             loot_rules[c.hash] = rules;
             if (rules.structureType == Village)
                 hasVillageLoot = true;

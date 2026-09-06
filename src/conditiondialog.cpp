@@ -98,25 +98,25 @@ ConditionDialog::ConditionDialog(FormConditions *parent, MapView *mapview, Confi
     QVBoxLayout *areaLootLayout = new QVBoxLayout(areaLootPage);
     QHBoxLayout *areaStructureLayout = new QHBoxLayout();
     areaStructureLayout->addWidget(
-        new QLabel(QString::fromUtf8("対象構造物"), areaLootPage));
+        new QLabel(tr("Target structure"), areaLootPage));
     areaLootStructure = new QComboBox(areaLootPage);
     areaLootStructure->addItem(
-        QString::fromUtf8("砂漠のピラミッド"), Desert_Pyramid);
+        tr("Desert pyramid"), Desert_Pyramid);
     areaLootStructure->addItem(
-        QString::fromUtf8("難破船"), Shipwreck);
+        tr("Shipwreck"), Shipwreck);
     areaLootStructure->addItem(
-        QString::fromUtf8("埋もれた宝"), Treasure);
+        tr("Buried treasure"), Treasure);
     areaLootStructure->addItem(
-        QString::fromUtf8("荒廃したポータル（オーバーワールド）"),
+        tr("Ruined portal (Overworld)"),
         Ruined_Portal);
     areaLootStructure->addItem(
-        QString::fromUtf8("荒廃したポータル（ネザー）"),
+        tr("Ruined portal (Nether)"),
         Ruined_Portal_N);
     areaLootStructure->addItem(
-        QString::fromUtf8("村（Java 1.16）"),
+        tr("Village (Java 1.16)"),
         Village);
     areaLootStructure->addItem(
-        QString::fromUtf8("砦の遺跡"),
+        tr("Bastion remnant"),
         Bastion);
     areaStructureLayout->addWidget(areaLootStructure, 1);
     areaLootLayout->addLayout(areaStructureLayout);
@@ -1497,7 +1497,7 @@ void ConditionDialog::onAccept()
         QString error = validateLootRuleSet(lootRules, wi.mc);
         if (!error.isEmpty())
         {
-            warn(this, QString::fromUtf8("Loot条件"), error);
+            warn(this, tr("Loot conditions"), error);
             return;
         }
         c.hash = registerLootRuleSet(lootRules);
@@ -1895,8 +1895,8 @@ void ConditionDialog::on_pushLuaExample_clicked()
     QStringList examples = {
         tr("Empty check functions"),
         tr("Village along the way from A to B"),
-        QStringLiteral("地下型の荒廃したポータル"),
-        QStringLiteral("ダイヤ入りの砂漠の寺院（1.16）"),
+        tr("Underground ruined portal"),
+        tr("Desert pyramid with diamonds (1.16)"),
     };
     QMap<QString, QString> code = {
         {   examples[0],
@@ -1935,7 +1935,7 @@ void ConditionDialog::on_pushLuaExample_clicked()
             "end"
         },
         {   examples[2],
-            "-- 親条件で見つかった荒廃したポータルが地下型なら通過\n"
+            "-- Pass if the ruined portal found by the parent condition is underground\n"
             "function check(seed, at, deps)\n"
             "\tlocal v = getStructureVariant(Ruined_Portal, at.x, at.z)\n"
             "\tif v and v.underground then\n"
@@ -1945,8 +1945,8 @@ void ConditionDialog::on_pushLuaExample_clicked()
             "end"
         },
         {   examples[3],
-            "-- 親条件で見つかった砂漠の寺院の4チェスト合計を確認\n"
-            "-- Java 1.16.1 / 1.16.5専用\n"
+            "-- Check the combined contents of all four pyramid chests found by the parent condition\n"
+            "-- Java 1.16.1 / 1.16.5 only\n"
             "function check(seed, at, deps)\n"
             "\tlocal loot = getDesertPyramidLoot(at.x, at.z)\n"
             "\tif loot and loot.total.diamond >= 1 then\n"
@@ -2023,14 +2023,14 @@ void ConditionDialog::on_pushInfoLua_clicked()
         "specified structure <b>type</b> within the area spanning the block "
         "positions <b>x1, z1</b> to <b>x2, z2</b>, or <b>nil</b> upon failure"
         "<dt><b>getStructureVariant(type, x, z [, biome])</b>"
-        "<dd>指定位置の構造物バリアントを返します。underground, airpocket, "
+        "<dd>Returns the structure variant at the specified position. Fields include underground, airpocket, "
         "giant, mirror, rotation, start, biome, basement, abandoned, cracked, "
-        "sizeおよび境界情報を参照できます。失敗時は<b>nil</b>です。"
+        "size, and bounding information. Returns <b>nil</b> on failure."
         "<dt><b>getDesertPyramidLoot(x, z [, chest])</b>"
-        "<dd>Java 1.16.1 / 1.16.5の砂漠の寺院ルートを返します。"
-        "chestはVanilla内部のRNG順で1～4です。省略時は<b>[1]～[4]</b>と"
-        "4個合計の<b>total</b>を返します。未対応バージョンまたは失敗時は"
-        "<b>nil</b>です。"
+        "<dd>Returns Java 1.16.1 / 1.16.5 desert-pyramid Loot. "
+        "<b>chest</b> is 1 through 4 in Vanilla's internal RNG order. If omitted, "
+        "the result contains <b>[1]</b> through <b>[4]</b> and their combined "
+        "<b>total</b>. Returns <b>nil</b> for unsupported versions or on failure."
         "</p></body></html>"
         ));
     mb->show();

@@ -36,7 +36,6 @@
 #include <QImage>
 #include <QIntValidator>
 #include <QLabel>
-#include <QLocale>
 #include <QLineEdit>
 #include <QMenu>
 #include <QMetaType>
@@ -118,11 +117,6 @@ MainWindow::MainWindow(QString sessionpath, QString resultspath, QWidget *parent
     , sidePanelCollapsed(false)
     , sidePanelChanging(false)
 {
-    QSettings settings(APP_STRING, APP_STRING);
-    // Seed Atlas currently ships with one English interface only.
-    QLocale::setDefault(QLocale(QLocale::English, QLocale::UnitedStates));
-    settings.remove("config/lang");
-
     ui = new Ui::MainWindow;
     dock = new QDockWidget(tr("Map"), this);
     mapView = new MapView(this);

@@ -561,10 +561,11 @@ static const struct FilterList : private FilterInfo
         list[F_LOOT] = FilterInfo{
             CAT_OTHER, 1, LOC_RAD, 0, 1, BR_NONE, MC_1_16_1, MC_1_16_5, 0, 0, disp++,
             "desert",
-            QT_TRANSLATE_NOOP("Filter", "範囲内の構造物Loot合計"),
+            QT_TRANSLATE_NOOP("Filter", "Structure Loot total within area"),
             QT_TRANSLATE_NOOP("Filter",
-            "Location 内に生成される対象構造物のチェスト内容をすべて合計して判定します。"
-            "現在は Java 1.16.1 / 1.16.5 の砂漠のピラミッドに対応しています。")
+            "Combines chest contents from all target structures generated within "
+            "the Location area. Supported structures and versions are shown in "
+            "the Loot editor.")
         };
     }
 }
