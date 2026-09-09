@@ -621,6 +621,7 @@ struct /*__attribute__((packed))*/ Condition
         VAR_PORTAL_NOT_GIANT       = 0x0800,
         VAR_PORTAL_MIRRORED        = 0x1000,
         VAR_PORTAL_NOT_MIRRORED    = 0x2000,
+        VAR_PORTAL_SELF_COMPLETABLE = 0x4000,
     };
     enum { // values stored in varbiome for ruined portal conditions
         PORTAL_CATEGORY_ANY = 0,

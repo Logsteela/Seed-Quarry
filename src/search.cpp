@@ -5,6 +5,7 @@
 #include "seedtables.h"
 #include "util.h"
 #include "lootcondition.h"
+#include "portalcompletion16.h"
 
 #include "cubiomes/finders.h"
 #include "cubiomes/quadbase.h"
@@ -1002,6 +1003,17 @@ static bool isVariantOk(const Condition *c, SearchThreadEnv *e, int stype, int v
         int rotation = c->deps[Condition::DEP_PORTAL_ROTATION];
         if (rotation && sv.rotation != rotation - 1)
             return false;
+
+        if (c->varflags & Condition::VAR_PORTAL_SELF_COMPLETABLE)
+        {
+            if (stype != Ruined_Portal ||
+                (e->mc != MC_1_16_1 && e->mc != MC_1_16_5))
+                return false;
+            e->prepareSurfaceNoise(DIM_OVERWORLD);
+            if (!isSelfCompletableRuinedPortal16(
+                    e->seed, e->mc, *pos, sv, &e->g, &e->sn))
+                return false;
+        }
 
         if (!(c->varflags & Condition::VAR_WITH_START)) return true;
     }

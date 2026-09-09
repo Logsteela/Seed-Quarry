@@ -1430,6 +1430,16 @@
             <translation>左右反転</translation>
         </message>
         <message>
+            <location filename="../src/conditiondialog.ui" />
+            <source>Java 1.16 only. Requires every existing non-corner block of the minimal frame to be normal obsidian, plus enough chest obsidian to finish it and either flint and steel or a fire charge. Currently supports portal_1 (2 obsidian), portal_6 (1), and portal_9 (2). Flint and iron nuggets do not count. The Java 1.16.1 chest-removal terrain bug is not modeled.</source>
+            <translation>Java 1.16 専用。最小ポータル枠のうち、既に生成されている角以外の全ブロックが通常の黒曜石であり、完成に必要な数の黒曜石と、火打石と打ち金またはファイヤーチャージがチェストに入っていることを要求します。現在は portal_1（黒曜石2個）、portal_6（1個）、portal_9（2個）に対応します。火打石と鉄塊は着火手段に数えません。Java 1.16.1 の地形処理でチェストが消える不具合は再現しません。</translation>
+        </message>
+        <message>
+            <location filename="../src/conditiondialog.ui" />
+            <source>Completable and lightable using only this portal</source>
+            <translation>このポータルだけで完成・着火可能</translation>
+        </message>
+        <message>
             <location filename="../src/conditiondialog.ui" line="1943" />
             <source>Generation category</source>
             <translation>生成カテゴリ</translation>

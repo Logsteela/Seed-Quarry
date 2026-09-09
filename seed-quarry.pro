@@ -130,6 +130,7 @@ SOURCES += \
         src/maptoolsdialog.cpp \
         src/message.cpp \
         src/presetdialog.cpp \
+        src/portalcompletion16.cpp \
         src/layerdialog.cpp \
         src/lootcondition.cpp \
         src/lootconditionwidget.cpp \
@@ -202,6 +203,7 @@ HEADERS += \
         src/maptoolsdialog.h \
         src/message.h \
         src/presetdialog.h \
+        src/portalcompletion16.h \
         src/layerdialog.h \
         src/lootcondition.h \
         src/lootconditionwidget.h \

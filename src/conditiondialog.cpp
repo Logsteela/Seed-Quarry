@@ -589,6 +589,8 @@ ConditionDialog::ConditionDialog(FormConditions *parent, MapView *mapview, Confi
             cond.varflags,
             Condition::VAR_PORTAL_MIRRORED,
             Condition::VAR_PORTAL_NOT_MIRRORED));
+        ui->checkPortalSelfCompletable->setChecked(
+            cond.varflags & Condition::VAR_PORTAL_SELF_COMPLETABLE);
 
         int portalCategory = cond.varbiome;
         if (portalCategory < 0 || portalCategory >= ui->comboPortalCategory->count())
@@ -863,6 +865,9 @@ void ConditionDialog::updateMode()
         ui->checkPortalMirrored->setEnabled(wi.mc >= MC_1_16_1);
         ui->comboPortalCategory->setEnabled(wi.mc >= MC_1_16_1);
         ui->comboPortalRotation->setEnabled(wi.mc >= MC_1_16_1);
+        ui->checkPortalSelfCompletable->setEnabled(
+            filterindex == F_PORTAL &&
+            (wi.mc == MC_1_16_1 || wi.mc == MC_1_16_5));
         portalLootEditor->setContext(ft.stype, wi.mc);
     }
     else if (filterindex == F_ENDCITY)
@@ -1444,6 +1449,9 @@ void ConditionDialog::onAccept()
             ui->checkPortalMirrored,
             Condition::VAR_PORTAL_MIRRORED,
             Condition::VAR_PORTAL_NOT_MIRRORED);
+        if (c.type == F_PORTAL &&
+            ui->checkPortalSelfCompletable->isChecked())
+            c.varflags |= Condition::VAR_PORTAL_SELF_COMPLETABLE;
         c.varbiome = ui->comboPortalCategory->currentIndex();
         c.deps[Condition::DEP_PORTAL_ROTATION] =
             ui->comboPortalRotation->currentIndex();

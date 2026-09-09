@@ -163,6 +163,17 @@ int getTerrainNoiseColumn116(const Generator *g, const SurfaceNoise *sn,
     int noiseX, int noiseZ, double column[33]);
 
 /**
+ * Builds a rectangular batch of Java 1.16.1 terrain-density columns.
+ * Columns are stored in x-fastest row-major order and each contains 33
+ * vertical samples: columns[(z * width + x) * 33 + y].
+ *
+ * This is substantially cheaper than repeated getTerrainNoiseColumn116()
+ * calls for nearby columns because the biome neighbourhood is generated once.
+ */
+int getTerrainNoiseColumns116(const Generator *g, const SurfaceNoise *sn,
+    int noiseX, int noiseZ, int width, int height, double *columns);
+
+/**
  * Interpolates WORLD_SURFACE_WG from four terrain-density columns ordered as
  * (x,z), (x,z+1), (x+1,z), (x+1,z+1).
  */

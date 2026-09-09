@@ -901,6 +901,44 @@ int getTerrainNoiseColumn116(const Generator *g, const SurfaceNoise *sn,
     return ok;
 }
 
+int getTerrainNoiseColumns116(const Generator *g, const SurfaceNoise *sn,
+    int noiseX, int noiseZ, int width, int height, double *columns)
+{
+    if (!g || !sn || !columns || width <= 0 || height <= 0 ||
+        g->dim != DIM_OVERWORLD ||
+        g->mc < MC_1_16_1 || g->mc > MC_1_16_5)
+        return 0;
+
+    Range range = {
+        4, noiseX - 2, noiseZ - 2, width + 4, height + 4, 0, 1
+    };
+    int *biomes = allocCache(g, range);
+    if (!biomes)
+        return 0;
+    if (genBiomes(g, biomes, range) != 0)
+    {
+        free(biomes);
+        return 0;
+    }
+
+    int x, z;
+    int ok = 1;
+    for (z = 0; z < height && ok; z++)
+    {
+        for (x = 0; x < width; x++)
+        {
+            ok = fillNoiseColumn116(
+                columns + ((z * width + x) * 33),
+                biomes, width + 4, x, z, sn,
+                noiseX + x, noiseZ + z);
+            if (!ok)
+                break;
+        }
+    }
+    free(biomes);
+    return ok;
+}
+
 int getFirstFreeHeightFromColumns116(const double columns[4][33],
     int blockX, int blockZ)
 {
@@ -978,5 +1016,4 @@ int getFirstFreeHeight116(const Generator *g, const SurfaceNoise *sn,
     return getFirstFreeHeightFromColumns116(
         (const double (*)[33]) columns, blockX, blockZ);
 }
-
 
