@@ -413,15 +413,29 @@ int main(int argc, char **argv)
             bastionLayout.chests[chest].lootTableSeed);
     }
     assert(structureLootEnchantmentAvailable(
-        Bastion, DP_LOOT_CROSSBOW, DP_ENCH_QUICK_CHARGE));
+        Bastion, DP_LOOT_CROSSBOW, DP_ENCH_QUICK_CHARGE,
+        BASTION_LOOT_PROFILE_1_16_2_TO_1_16_5));
     assert(structureLootEnchantmentAvailable(
-        Bastion, DP_LOOT_GOLDEN_BOOTS, DP_ENCH_SOUL_SPEED));
+        Bastion, DP_LOOT_GOLDEN_BOOTS, DP_ENCH_SOUL_SPEED,
+        BASTION_LOOT_PROFILE_1_16_2_TO_1_16_5));
+    assert(structureLootItemCanBeEnchanted(
+        Bastion, DP_LOOT_GOLDEN_BOOTS,
+        BASTION_LOOT_PROFILE_1_16_2_TO_1_16_5));
+    assert(structureLootItemCanBeEnchanted(
+        Bastion, DP_LOOT_DIAMOND_SHOVEL,
+        BASTION_LOOT_PROFILE_1_16_2_TO_1_16_5));
+    assert(structureLootItemCanBeEnchanted(
+        Bastion, DP_LOOT_DIAMOND_SWORD,
+        BASTION_LOOT_PROFILE_1_16_2_TO_1_16_5));
     assert(structureLootEnchantmentAvailable(
-        Bastion, DP_LOOT_ENCHANTED_BOOK, DP_ENCH_SOUL_SPEED));
+        Bastion, DP_LOOT_ENCHANTED_BOOK, DP_ENCH_SOUL_SPEED,
+        BASTION_LOOT_PROFILE_1_16_2_TO_1_16_5));
     assert(!structureLootEnchantmentAvailable(
-        Bastion, DP_LOOT_ENCHANTED_BOOK, DP_ENCH_PROTECTION));
+        Bastion, DP_LOOT_ENCHANTED_BOOK, DP_ENCH_PROTECTION,
+        BASTION_LOOT_PROFILE_1_16_2_TO_1_16_5));
     assert(!structureLootEnchantmentAvailable(
-        Bastion, DP_LOOT_GOLDEN_SWORD, DP_ENCH_SHARPNESS));
+        Bastion, DP_LOOT_GOLDEN_SWORD, DP_ENCH_SHARPNESS,
+        BASTION_LOOT_PROFILE_1_16_2_TO_1_16_5));
 
     LootRuleSet bastionEnchantment;
     bastionEnchantment.structureType = Bastion;
@@ -433,8 +447,11 @@ int main(int argc, char **argv)
          lightBastionChests)
     {
         StructureLoot chestLoot = {};
+        const int table =
+            LOOT_TABLE16_BASTION_BRIDGE_1_16_5 +
+            (generated.table - LOOT_TABLE16_BASTION_BRIDGE);
         assert(generateStructureLootTable16(
-            &chestLoot, generated.table,
+            &chestLoot, table,
             generated.lootTableSeed));
         if (chestLoot.enchantmentCount == 0)
             continue;
@@ -462,6 +479,17 @@ int main(int argc, char **argv)
     assert(matchStructureLoot(
         bastionEnchantment, MC_1_16, bastionSeed,
         bastionPos, -1, &bastionCache));
+    LootRuleSet anyBastionEnchantment = bastionEnchantment;
+    anyBastionEnchantment.rules[0].enchantment =
+        LootRule::ENCHANTMENT_ANY;
+    anyBastionEnchantment.rules[0].minLevel = 1;
+    anyBastionEnchantment.rules[0].maxLevel =
+        DP_ENCH_MAX_LEVEL;
+    assert(validateLootRuleSet(
+        anyBastionEnchantment, MC_1_16).isEmpty());
+    assert(matchStructureLoot(
+        anyBastionEnchantment, MC_1_16, bastionSeed,
+        bastionPos));
     const uint64_t bastionSameLower48 =
         (bastionSeed & MASK48) |
         (UINT64_C(0x1234) << 48);
@@ -844,9 +872,17 @@ int main(int argc, char **argv)
     assert(isLootSupported(Bastion, MC_1_16));
     assert(!isLootSupported(Bastion, MC_1_17));
     assert(structureLootItemAvailable(
-        Shipwreck, DP_LOOT_FILLED_MAP));
+        Shipwreck, DP_LOOT_FILLED_MAP,
+        BASTION_LOOT_PROFILE_1_16_1));
     assert(!structureLootItemAvailable(
-        Treasure, DP_LOOT_FILLED_MAP));
+        Treasure, DP_LOOT_FILLED_MAP,
+        BASTION_LOOT_PROFILE_1_16_1));
+    assert(!structureLootItemAvailable(
+        Bastion, DP_LOOT_DIAMOND_PICKAXE,
+        BASTION_LOOT_PROFILE_1_16_1));
+    assert(structureLootItemAvailable(
+        Bastion, DP_LOOT_DIAMOND_PICKAXE,
+        BASTION_LOOT_PROFILE_1_16_2_TO_1_16_5));
 
     puts("loot condition tests passed");
     return 0;

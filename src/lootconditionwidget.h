@@ -44,6 +44,8 @@ private:
     QComboBox *m_logic;
     QComboBox *m_instanceMode;
     QComboBox *m_chestMode;
+    QLabel *m_bastionLootProfileLabel;
+    QComboBox *m_bastionLootProfile;
     QWidget *m_positionPanel;
     QComboBox *m_positionMode;
     QWidget *m_positionRange;

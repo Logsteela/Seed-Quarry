@@ -18,6 +18,8 @@ namespace {
 static const char *const lootEditorTranslationKeys[] = {
     QT_TRANSLATE_NOOP("LootEditor", "No maximum"),
     QT_TRANSLATE_NOOP("LootEditor", "No enchantment filter"),
+    QT_TRANSLATE_NOOP("LootEditor", "Any enchantment (enchanted items only)"),
+    QT_TRANSLATE_NOOP("LootEditor", "Enchanted %1"),
     QT_TRANSLATE_NOOP("LootEditor", "Remove"),
     QT_TRANSLATE_NOOP("LootEditor", "Count"),
     QT_TRANSLATE_NOOP("LootEditor", "Enchantment"),
@@ -32,6 +34,13 @@ static const char *const lootEditorTranslationKeys[] = {
     QT_TRANSLATE_NOOP("LootEditor", "Total across structures in range"),
     QT_TRANSLATE_NOOP("LootEditor", "Multiple structures"),
     QT_TRANSLATE_NOOP("LootEditor", "Chests within structure"),
+    QT_TRANSLATE_NOOP("LootEditor", "Bastion Loot version"),
+    QT_TRANSLATE_NOOP("LootEditor", "Java 1.16–1.16.1 (original Loot)"),
+    QT_TRANSLATE_NOOP("LootEditor", "Java 1.16.2–1.16.5 (tweaked Loot)"),
+    QT_TRANSLATE_NOOP("LootEditor",
+        "Bastion chest tables changed in Java 1.16.2. The tweaked profile "
+        "includes enchanted diamond pickaxes in Hoglin Stable and Generic "
+        "chests. The four chest-table categories remain separate."),
     QT_TRANSLATE_NOOP("LootEditor", "Chest coordinates"),
     QT_TRANSLATE_NOOP("LootEditor", "+ Add item condition"),
     QT_TRANSLATE_NOOP("LootEditor", "Total across all chests"),
@@ -219,6 +228,8 @@ QString itemDisplayName(int item)
         QT_TRANSLATE_NOOP("LootItem", "Nether Quartz"),
         QT_TRANSLATE_NOOP("LootItem", "Dead Bush"),
         QT_TRANSLATE_NOOP("LootItem", "Any item (Loot container position/count only)"),
+        QT_TRANSLATE_NOOP("LootItem", "Diamond Pickaxe"),
+        QT_TRANSLATE_NOOP("LootItem", "Block of Iron"),
     };
     return QCoreApplication::translate("LootItem", english[item]) + " (" +
         QString::fromLatin1(structureLootItemName(item)) + ")";
@@ -283,10 +294,16 @@ QString lootTr(const char *source)
 class LootRuleRow : public QWidget
 {
 public:
+    enum ItemDataRole {
+        EnchantedOnlyRole = Qt::UserRole + 1,
+    };
+
     explicit LootRuleRow(
-        int structureType, QWidget *parent = nullptr)
+        int structureType, int bastionLootProfile,
+        QWidget *parent = nullptr)
         : QWidget(parent)
         , m_structureType(structureType)
+        , m_bastionLootProfile(bastionLootProfile)
     {
         QGridLayout *layout = new QGridLayout(this);
         layout->setContentsMargins(0, 0, 0, 0);
@@ -357,7 +374,22 @@ public:
 
     void setValue(const LootRule& rule)
     {
-        item->setCurrentIndex(item->findData(rule.item));
+        int itemIndex = -1;
+        const bool enchantedOnly =
+            rule.enchantment != LootRule::ENCHANTMENT_NONE;
+        for (int index = 0; index < item->count(); index++)
+        {
+            if (item->itemData(index).toInt() == rule.item &&
+                item->itemData(index, EnchantedOnlyRole).toBool() ==
+                    enchantedOnly)
+            {
+                itemIndex = index;
+                break;
+            }
+        }
+        if (itemIndex < 0)
+            itemIndex = item->findData(rule.item);
+        item->setCurrentIndex(itemIndex);
         updateEnchantments(rule.enchantment);
         minCount->setValue(rule.minCount);
         maxCount->setValue(rule.maxCount);
@@ -366,11 +398,13 @@ public:
         updateEnchantmentState();
     }
 
-    void setStructureType(int structureType)
+    void setContext(int structureType, int bastionLootProfile)
     {
-        if (m_structureType == structureType)
+        if (m_structureType == structureType &&
+            m_bastionLootProfile == bastionLootProfile)
             return;
         m_structureType = structureType;
+        m_bastionLootProfile = bastionLootProfile;
         updateItems();
         updateEnchantments();
         updateEnchantmentState();
@@ -379,13 +413,43 @@ public:
     void updateItems()
     {
         int oldItem = item->currentData().toInt();
+        bool oldEnchantedOnly =
+            item->currentData(EnchantedOnlyRole).toBool();
         item->clear();
         for (int i = 0; i < DP_LOOT_ITEM_COUNT; i++)
         {
-            if (structureLootItemAvailable(m_structureType, i))
+            if (structureLootItemAvailable(
+                    m_structureType, i, m_bastionLootProfile))
+            {
                 item->addItem(itemDisplayName(i), i);
+                if (m_structureType == Bastion &&
+                    i != DP_LOOT_ENCHANTED_BOOK &&
+                    structureLootItemCanBeEnchanted(
+                        m_structureType, i,
+                        m_bastionLootProfile))
+                {
+                    item->addItem(
+                        lootTr("Enchanted %1").arg(
+                            itemDisplayName(i)), i);
+                    item->setItemData(
+                        item->count() - 1, true,
+                        EnchantedOnlyRole);
+                }
+            }
         }
-        int index = item->findData(oldItem);
+        int index = -1;
+        for (int candidate = 0;
+             candidate < item->count(); candidate++)
+        {
+            if (item->itemData(candidate).toInt() == oldItem &&
+                item->itemData(
+                    candidate, EnchantedOnlyRole).toBool() ==
+                    oldEnchantedOnly)
+            {
+                index = candidate;
+                break;
+            }
+        }
         item->setCurrentIndex(index >= 0 ? index : 0);
     }
 
@@ -394,10 +458,11 @@ public:
         const bool enchantable = enchantment->count() > 1;
         enchantment->setEnabled(enchantable);
         int ench = enchantment->currentData().toInt();
-        bool levels = enchantable && ench >= 0;
+        bool levels = enchantable &&
+            ench != LootRule::ENCHANTMENT_NONE;
         minLevel->setEnabled(levels);
         maxLevel->setEnabled(levels);
-        int maximum = levels
+        int maximum = levels && ench >= 0
             ? desertPyramidEnchantmentMaxLevel(ench)
             : DP_ENCH_MAX_LEVEL;
         minLevel->setMaximum(maximum);
@@ -412,21 +477,43 @@ public:
             ? enchantment->currentData().toInt()
             : requested;
         const int selectedItem = item->currentData().toInt();
+        const bool enchantedOnly =
+            item->currentData(EnchantedOnlyRole).toBool();
         enchantment->clear();
-        enchantment->addItem(lootTr("No enchantment filter"), -1);
+        if (!enchantedOnly)
+        {
+            enchantment->addItem(
+                lootTr("No enchantment filter"),
+                LootRule::ENCHANTMENT_NONE);
+        }
+        const bool canBeEnchanted =
+            structureLootItemCanBeEnchanted(
+                m_structureType, selectedItem,
+                m_bastionLootProfile);
+        if (canBeEnchanted)
+        {
+            enchantment->addItem(
+                lootTr("Any enchantment (enchanted items only)"),
+                LootRule::ENCHANTMENT_ANY);
+        }
         for (int i = 0; i < DP_ENCH_COUNT; i++)
         {
             const bool available =
                 selectedItem == DP_LOOT_ENCHANTED_BOOK
                     ? (m_structureType != Bastion ||
                        structureLootEnchantmentAvailable(
-                           m_structureType, selectedItem, i))
+                           m_structureType, selectedItem, i,
+                           m_bastionLootProfile))
                     : structureLootEnchantmentAvailable(
-                          m_structureType, selectedItem, i);
+                          m_structureType, selectedItem, i,
+                          m_bastionLootProfile);
             if (available)
                 enchantment->addItem(enchantmentDisplayName(i), i);
         }
         int index = enchantment->findData(oldEnchantment);
+        if (index < 0 && enchantedOnly)
+            index = enchantment->findData(
+                LootRule::ENCHANTMENT_ANY);
         enchantment->setCurrentIndex(index >= 0 ? index : 0);
     }
 
@@ -438,6 +525,7 @@ public:
     QSpinBox *maxLevel;
     QPushButton *remove;
     int m_structureType;
+    int m_bastionLootProfile;
 };
 
 LootRuleEditor::LootRuleEditor(QWidget *parent)
@@ -475,6 +563,27 @@ LootRuleEditor::LootRuleEditor(QWidget *parent)
     m_chestMode = new QComboBox(this);
     updateChestModes();
     options->addRow(lootTr("Chests within structure"), m_chestMode);
+
+    m_bastionLootProfileLabel =
+        new QLabel(lootTr("Bastion Loot version"), this);
+    m_bastionLootProfile = new QComboBox(this);
+    m_bastionLootProfile->addItem(
+        lootTr("Java 1.16–1.16.1 (original Loot)"),
+        LootRuleSet::BASTION_LOOT_1_16_1);
+    m_bastionLootProfile->addItem(
+        lootTr("Java 1.16.2–1.16.5 (tweaked Loot)"),
+        LootRuleSet::BASTION_LOOT_1_16_2_TO_1_16_5);
+    m_bastionLootProfile->setCurrentIndex(
+        m_bastionLootProfile->findData(
+            LootRuleSet::BASTION_LOOT_1_16_2_TO_1_16_5));
+    const QString bastionProfileHelp = lootTr(
+        "Bastion chest tables changed in Java 1.16.2. The tweaked profile "
+        "includes enchanted diamond pickaxes in Hoglin Stable and Generic "
+        "chests. The four chest-table categories remain separate.");
+    m_bastionLootProfileLabel->setToolTip(bastionProfileHelp);
+    m_bastionLootProfile->setToolTip(bastionProfileHelp);
+    options->addRow(
+        m_bastionLootProfileLabel, m_bastionLootProfile);
     outer->addLayout(options);
 
     m_positionPanel = new QWidget(this);
@@ -555,6 +664,15 @@ LootRuleEditor::LootRuleEditor(QWidget *parent)
             this, [this] { updateEnabledState(); });
     connect(m_positionMode, qOverload<int>(&QComboBox::currentIndexChanged),
             this, [this] { updatePositionState(); });
+    connect(m_bastionLootProfile,
+            qOverload<int>(&QComboBox::currentIndexChanged),
+            this, [this] {
+                const int profile =
+                    m_bastionLootProfile->currentData().toInt();
+                for (LootRuleRow *row : m_rows)
+                    row->setContext(m_structureType, profile);
+                updateEnabledState();
+            });
     connect(m_add, &QPushButton::clicked,
             this, [this] { addRule(); });
     addRule();
@@ -569,8 +687,10 @@ void LootRuleEditor::setContext(int structureType, int mc)
     m_mc = mc;
     if (changed)
     {
+        const int profile =
+            m_bastionLootProfile->currentData().toInt();
         for (LootRuleRow *row : m_rows)
-            row->setStructureType(structureType);
+            row->setContext(structureType, profile);
         updateChestModes();
         updatePositionModes();
     }
@@ -600,6 +720,9 @@ void LootRuleEditor::setRuleSet(
         m_instanceMode->findData(rules.instanceMode));
     m_chestMode->setCurrentIndex(
         m_chestMode->findData(rules.chestMode));
+    m_bastionLootProfile->setCurrentIndex(
+        m_bastionLootProfile->findData(
+            rules.bastionLootProfile));
     m_positionMode->setCurrentIndex(
         m_positionMode->findData(rules.chestPositionMode));
     m_chestMinX->setValue(rules.chestMinX);
@@ -631,6 +754,8 @@ LootRuleSet LootRuleEditor::ruleSet() const
         ? LootRuleSet::INSTANCE_TOTAL
         : m_instanceMode->currentData().toInt();
     rules.chestMode = m_chestMode->currentData().toInt();
+    rules.bastionLootProfile =
+        m_bastionLootProfile->currentData().toInt();
     rules.chestPositionMode =
         m_positionMode->currentData().toInt();
     rules.chestMinX = m_chestMinX->value();
@@ -647,7 +772,10 @@ LootRuleSet LootRuleEditor::ruleSet() const
 void LootRuleEditor::addRule(const LootRule& rule)
 {
     LootRuleRow *row =
-        new LootRuleRow(m_structureType, m_rowsWidget);
+        new LootRuleRow(
+            m_structureType,
+            m_bastionLootProfile->currentData().toInt(),
+            m_rowsWidget);
     row->setValue(rule);
     m_rows.insert(m_rows.size(), row);
     m_rowsLayout->insertWidget(m_rowsLayout->count() - 1, row);
@@ -821,6 +949,10 @@ void LootRuleEditor::updateEnabledState()
             m_chestMode->findData(LootRuleSet::CHESTS_TOTAL));
     }
     m_chestMode->setEnabled(active && !total);
+    const bool isBastion = m_structureType == Bastion;
+    m_bastionLootProfileLabel->setVisible(isBastion);
+    m_bastionLootProfile->setVisible(isBastion);
+    m_bastionLootProfile->setEnabled(active && isBastion);
     const bool supportsPosition =
         m_structureType == Bastion || m_structureType == Village;
     m_positionPanel->setVisible(supportsPosition);

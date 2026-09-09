@@ -12,10 +12,16 @@
 
 struct LootRule
 {
+    enum EnchantmentMode {
+        ENCHANTMENT_ANY = -2,
+        ENCHANTMENT_NONE = -1,
+    };
+
     int item = DP_LOOT_DIAMOND;
     int minCount = 1;
     int maxCount = -1; // negative means no upper bound
-    int enchantment = -1; // any enchantment / not applicable
+    // NONE does not filter enchanted state; ANY requires an enchanted item.
+    int enchantment = ENCHANTMENT_NONE;
     int minLevel = 1;
     int maxLevel = DP_ENCH_MAX_LEVEL;
 };
@@ -46,6 +52,11 @@ struct LootRuleSet
         CHEST_POSITION_RELATIVE,
         CHEST_POSITION_LOCATION_REFERENCE,
     };
+    enum BastionLootProfile {
+        BASTION_LOOT_1_16_1 = BASTION_LOOT_PROFILE_1_16_1,
+        BASTION_LOOT_1_16_2_TO_1_16_5 =
+            BASTION_LOOT_PROFILE_1_16_2_TO_1_16_5,
+    };
 
     int structureType = Desert_Pyramid;
     int logic = LOGIC_ALL;
@@ -59,6 +70,7 @@ struct LootRuleSet
     int chestMaxY = 320;
     int chestMinZ = -30000000;
     int chestMaxZ = 30000000;
+    int bastionLootProfile = BASTION_LOOT_1_16_2_TO_1_16_5;
 
     bool isEmpty() const { return rules.isEmpty(); }
 };

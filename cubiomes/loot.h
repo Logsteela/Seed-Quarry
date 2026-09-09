@@ -184,6 +184,10 @@ enum DesertPyramidLootItem
      */
     DP_LOOT_ANY_CONTAINER,
 
+    /* Bastion remnant additions used by Java 1.16.2 through 1.16.5. */
+    DP_LOOT_DIAMOND_PICKAXE,
+    DP_LOOT_IRON_BLOCK,
+
     DP_LOOT_ITEM_COUNT
 };
 
@@ -293,7 +297,22 @@ enum StructureLootTable16
     LOOT_TABLE16_BASTION_HOGLIN_STABLE,
     LOOT_TABLE16_BASTION_OTHER,
     LOOT_TABLE16_BASTION_TREASURE,
+    LOOT_TABLE16_BASTION_BRIDGE_1_16_5,
+    LOOT_TABLE16_BASTION_HOGLIN_STABLE_1_16_5,
+    LOOT_TABLE16_BASTION_OTHER_1_16_5,
+    LOOT_TABLE16_BASTION_TREASURE_1_16_5,
     LOOT_TABLE16_COUNT
+};
+
+/*
+ * Bastion chest Loot changed in Java 1.16.2. Seed Atlas exposes only a
+ * single "1.16" world-generation choice, so Loot conditions carry this
+ * minor-version profile explicitly.
+ */
+enum BastionLootProfile16
+{
+    BASTION_LOOT_PROFILE_1_16_1,
+    BASTION_LOOT_PROFILE_1_16_2_TO_1_16_5,
 };
 
 /**
@@ -337,9 +356,13 @@ const char *desertPyramidEnchantmentName(int enchantment);
 int desertPyramidEnchantmentMaxLevel(int enchantment);
 
 const char *structureLootItemName(int item);
-int structureLootItemAvailable(int structureType, int item);
+int structureLootItemAvailable(int structureType, int item,
+                               int bastionLootProfile);
+int structureLootItemCanBeEnchanted(int structureType, int item,
+                                    int bastionLootProfile);
 int structureLootEnchantmentAvailable(int structureType, int item,
-                                      int enchantment);
+                                      int enchantment,
+                                      int bastionLootProfile);
 
 #ifdef __cplusplus
 }

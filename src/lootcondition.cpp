@@ -30,6 +30,7 @@ static const char *const lootConditionTranslationKeys[] = {
     QT_TRANSLATE_NOOP("LootCondition", "The AND/OR setting is invalid."),
     QT_TRANSLATE_NOOP("LootCondition", "The structure aggregation mode is invalid."),
     QT_TRANSLATE_NOOP("LootCondition", "The chest aggregation mode is invalid."),
+    QT_TRANSLATE_NOOP("LootCondition", "The Bastion Loot profile is invalid."),
     QT_TRANSLATE_NOOP("LootCondition",
         "This structure has a variable number of containers. Select total, any, or every container."),
     QT_TRANSLATE_NOOP("LootCondition",
@@ -69,6 +70,7 @@ QString lootConditionTr(const char *source)
 const quint32 LOOT_RULE_MAGIC = 0x31524c53; // "SLR1"
 const quint16 LOOT_RULE_VERSION_LEGACY = 1;
 const quint16 LOOT_RULE_VERSION_POSITION = 2;
+const quint16 LOOT_RULE_VERSION_BASTION_PROFILE = 3;
 
 QMutex g_lootRuleMutex;
 QHash<quint64, QByteArray> g_lootRuleData;
@@ -270,7 +272,7 @@ quint64 countRule(const StructureLoot& loot, const LootRule& rule)
 {
     if (rule.item == DP_LOOT_ANY_CONTAINER)
         return 1;
-    if (rule.enchantment < 0)
+    if (rule.enchantment == LootRule::ENCHANTMENT_NONE)
         return loot.count[rule.item];
 
     quint64 count = 0;
@@ -281,7 +283,8 @@ quint64 countRule(const StructureLoot& loot, const LootRule& rule)
         const StructureLootEnchantment& entry =
             loot.enchantments[index];
         if (entry.item == rule.item &&
-            entry.enchantment == rule.enchantment &&
+            (rule.enchantment == LootRule::ENCHANTMENT_ANY ||
+             entry.enchantment == rule.enchantment) &&
             entry.level >= low && entry.level <= high)
         {
             count += entry.count;
@@ -479,13 +482,19 @@ bool getStructureLoot(
              generatedChests)
         {
             GeneratedLootChest chest;
+            const int firstTable = rules.bastionLootProfile ==
+                    LootRuleSet::BASTION_LOOT_1_16_1
+                ? LOOT_TABLE16_BASTION_BRIDGE
+                : LOOT_TABLE16_BASTION_BRIDGE_1_16_5;
+            const int table = firstTable +
+                (generated.table - LOOT_TABLE16_BASTION_BRIDGE);
             chest.present = generateStructureLootTable16(
-                &chest.loot, generated.table,
+                &chest.loot, table,
                 generated.lootTableSeed);
             if (!chest.present)
                 return false;
             chest.pos = generated.pos;
-            chest.table = generated.table;
+            chest.table = table;
             chest.piece = generated.piece;
             out->chests.push_back(chest);
         }
@@ -870,6 +879,14 @@ QString validateLootRuleSet(const LootRuleSet& rules, int mc)
     if (rules.chestMode < LootRuleSet::CHESTS_TOTAL ||
         rules.chestMode > LootRuleSet::CHEST_4)
         return lootConditionTr("The chest aggregation mode is invalid.");
+    if (rules.structureType == Bastion &&
+        (rules.bastionLootProfile <
+             LootRuleSet::BASTION_LOOT_1_16_1 ||
+         rules.bastionLootProfile >
+             LootRuleSet::BASTION_LOOT_1_16_2_TO_1_16_5))
+    {
+        return lootConditionTr("The Bastion Loot profile is invalid.");
+    }
     if ((rules.structureType == Bastion ||
          rules.structureType == Village) &&
         rules.chestMode >= LootRuleSet::CHEST_1)
@@ -930,7 +947,8 @@ QString validateLootRuleSet(const LootRuleSet& rules, int mc)
         if (rule.item < 0 || rule.item >= DP_LOOT_ITEM_COUNT)
             return lootConditionTr("The item selection is invalid.");
         if (!structureLootItemAvailable(
-                rules.structureType, rule.item))
+                rules.structureType, rule.item,
+                rules.bastionLootProfile))
         {
             return lootConditionTr(
                 "The selected item does not occur in this structure's chests.");
@@ -938,27 +956,40 @@ QString validateLootRuleSet(const LootRuleSet& rules, int mc)
         if (rule.minCount < 0 || rule.maxCount < -1 ||
             (rule.maxCount >= 0 && rule.minCount > rule.maxCount))
             return lootConditionTr("The item-count range is invalid.");
-        if (rule.enchantment < -1 ||
+        if (rule.enchantment < LootRule::ENCHANTMENT_ANY ||
             rule.enchantment >= DP_ENCH_COUNT)
             return lootConditionTr("The enchantment selection is invalid.");
         const bool enchantmentSupported =
-            rule.item == DP_LOOT_ENCHANTED_BOOK
-                ? (rules.structureType != Bastion ||
-                   structureLootEnchantmentAvailable(
-                       rules.structureType, rule.item,
-                       rule.enchantment))
-                : structureLootEnchantmentAvailable(
+            rule.enchantment == LootRule::ENCHANTMENT_ANY
+                ? structureLootItemCanBeEnchanted(
                       rules.structureType, rule.item,
-                      rule.enchantment);
-        if (rule.enchantment >= 0 && !enchantmentSupported)
+                      rules.bastionLootProfile)
+                : (rule.item == DP_LOOT_ENCHANTED_BOOK
+                    ? (rules.structureType != Bastion ||
+                       structureLootEnchantmentAvailable(
+                           rules.structureType, rule.item,
+                           rule.enchantment,
+                           rules.bastionLootProfile))
+                    : structureLootEnchantmentAvailable(
+                          rules.structureType, rule.item,
+                          rule.enchantment,
+                          rules.bastionLootProfile));
+        if (rule.enchantment != LootRule::ENCHANTMENT_NONE &&
+            !enchantmentSupported)
         {
             return lootConditionTr(
                 "The selected enchantment cannot occur on this item in this structure.");
         }
-        if (rule.enchantment >= 0 &&
+        const int maximumLevel =
+            rule.enchantment == LootRule::ENCHANTMENT_ANY
+                ? DP_ENCH_MAX_LEVEL
+                : (rule.enchantment >= 0
+                    ? desertPyramidEnchantmentMaxLevel(
+                          rule.enchantment)
+                    : DP_ENCH_MAX_LEVEL);
+        if (rule.enchantment != LootRule::ENCHANTMENT_NONE &&
             (rule.minLevel < 1 ||
-             rule.maxLevel > desertPyramidEnchantmentMaxLevel(
-                 rule.enchantment) ||
+             rule.maxLevel > maximumLevel ||
              rule.minLevel > rule.maxLevel))
         {
             return lootConditionTr("The enchantment-level range is invalid.");
@@ -973,11 +1004,12 @@ QByteArray serializeLootRuleSet(const LootRuleSet& rules)
     QDataStream stream(&data, QIODevice::WriteOnly);
     stream.setByteOrder(QDataStream::LittleEndian);
     stream.setVersion(QDataStream::Qt_5_15);
-    const quint16 version =
-        rules.chestPositionMode ==
-            LootRuleSet::CHEST_POSITION_ANY
-        ? LOOT_RULE_VERSION_LEGACY
-        : LOOT_RULE_VERSION_POSITION;
+    const quint16 version = rules.structureType == Bastion
+        ? LOOT_RULE_VERSION_BASTION_PROFILE
+        : (rules.chestPositionMode ==
+                LootRuleSet::CHEST_POSITION_ANY
+            ? LOOT_RULE_VERSION_LEGACY
+            : LOOT_RULE_VERSION_POSITION);
     stream << LOOT_RULE_MAGIC << version
            << qint16(rules.structureType)
            << quint8(rules.logic)
@@ -1003,6 +1035,8 @@ QByteArray serializeLootRuleSet(const LootRuleSet& rules)
                << qint32(rules.chestMinZ)
                << qint32(rules.chestMaxZ);
     }
+    if (version >= LOOT_RULE_VERSION_BASTION_PROFILE)
+        stream << quint8(rules.bastionLootProfile);
     return data;
 }
 
@@ -1024,7 +1058,8 @@ bool deserializeLootRuleSet(
     if (stream.status() != QDataStream::Ok ||
         magic != LOOT_RULE_MAGIC ||
         (version != LOOT_RULE_VERSION_LEGACY &&
-         version != LOOT_RULE_VERSION_POSITION) ||
+         version != LOOT_RULE_VERSION_POSITION &&
+         version != LOOT_RULE_VERSION_BASTION_PROFILE) ||
         count > 100000)
     {
         if (error)
@@ -1033,6 +1068,9 @@ bool deserializeLootRuleSet(
     }
 
     LootRuleSet decoded;
+    /* Versions 1-2 were generated from the original 1.16.1 tables. */
+    decoded.bastionLootProfile =
+        LootRuleSet::BASTION_LOOT_1_16_1;
     decoded.structureType = structureType;
     decoded.logic = logic;
     decoded.instanceMode = instanceMode;
@@ -1081,6 +1119,19 @@ bool deserializeLootRuleSet(
         decoded.chestMaxY = maxY;
         decoded.chestMinZ = minZ;
         decoded.chestMaxZ = maxZ;
+    }
+    if (version >= LOOT_RULE_VERSION_BASTION_PROFILE)
+    {
+        quint8 bastionLootProfile;
+        stream >> bastionLootProfile;
+        if (stream.status() != QDataStream::Ok)
+        {
+            if (error)
+                *error = lootConditionTr(
+                    "The Loot-condition data is truncated.");
+            return false;
+        }
+        decoded.bastionLootProfile = bastionLootProfile;
     }
     if (!stream.atEnd())
     {

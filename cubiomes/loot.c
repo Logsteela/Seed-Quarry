@@ -79,6 +79,39 @@ typedef struct LootTableDefinition16
 } LootTableDefinition16;
 
 #include "loot_tables_1_16_1.inc"
+#include "loot_tables_bastion_1_16_5.inc"
+
+static int resolveStructureLootTable16(
+    int table, const LootTableDefinition16 **definition,
+    const LootTablePool16 **pools,
+    const LootTableEntry16 **entries, const char **name)
+{
+    if (table >= LOOT_TABLE16_BASTION_BRIDGE_1_16_5 &&
+        table <= LOOT_TABLE16_BASTION_TREASURE_1_16_5)
+    {
+        int local = table - LOOT_TABLE16_BASTION_BRIDGE_1_16_5;
+        if (definition)
+            *definition = BASTION_LOOT_TABLES_1_16_5 + local;
+        if (pools)
+            *pools = BASTION_LOOT_POOLS_1_16_5;
+        if (entries)
+            *entries = BASTION_LOOT_ENTRIES_1_16_5;
+        if (name)
+            *name = BASTION_LOOT_TABLE_NAMES_1_16_5[local];
+        return 1;
+    }
+    if (table < 0 || table > LOOT_TABLE16_BASTION_TREASURE)
+        return 0;
+    if (definition)
+        *definition = STRUCTURE_LOOT_TABLES_16 + table;
+    if (pools)
+        *pools = STRUCTURE_LOOT_POOLS_16;
+    if (entries)
+        *entries = STRUCTURE_LOOT_ENTRIES_16;
+    if (name)
+        *name = STRUCTURE_LOOT_TABLE_NAMES_16[table];
+    return 1;
+}
 
 typedef struct ShipTemplate16
 {
@@ -232,6 +265,7 @@ static const uint8_t *applicableEnchantments16(int item, int *count)
     case DP_LOOT_GOLDEN_HOE:
     case DP_LOOT_GOLDEN_SHOVEL:
     case DP_LOOT_GOLDEN_PICKAXE:
+    case DP_LOOT_DIAMOND_PICKAXE:
     case DP_LOOT_DIAMOND_SHOVEL:
         *count = sizeof(digger); return digger;
     case DP_LOOT_GOLDEN_BOOTS:
@@ -848,20 +882,22 @@ int getShipwreckLoot16(
 int generateStructureLootTable16(
     StructureLoot *out, int table, uint64_t lootTableSeed)
 {
-    if (!out || table < 0 || table >= LOOT_TABLE16_COUNT)
+    const LootTableDefinition16 *definition;
+    const LootTablePool16 *tablePools;
+    const LootTableEntry16 *tableEntries;
+    if (!out || !resolveStructureLootTable16(
+            table, &definition, &tablePools, &tableEntries, 0))
         return 0;
 
     memset(out, 0, sizeof(*out));
     uint64_t rng;
     setSeed(&rng, lootTableSeed);
 
-    const LootTableDefinition16 *definition =
-        STRUCTURE_LOOT_TABLES_16 + table;
     for (int poolIndex = 0;
          poolIndex < definition->poolCount; poolIndex++)
     {
         const LootTablePool16 *pool =
-            STRUCTURE_LOOT_POOLS_16 +
+            tablePools +
             definition->firstPool + poolIndex;
         int rolls = lootUniform(
             &rng, pool->minRolls, pool->maxRolls);
@@ -869,7 +905,7 @@ int generateStructureLootTable16(
         for (int entryIndex = 0;
              entryIndex < pool->entryCount; entryIndex++)
         {
-            totalWeight += STRUCTURE_LOOT_ENTRIES_16[
+            totalWeight += tableEntries[
                 pool->firstEntry + entryIndex].weight;
         }
 
@@ -883,7 +919,7 @@ int generateStructureLootTable16(
                      selected < pool->entryCount - 1; selected++)
                 {
                     const LootTableEntry16 *candidate =
-                        STRUCTURE_LOOT_ENTRIES_16 +
+                        tableEntries +
                         pool->firstEntry + selected;
                     if (value < candidate->weight)
                         break;
@@ -891,7 +927,7 @@ int generateStructureLootTable16(
                 }
             }
             const LootTableEntry16 *entry =
-                STRUCTURE_LOOT_ENTRIES_16 +
+                tableEntries +
                 pool->firstEntry + selected;
             if (entry->flags & LT16_EMPTY)
                 continue;
@@ -942,9 +978,11 @@ int generateStructureLootTable16(
 
 const char *structureLootTable16Name(int table)
 {
-    if (table < 0 || table >= LOOT_TABLE16_COUNT)
+    const char *name = 0;
+    if (!resolveStructureLootTable16(
+            table, 0, 0, 0, &name))
         return 0;
-    return STRUCTURE_LOOT_TABLE_NAMES_16[table];
+    return name;
 }
 
 const char *desertPyramidLootItemName(int item)
@@ -1104,6 +1142,8 @@ const char *structureLootItemName(int item)
         "quartz",
         "dead_bush",
         "any_container",
+        "diamond_pickaxe",
+        "iron_block",
     };
     if (item < 0 || item >= DP_LOOT_ITEM_COUNT)
         return 0;
@@ -1115,18 +1155,23 @@ static int lootTableRangeHasItem16(
 {
     for (int table = firstTable; table < endTable; table++)
     {
-        const LootTableDefinition16 *definition =
-            STRUCTURE_LOOT_TABLES_16 + table;
+        const LootTableDefinition16 *definition;
+        const LootTablePool16 *tablePools;
+        const LootTableEntry16 *tableEntries;
+        if (!resolveStructureLootTable16(
+                table, &definition, &tablePools,
+                &tableEntries, 0))
+            return 0;
         for (int poolIndex = 0;
              poolIndex < definition->poolCount; poolIndex++)
         {
             const LootTablePool16 *pool =
-                STRUCTURE_LOOT_POOLS_16 +
+                tablePools +
                 definition->firstPool + poolIndex;
             for (int entryIndex = 0;
                  entryIndex < pool->entryCount; entryIndex++)
             {
-                if (STRUCTURE_LOOT_ENTRIES_16[
+                if (tableEntries[
                         pool->firstEntry + entryIndex].item == item)
                     return 1;
             }
@@ -1135,7 +1180,26 @@ static int lootTableRangeHasItem16(
     return 0;
 }
 
-int structureLootItemAvailable(int structureType, int item)
+static int bastionLootTableRange16(
+    int profile, int *firstTable, int *endTable)
+{
+    if (profile == BASTION_LOOT_PROFILE_1_16_1)
+    {
+        *firstTable = LOOT_TABLE16_BASTION_BRIDGE;
+        *endTable = LOOT_TABLE16_BASTION_TREASURE + 1;
+        return 1;
+    }
+    if (profile == BASTION_LOOT_PROFILE_1_16_2_TO_1_16_5)
+    {
+        *firstTable = LOOT_TABLE16_BASTION_BRIDGE_1_16_5;
+        *endTable = LOOT_TABLE16_COUNT;
+        return 1;
+    }
+    return 0;
+}
+
+int structureLootItemAvailable(int structureType, int item,
+                               int bastionLootProfile)
 {
     if (item < 0 || item >= DP_LOOT_ITEM_COUNT)
         return 0;
@@ -1148,9 +1212,12 @@ int structureLootItemAvailable(int structureType, int item)
             LOOT_TABLE16_VILLAGE_ARMORER,
             LOOT_TABLE16_BASTION_BRIDGE, item);
     case Bastion:
-        return lootTableRangeHasItem16(
-            LOOT_TABLE16_BASTION_BRIDGE,
-            LOOT_TABLE16_COUNT, item);
+    {
+        int firstTable, endTable;
+        return bastionLootTableRange16(
+                   bastionLootProfile, &firstTable, &endTable) &&
+            lootTableRangeHasItem16(firstTable, endTable, item);
+    }
     case Desert_Pyramid:
         return item <= DP_LOOT_SAND;
     case Treasure:
@@ -1257,7 +1324,8 @@ static int enchantmentAppliesToItem16(int item, int enchantment)
 }
 
 int structureLootEnchantmentAvailable(int structureType, int item,
-                                      int enchantment)
+                                      int enchantment,
+                                      int bastionLootProfile)
 {
     if (structureType != Bastion || item < 0 ||
         item >= DP_LOOT_ITEM_COUNT || enchantment < 0 ||
@@ -1266,22 +1334,30 @@ int structureLootEnchantmentAvailable(int structureType, int item,
 
     int hasRandomEnchant = 0;
     int hasSoulSpeed = 0;
-    for (int table = LOOT_TABLE16_BASTION_BRIDGE;
-         table < LOOT_TABLE16_COUNT; table++)
+    int firstTable, endTable;
+    if (!bastionLootTableRange16(
+            bastionLootProfile, &firstTable, &endTable))
+        return 0;
+    for (int table = firstTable; table < endTable; table++)
     {
-        const LootTableDefinition16 *definition =
-            STRUCTURE_LOOT_TABLES_16 + table;
+        const LootTableDefinition16 *definition;
+        const LootTablePool16 *tablePools;
+        const LootTableEntry16 *tableEntries;
+        if (!resolveStructureLootTable16(
+                table, &definition, &tablePools,
+                &tableEntries, 0))
+            return 0;
         for (int poolIndex = 0;
              poolIndex < definition->poolCount; poolIndex++)
         {
             const LootTablePool16 *pool =
-                STRUCTURE_LOOT_POOLS_16 +
+                tablePools +
                 definition->firstPool + poolIndex;
             for (int entryIndex = 0;
                  entryIndex < pool->entryCount; entryIndex++)
             {
                 const LootTableEntry16 *entry =
-                    STRUCTURE_LOOT_ENTRIES_16 +
+                    tableEntries +
                     pool->firstEntry + entryIndex;
                 if (entry->item != item ||
                     !(entry->flags & LT16_ENCHANT))
@@ -1297,6 +1373,20 @@ int structureLootEnchantmentAvailable(int structureType, int item,
         return hasSoulSpeed;
     return hasRandomEnchant &&
         enchantmentAppliesToItem16(item, enchantment);
+}
+
+int structureLootItemCanBeEnchanted(int structureType, int item,
+                                    int bastionLootProfile)
+{
+    for (int enchantment = 0;
+         enchantment < DP_ENCH_COUNT; enchantment++)
+    {
+        if (structureLootEnchantmentAvailable(
+                structureType, item, enchantment,
+                bastionLootProfile))
+            return 1;
+    }
+    return 0;
 }
 
 const char *desertPyramidEnchantmentName(int enchantment)
