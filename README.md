@@ -74,8 +74,9 @@ and checks every eligible upper-16-bit seed.
 `Fast sampled Loot search` is intended for quickly finding one useful result.
 For village Loot it may reject an entire 48-bit family after testing the first
 upper-16-bit seed that satisfies all non-Loot conditions, so it can miss
-matches. The application exposes this as a separate mode and describes the
-trade-off in the selector tooltip. Unsafe logical combinations disable
+matches. Once a family produces a Loot match, Seed Quarry checks every remaining
+upper-16-bit seed in that family. The application exposes this as a separate
+mode and describes the trade-off in the selector tooltip. Unsafe logical combinations disable
 village-family sampling automatically.
 
 Village generation also has deliberately conservative `unknown` cases when

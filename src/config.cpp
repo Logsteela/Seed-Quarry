@@ -561,6 +561,7 @@ void SearchConfig::reset()
     startseed = 0;
     stoponres = true;
     fastFamilyLoot = false;
+    detailedVillageTerrain = true;
     smin = 0;
     smax = ~(uint64_t)0;
 }
@@ -576,6 +577,7 @@ bool SearchConfig::read(const QString& line)
     if (sscanf(p, "#Progress: %" PRIu64, &startseed) == 1)  return true;
     if (sscanf(p, "#ResStop:  %d", &tmp) == 1)              { stoponres = tmp; return true; }
     if (sscanf(p, "#FastLoot48:%d", &tmp) == 1)             { fastFamilyLoot = tmp; return true; }
+    if (sscanf(p, "#VillageTerrainDetailed:%d", &tmp) == 1) { detailedVillageTerrain = tmp; return true; }
     if (sscanf(p, "#SMin:     %" PRIu64, &smin) == 1)       return true;
     if (sscanf(p, "#SMax:     %" PRIu64, &smax) == 1)       return true;
     return false;
@@ -590,6 +592,8 @@ void SearchConfig::write(QTextStream& stream)
     stream << "#Threads:  " << threads << "\n";
     stream << "#ResStop:  " << (int)stoponres << "\n";
     stream << "#FastLoot48: " << (int)fastFamilyLoot << "\n";
+    stream << "#VillageTerrainDetailed: "
+           << (int)detailedVillageTerrain << "\n";
     if (smin != 0)
         stream << "#SMin:     " << smin << "\n";
     if (smax != ~(uint64_t)0)

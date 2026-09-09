@@ -273,6 +273,59 @@ bool runCase(
     return true;
 }
 
+bool testDetailedTerrainCase(
+    QTextStream *errors, uint64_t seed,
+    int chunkX, int chunkZ, int biome,
+    Pos3 expectedPos, qint64 expectedLootSeed)
+{
+    VillageLayout16 layout;
+    QString error;
+    if (!generateVillageLayout16(
+            &layout, seed, chunkX, chunkZ, biome, &error))
+    {
+        *errors << error << '\n';
+        return false;
+    }
+
+    QVector<VillageLootChestSeed16> chests;
+    const QVector<Pos> noOverlap;
+    if (!assignVillageLootSeedsSingleStart16(
+            &chests, layout, seed, noOverlap,
+            VILLAGE_LOOT_TERRAIN_DETAILED, &error))
+    {
+        *errors << error << '\n';
+        return false;
+    }
+    for (const VillageLootChestSeed16& chest : chests)
+    {
+        if (chest.container.pos.x != expectedPos.x ||
+            chest.container.pos.y != expectedPos.y ||
+            chest.container.pos.z != expectedPos.z)
+        {
+            continue;
+        }
+        if (!chest.isExact() ||
+            qint64(chest.lootTableSeed) != expectedLootSeed)
+        {
+            *errors << "Detailed terrain seed mismatch at "
+                    << expectedPos.x << ',' << expectedPos.y
+                    << ',' << expectedPos.z << ": got "
+                    << (chest.isExact()
+                        ? QString::number(
+                              qint64(chest.lootTableSeed))
+                        : QStringLiteral("unresolved"))
+                    << ", expected " << expectedLootSeed << '\n';
+            return false;
+        }
+        return true;
+    }
+
+    *errors << "Detailed terrain test chest not found at "
+            << expectedPos.x << ',' << expectedPos.y << ','
+            << expectedPos.z << '\n';
+    return false;
+}
+
 int blockChunk(int coordinate)
 {
     return floordiv(coordinate, 16);
@@ -295,7 +348,8 @@ bool featureBeforeContainerInChunk(
 }
 
 bool scanUnresolved(
-    QTextStream *output, QTextStream *errors, int count)
+    QTextStream *output, QTextStream *errors, int count,
+    bool detailed = false)
 {
     static const int biomes[] = {
         plains, desert, savanna, snowy_tundra, taiga,
@@ -322,8 +376,13 @@ bool scanUnresolved(
             return false;
         }
         QVector<VillageLootChestSeed16> chests;
+        const QVector<Pos> noOverlap;
         if (!assignVillageLootSeedsSingleStart16(
-                &chests, layout, seed, false, &error))
+                &chests, layout, seed, noOverlap,
+                detailed
+                    ? VILLAGE_LOOT_TERRAIN_DETAILED
+                    : VILLAGE_LOOT_TERRAIN_LIGHT,
+                &error))
         {
             *errors << error << '\n';
             return false;
@@ -377,7 +436,8 @@ bool scanUnresolved(
 }
 
 bool findUnresolved(
-    QTextStream *output, QTextStream *errors, int count)
+    QTextStream *output, QTextStream *errors, int count,
+    bool detailed = false)
 {
     int found = 0;
     for (int index = 0; index < count; index++)
@@ -414,8 +474,13 @@ bool findUnresolved(
             return false;
         }
         QVector<VillageLootChestSeed16> chests;
+        const QVector<Pos> noOverlap;
         if (!assignVillageLootSeedsSingleStart16(
-                &chests, layout, seed, false, &error))
+                &chests, layout, seed, noOverlap,
+                detailed
+                    ? VILLAGE_LOOT_TERRAIN_DETAILED
+                    : VILLAGE_LOOT_TERRAIN_LIGHT,
+                &error))
         {
             *errors << error << '\n';
             return false;
@@ -442,6 +507,11 @@ bool findUnresolved(
             {
                 const VillagePiece16& failed = layout.pieces[
                     chest.unresolvedFeatureIndex];
+                const auto querySurface =
+                    layout.featureSurfaceHeights.constFind(
+                        horizontalKey(
+                            chest.unresolvedPos.x,
+                            chest.unresolvedPos.z));
                 *output << "FAILED\tindex="
                         << chest.unresolvedFeatureIndex
                         << "\tpos=" << failed.pos.x << ','
@@ -449,6 +519,13 @@ bool findUnresolved(
                         << "\treason="
                         << villageLootUnresolvedReasonName16(
                                chest.unresolvedReason)
+                        << "\tquery=" << chest.unresolvedPos.x << ','
+                        << chest.unresolvedPos.y << ','
+                        << chest.unresolvedPos.z
+                        << "\tsurface="
+                        << (querySurface ==
+                                layout.featureSurfaceHeights.constEnd()
+                            ? -1 : *querySurface)
                         << "\tfeature=" << failed.feature << '\n';
             }
             for (const VillagePiece16& piece : layout.pieces)
@@ -474,7 +551,8 @@ bool findUnresolved(
 
 bool printCase(
     QTextStream *output, QTextStream *errors,
-    uint64_t seed, int chunkX, int chunkZ, int biome)
+    uint64_t seed, int chunkX, int chunkZ, int biome,
+    bool detailed = false)
 {
     VillageLayout16 layout;
     QString error;
@@ -486,8 +564,13 @@ bool printCase(
         return false;
     }
     QVector<VillageLootChestSeed16> chests;
+    const QVector<Pos> noOverlap;
     if (!assignVillageLootSeedsSingleStart16(
-            &chests, layout, seed, false, &error))
+            &chests, layout, seed, noOverlap,
+            detailed
+                ? VILLAGE_LOOT_TERRAIN_DETAILED
+                : VILLAGE_LOOT_TERRAIN_LIGHT,
+            &error))
     {
         *errors << error << '\n';
         return false;
@@ -574,37 +657,45 @@ int main(int argc, char **argv)
     QTextStream output(stdout);
     QTextStream errors(stderr);
 
+    const QString command = argc >= 2
+        ? QString::fromLocal8Bit(argv[1]) : QString();
     if (argc == 3 &&
-        QString::fromLocal8Bit(argv[1]) ==
-            QLatin1String("--scan-unresolved"))
+        (command == QLatin1String("--scan-unresolved") ||
+         command == QLatin1String("--scan-detailed")))
     {
         bool ok;
         const int count = QString::fromLocal8Bit(
             argv[2]).toInt(&ok);
         if (!ok || count <= 0)
         {
-            errors << "--scan-unresolved requires a positive count.\n";
+            errors << command << " requires a positive count.\n";
             return 1;
         }
-        return scanUnresolved(&output, &errors, count) ? 0 : 5;
+        return scanUnresolved(
+            &output, &errors, count,
+            command == QLatin1String("--scan-detailed"))
+            ? 0 : 5;
     }
     if (argc == 3 &&
-        QString::fromLocal8Bit(argv[1]) ==
-            QLatin1String("--find-unresolved"))
+        (command == QLatin1String("--find-unresolved") ||
+         command == QLatin1String("--find-detailed")))
     {
         bool ok;
         const int count = QString::fromLocal8Bit(
             argv[2]).toInt(&ok);
         if (!ok || count <= 0)
         {
-            errors << "--find-unresolved requires a positive count.\n";
+            errors << command << " requires a positive count.\n";
             return 1;
         }
-        return findUnresolved(&output, &errors, count) ? 0 : 6;
+        return findUnresolved(
+            &output, &errors, count,
+            command == QLatin1String("--find-detailed"))
+            ? 0 : 6;
     }
     if (argc == 6 &&
-        QString::fromLocal8Bit(argv[1]) ==
-            QLatin1String("--case"))
+        (command == QLatin1String("--case") ||
+         command == QLatin1String("--case-detailed")))
     {
         bool seedOk, xOk, zOk, biomeOk;
         const uint64_t seed = uint64_t(
@@ -623,15 +714,20 @@ int main(int argc, char **argv)
         }
         return printCase(
             &output, &errors, seed, chunkX, chunkZ,
-            biome) ? 0 : 7;
+            biome,
+            command == QLatin1String("--case-detailed"))
+            ? 0 : 7;
     }
     if (argc != 1)
     {
         errors
             << "Usage: village_loot_seed_probe "
                "[--scan-unresolved count | "
+               "--scan-detailed count | "
                "--find-unresolved count | "
-               "--case seed chunkX chunkZ biomeId]\n";
+               "--find-detailed count | "
+               "--case seed chunkX chunkZ biomeId | "
+               "--case-detailed seed chunkX chunkZ biomeId]\n";
         return 1;
     }
     if (!runCase(
@@ -724,6 +820,17 @@ int main(int argc, char **argv)
             INT64_C(-7118312834127643465)))
     {
         return 5;
+    }
+    if (!testDetailedTerrainCase(
+            &errors, UINT64_C(15998078693348208393),
+            -310, 310, desert, Pos3{-4953, 65, 4967},
+            INT64_C(7332245263234294390)) ||
+        !testDetailedTerrainCase(
+            &errors, UINT64_C(3675580924452282611),
+            454, -171, desert, Pos3{7255, 70, -2784},
+            INT64_C(-8941411351550336256)))
+    {
+        return 6;
     }
     output << "SELF_TEST\tok\n";
     return 0;

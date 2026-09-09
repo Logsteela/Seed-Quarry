@@ -133,6 +133,12 @@ FormSearchControl::FormSearchControl(MainWindow *parent)
 
     ui->comboLootMode->addItem(tr("Exact Loot search"), false);
     ui->comboLootMode->addItem(tr("Fast sampled Loot search"), true);
+    ui->comboVillageTerrainMode->addItem(
+        tr("Light Village terrain"), false);
+    ui->comboVillageTerrainMode->addItem(
+        tr("Detailed Village terrain"), true);
+    ui->comboVillageTerrainMode->setCurrentIndex(
+        ui->comboVillageTerrainMode->findData(true));
 
     model = new SeedTableModel(ui->results);
     proxy = new SeedSortProxy(ui->results);
@@ -204,6 +210,8 @@ SearchConfig FormSearchControl::getSearchConfig()
     s.fastFamilyLoot =
         supportsFast48Loot(s.searchtype) &&
         ui->comboLootMode->currentData().toBool();
+    s.detailedVillageTerrain =
+        ui->comboVillageTerrainMode->currentData().toBool();
     s.smin = smin;
     s.smax = smax;
     return s;
@@ -226,6 +234,9 @@ bool FormSearchControl::setSearchConfig(SearchConfig s, bool quiet)
     ui->checkStop->setChecked(s.stoponres);
     ui->comboLootMode->setCurrentIndex(
         ui->comboLootMode->findData(s.fastFamilyLoot));
+    ui->comboVillageTerrainMode->setCurrentIndex(
+        ui->comboVillageTerrainMode->findData(
+            s.detailedVillageTerrain));
     smin = s.smin;
     smax = s.smax;
 
@@ -316,6 +327,7 @@ void FormSearchControl::searchLockUi(bool lock)
         ui->spinThreads->setEnabled(false);
         ui->buttonMore->setEnabled(false);
         ui->comboLootMode->setEnabled(false);
+        ui->comboVillageTerrainMode->setEnabled(false);
     }
     else
     {
@@ -328,6 +340,7 @@ void FormSearchControl::searchLockUi(bool lock)
         int type = ui->comboSearchType->currentData().toInt();
         ui->buttonMore->setEnabled(type == SEARCH_INC || type == SEARCH_LIST);
         ui->comboLootMode->setEnabled(supportsFast48Loot(type));
+        ui->comboVillageTerrainMode->setEnabled(true);
     }
     emit searchStatusChanged(lock);
 }
@@ -543,7 +556,10 @@ void FormSearchControl::on_buttonSearchHelp_clicked()
         "<b>Fast sampled Loot search</b> uses lower-48-bit Loot checks where "
         "possible. For village Loot, it tests the first upper-16-bit seed "
         "that satisfies every non-Loot condition and may skip the rest of "
-        "that 48-bit family if the sample fails. This can miss matching seeds. "
+        "that 48-bit family if the sample fails. Once a family produces a "
+        "Loot match, every remaining upper-16-bit seed in that family is "
+        "checked. Families rejected before their first match can still hide "
+        "matching seeds. "
         "Unsafe logical combinations automatically disable village-family "
         "sampling."
         "</p><p>"

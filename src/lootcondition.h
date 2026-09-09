@@ -106,6 +106,7 @@ struct VillageLootRawCacheKey
     int z = 0;
     int biomeId = 0;
     bool contentsRequired = false;
+    bool detailedVillageTerrain = true;
 
     bool operator<(const VillageLootRawCacheKey& other) const;
 };
@@ -140,6 +141,7 @@ struct LootSearchCache
     uint64_t villageCalculations = 0;
     uint64_t villageHits = 0;
     uint64_t villageChestCount = 0;
+    bool detailedVillageTerrain = true;
     std::map<LootSearchCacheKey, LootSearchCacheEntry> entries;
     std::map<VillageLootRawCacheKey, VillageLootRawCacheEntry>
         villageEntries;

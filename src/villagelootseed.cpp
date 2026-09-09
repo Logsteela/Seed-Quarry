@@ -4,8 +4,13 @@
 #include "cubiomes/noise.h"
 
 #include <QHash>
+#include <QVector>
 
 #include <algorithm>
+#include <array>
+#include <cmath>
+#include <cstring>
+#include <memory>
 
 namespace {
 
@@ -154,20 +159,870 @@ enum FeatureBlockState
     FEATURE_BLOCK_PLACED,
 };
 
+enum DeepBlockState16 : quint8
+{
+    DEEP_BLOCK_AIR,
+    DEEP_BLOCK_WATER,
+    DEEP_BLOCK_LAVA,
+    DEEP_BLOCK_STONE,
+    DEEP_BLOCK_SOIL,
+    DEEP_BLOCK_SAND,
+    DEEP_BLOCK_GRAVEL,
+};
+
+struct DeepChunk16
+{
+    QVector<quint8> blocks;
+    QVector<quint8> carvingMask;
+    bool valid = false;
+};
+
+class DeepTerrainResolver16
+{
+public:
+    DeepTerrainResolver16(
+        uint64_t worldSeed, const VillageLayout16& layout)
+        : seed(worldSeed)
+        , layout(layout)
+    {
+        setupGenerator(&generator, MC_1_16_1, 0);
+        applySeed(&generator, DIM_OVERWORLD, seed);
+        initSurfaceNoise(
+            &surfaceNoise, DIM_OVERWORLD, seed);
+    }
+
+    bool get(const Pos3& pos, FeatureBlockState *state)
+    {
+        if (!state || pos.y < 0 || pos.y >= 256 ||
+            layout.villageType != VillageLayout16::DESERT)
+        {
+            return false;
+        }
+        const int chunkX = floordiv(pos.x, 16);
+        const int chunkZ = floordiv(pos.z, 16);
+        const std::shared_ptr<DeepChunk16> chunk =
+            getChunk(chunkX, chunkZ);
+        if (!chunk || !chunk->valid)
+            return false;
+        const int localX = pos.x - chunkX * 16;
+        const int localZ = pos.z - chunkZ * 16;
+        switch (chunk->blocks[index(localX, pos.y, localZ)])
+        {
+        case DEEP_BLOCK_AIR:
+            *state = FEATURE_BLOCK_AIR;
+            break;
+        case DEEP_BLOCK_WATER:
+        case DEEP_BLOCK_LAVA:
+            *state = FEATURE_BLOCK_WATER;
+            break;
+        case DEEP_BLOCK_SOIL:
+            *state = FEATURE_BLOCK_SOIL;
+            break;
+        case DEEP_BLOCK_SAND:
+            *state = FEATURE_BLOCK_SAND;
+            break;
+        default:
+            *state = FEATURE_BLOCK_STURDY;
+            break;
+        }
+        return true;
+    }
+
+    bool firstFreeHeight(int x, int z, int *height)
+    {
+        if (!height || layout.villageType !=
+                VillageLayout16::DESERT)
+        {
+            return false;
+        }
+        const int chunkX = floordiv(x, 16);
+        const int chunkZ = floordiv(z, 16);
+        const std::shared_ptr<DeepChunk16> chunk =
+            getChunk(chunkX, chunkZ);
+        if (!chunk || !chunk->valid)
+            return false;
+        const int localX = x - chunkX * 16;
+        const int localZ = z - chunkZ * 16;
+        for (int y = 255; y >= 0; y--)
+        {
+            if (chunk->blocks[index(localX, y, localZ)] !=
+                    DEEP_BLOCK_AIR)
+            {
+                *height = y + 1;
+                return true;
+            }
+        }
+        *height = 0;
+        return true;
+    }
+
+private:
+    static int index(int x, int y, int z)
+    {
+        return x | (z << 4) | (y << 8);
+    }
+
+    static float minecraftSin(float value)
+    {
+        static const std::array<float, 65536> table = [] {
+            std::array<float, 65536> result = {};
+            constexpr double pi =
+                3.14159265358979323846264338327950288;
+            for (int i = 0; i < int(result.size()); i++)
+            {
+                result[i] = float(std::sin(
+                    double(i) * pi * 2.0 / 65536.0));
+            }
+            return result;
+        }();
+        return table[int(value * 10430.378f) & 65535];
+    }
+
+    static float minecraftCos(float value)
+    {
+        static const std::array<float, 65536> table = [] {
+            std::array<float, 65536> result = {};
+            constexpr double pi =
+                3.14159265358979323846264338327950288;
+            for (int i = 0; i < int(result.size()); i++)
+            {
+                result[i] = float(std::sin(
+                    double(i) * pi * 2.0 / 65536.0));
+            }
+            return result;
+        }();
+        return table[
+            (int(value * 10430.378f) + 16384) & 65535];
+    }
+
+    static bool sandSurfaceBiome(int biome)
+    {
+        return biome == desert ||
+            biome == desert_hills ||
+            biome == desert_lakes ||
+            biome == beach;
+    }
+
+    static double fastInverseSqrt(double value)
+    {
+        const double half = 0.5 * value;
+        uint64_t bits;
+        std::memcpy(&bits, &value, sizeof(bits));
+        bits = UINT64_C(6910469410427058090) - (bits >> 1);
+        std::memcpy(&value, &bits, sizeof(value));
+        return value * (1.5 - half * value * value);
+    }
+
+    static const std::array<float, 24 * 24 * 24>& beardTable()
+    {
+        static const std::array<float, 24 * 24 * 24> table = [] {
+            std::array<float, 24 * 24 * 24> result = {};
+            for (int z = -12; z < 12; z++)
+            {
+                for (int x = -12; x < 12; x++)
+                {
+                    for (int y = -12; y < 12; y++)
+                    {
+                        const double horizontal =
+                            double(x * x + z * z);
+                        const double vertical = y + 0.5;
+                        const double verticalSquared =
+                            vertical * vertical;
+                        const double attenuation = std::exp(
+                            -(verticalSquared / 16.0 +
+                              horizontal / 16.0));
+                        const double slope =
+                            -vertical * fastInverseSqrt(
+                                verticalSquared / 2.0 +
+                                horizontal / 2.0) / 2.0;
+                        result[(z + 12) * 24 * 24 +
+                               (x + 12) * 24 + (y + 12)] =
+                            float(slope * attenuation);
+                    }
+                }
+            }
+            return result;
+        }();
+        return table;
+    }
+
+    static float beardValue(int x, int y, int z)
+    {
+        if (x < -12 || x >= 12 || y < -12 || y >= 12 ||
+            z < -12 || z >= 12)
+        {
+            return 0.0f;
+        }
+        return beardTable()[
+            (z + 12) * 24 * 24 +
+            (x + 12) * 24 + (y + 12)];
+    }
+
+    double structureDensity(int x, int y, int z) const
+    {
+        double result = 0.0;
+        for (const VillagePiece16& piece : layout.pieces)
+        {
+            if (!piece.terrainMatching)
+            {
+                const int distanceX = qMax(
+                    0, qMax(piece.bb0.x - x, x - piece.bb1.x));
+                const int distanceZ = qMax(
+                    0, qMax(piece.bb0.z - z, z - piece.bb1.z));
+                const int distanceY =
+                    y - (piece.bb0.y + piece.groundLevelDelta);
+                result += beardValue(
+                    distanceX, distanceY, distanceZ) * 0.8;
+            }
+            for (const VillageJunction16& junction : piece.junctions)
+            {
+                result += beardValue(
+                    x - junction.source.x,
+                    y - junction.source.y,
+                    z - junction.source.z) * 0.4;
+            }
+        }
+        return result;
+    }
+
+    const std::array<double, 33> *column(int x, int z)
+    {
+        const qint64 key = horizontalKey(x, z);
+        auto found = columns.constFind(key);
+        if (found != columns.constEnd())
+            return &*found;
+        std::array<double, 33> generated = {};
+        if (!getTerrainNoiseColumn116(
+                &generator, &surfaceNoise,
+                x, z, generated.data()))
+        {
+            return nullptr;
+        }
+        columns.insert(key, generated);
+        found = columns.constFind(key);
+        return &*found;
+    }
+
+    bool rawBlock(int x, int y, int z, quint8 *state)
+    {
+        const int cellX = floordiv(x, 4);
+        const int cellZ = floordiv(z, 4);
+        const int localX = x - cellX * 4;
+        const int localZ = z - cellZ * 4;
+        const int cellY = y >> 3;
+        const int localY = y & 7;
+        const std::array<double, 33> *c00 =
+            column(cellX, cellZ);
+        const std::array<double, 33> *c01 =
+            column(cellX, cellZ + 1);
+        const std::array<double, 33> *c10 =
+            column(cellX + 1, cellZ);
+        const std::array<double, 33> *c11 =
+            column(cellX + 1, cellZ + 1);
+        if (!c00 || !c01 || !c10 || !c11)
+            return false;
+        const double density = lerp3(
+            localY / 8.0, localX / 4.0, localZ / 4.0,
+            (*c00)[cellY], (*c00)[cellY + 1],
+            (*c10)[cellY], (*c10)[cellY + 1],
+            (*c01)[cellY], (*c01)[cellY + 1],
+            (*c11)[cellY], (*c11)[cellY + 1]);
+        double shapedDensity = qBound(
+            -1.0, density / 200.0, 1.0);
+        shapedDensity = shapedDensity / 2.0 -
+            shapedDensity * shapedDensity * shapedDensity / 24.0;
+        shapedDensity += structureDensity(x, y, z);
+        *state = shapedDensity > 0.0
+            ? DEEP_BLOCK_STONE
+            : (y < 63 ? DEEP_BLOCK_WATER : DEEP_BLOCK_AIR);
+        return true;
+    }
+
+    bool buildBase(DeepChunk16 *chunk, int chunkX, int chunkZ)
+    {
+        chunk->blocks.fill(DEEP_BLOCK_AIR, 16 * 16 * 256);
+        chunk->carvingMask.fill(0, 16 * 16 * 256);
+        for (int localX = 0; localX < 16; localX++)
+        {
+            for (int localZ = 0; localZ < 16; localZ++)
+            {
+                const int x = chunkX * 16 + localX;
+                const int z = chunkZ * 16 + localZ;
+                for (int y = 0; y < 256; y++)
+                {
+                    quint8 state;
+                    if (!rawBlock(x, y, z, &state))
+                        return false;
+                    chunk->blocks[index(localX, y, localZ)] =
+                        state;
+                }
+            }
+        }
+
+        uint64_t random;
+        const uint64_t terrainSeed =
+            uint64_t(int64_t(chunkX)) * UINT64_C(341873128712) +
+            uint64_t(int64_t(chunkZ)) * UINT64_C(132897987541);
+        setSeed(&random, terrainSeed);
+        for (int localX = 0; localX < 16; localX++)
+        {
+            for (int localZ = 0; localZ < 16; localZ++)
+            {
+                const int x = chunkX * 16 + localX;
+                const int z = chunkZ * 16 + localZ;
+                int topY = 255;
+                while (topY >= 0 &&
+                       chunk->blocks[index(
+                           localX, topY, localZ)] ==
+                           DEEP_BLOCK_AIR)
+                {
+                    topY--;
+                }
+                const double surface = sampleOctaveAmp(
+                    &surfaceNoise.octsurf,
+                    x * 0.0625, z * 0.0625, 0.0,
+                    0.0625, localX * 0.0625, 0) * 15.0;
+                const int depthLimit = int(
+                    surface / 3.0 + 3.0 +
+                    nextDouble(&random) * 0.25);
+                const int biome = getBiomeAt(
+                    &generator, 1, x, 0, z);
+                if (biome < 0)
+                    return false;
+                const bool sandy = sandSurfaceBiome(biome);
+                quint8 top = sandy
+                    ? DEEP_BLOCK_SAND : DEEP_BLOCK_SOIL;
+                quint8 under = sandy
+                    ? DEEP_BLOCK_SAND : DEEP_BLOCK_SOIL;
+                const quint8 underwater = DEEP_BLOCK_GRAVEL;
+                int remaining = -1;
+                for (int y = qMin(255, topY + 1); y >= 0; y--)
+                {
+                    quint8& current = chunk->blocks[
+                        index(localX, y, localZ)];
+                    if (current == DEEP_BLOCK_AIR)
+                    {
+                        remaining = -1;
+                        continue;
+                    }
+                    if (current != DEEP_BLOCK_STONE)
+                        continue;
+                    if (remaining == -1)
+                    {
+                        if (depthLimit <= 0)
+                        {
+                            top = DEEP_BLOCK_AIR;
+                            under = DEEP_BLOCK_STONE;
+                        }
+                        else if (y >= 59 && y <= 64)
+                        {
+                            top = sandy
+                                ? DEEP_BLOCK_SAND : DEEP_BLOCK_SOIL;
+                            under = top;
+                        }
+                        if (y < 63 && top == DEEP_BLOCK_AIR)
+                            top = DEEP_BLOCK_WATER;
+                        remaining = depthLimit;
+                        if (y >= 62)
+                        {
+                            current = top;
+                        }
+                        else if (y < 56 - depthLimit)
+                        {
+                            top = DEEP_BLOCK_AIR;
+                            under = DEEP_BLOCK_STONE;
+                            current = underwater;
+                        }
+                        else
+                        {
+                            current = under;
+                        }
+                        continue;
+                    }
+                    if (remaining <= 0)
+                        continue;
+                    current = under;
+                    remaining--;
+                    if (remaining == 0 &&
+                        under == DEEP_BLOCK_SAND &&
+                        depthLimit > 1)
+                    {
+                        remaining = nextInt(&random, 4) +
+                            qMax(0, y - 63);
+                        under = DEEP_BLOCK_STONE;
+                    }
+                }
+            }
+        }
+        return true;
+    }
+
+    static bool canCarveBranch(
+        int chunkX, int chunkZ, double x, double z,
+        int branch, int count, float width)
+    {
+        const double dx = x - (chunkX * 16 + 8);
+        const double dz = z - (chunkZ * 16 + 8);
+        const double remaining = count - branch;
+        const double reach = width + 18.0f;
+        return dx * dx + dz * dz - remaining * remaining <=
+            reach * reach;
+    }
+
+    static bool isBoundary(
+        int minX, int maxX, int minZ, int maxZ,
+        int x, int z)
+    {
+        return x == minX || x == maxX - 1 ||
+            z == minZ || z == maxZ - 1;
+    }
+
+    static bool regionHasWater(
+        const DeepChunk16& chunk,
+        int minX, int maxX, int minY, int maxY,
+        int minZ, int maxZ)
+    {
+        for (int x = minX; x < maxX; x++)
+        {
+            for (int z = minZ; z < maxZ; z++)
+            {
+                for (int y = minY - 1; y <= maxY + 1; y++)
+                {
+                    if (y >= 0 && y < 256 &&
+                        chunk.blocks[index(x, y, z)] ==
+                            DEEP_BLOCK_WATER)
+                    {
+                        return true;
+                    }
+                    if (y != maxY + 1 &&
+                        !isBoundary(
+                            minX, maxX, minZ, maxZ, x, z))
+                    {
+                        y = maxY;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    static void carveRegion(
+        DeepChunk16 *chunk, bool ravine,
+        const std::array<float, 256> *stretch,
+        int chunkX, int chunkZ,
+        double x, double y, double z,
+        double horizontalRadius, double verticalRadius)
+    {
+        const double centerX = chunkX * 16 + 8;
+        const double centerZ = chunkZ * 16 + 8;
+        if (x < centerX - 16.0 - horizontalRadius * 2.0 ||
+            z < centerZ - 16.0 - horizontalRadius * 2.0 ||
+            x > centerX + 16.0 + horizontalRadius * 2.0 ||
+            z > centerZ + 16.0 + horizontalRadius * 2.0)
+        {
+            return;
+        }
+        const int minX = qMax(
+            int(std::floor(x - horizontalRadius)) -
+                chunkX * 16 - 1,
+            0);
+        const int maxX = qMin(
+            int(std::floor(x + horizontalRadius)) -
+                chunkX * 16 + 1,
+            16);
+        const int minY = qMax(
+            int(std::floor(y - verticalRadius)) - 1, 1);
+        const int maxY = qMin(
+            int(std::floor(y + verticalRadius)) + 1, 248);
+        const int minZ = qMax(
+            int(std::floor(z - horizontalRadius)) -
+                chunkZ * 16 - 1,
+            0);
+        const int maxZ = qMin(
+            int(std::floor(z + horizontalRadius)) -
+                chunkZ * 16 + 1,
+            16);
+        if (regionHasWater(
+                *chunk, minX, maxX, minY, maxY,
+                minZ, maxZ))
+        {
+            return;
+        }
+
+        for (int localX = minX; localX < maxX; localX++)
+        {
+            const int worldX = localX + chunkX * 16;
+            const double scaledX =
+                (worldX + 0.5 - x) / horizontalRadius;
+            for (int localZ = minZ; localZ < maxZ; localZ++)
+            {
+                const int worldZ = localZ + chunkZ * 16;
+                const double scaledZ =
+                    (worldZ + 0.5 - z) / horizontalRadius;
+                if (scaledX * scaledX + scaledZ * scaledZ >= 1.0)
+                    continue;
+                for (int blockY = maxY; blockY > minY; blockY--)
+                {
+                    const double scaledY =
+                        (blockY - 0.5 - y) / verticalRadius;
+                    bool excluded;
+                    if (ravine)
+                    {
+                        excluded =
+                            (scaledX * scaledX +
+                             scaledZ * scaledZ) *
+                                (*stretch)[blockY - 1] +
+                            scaledY * scaledY / 6.0 >= 1.0;
+                    }
+                    else
+                    {
+                        excluded = scaledY <= -0.7 ||
+                            scaledX * scaledX +
+                                scaledY * scaledY +
+                                scaledZ * scaledZ >= 1.0;
+                    }
+                    if (excluded)
+                        continue;
+                    const int blockIndex = index(
+                        localX, blockY, localZ);
+                    if (chunk->carvingMask[blockIndex])
+                        continue;
+                    chunk->carvingMask[blockIndex] = 1;
+                    quint8& current = chunk->blocks[blockIndex];
+                    const quint8 above = blockY < 255
+                        ? chunk->blocks[index(
+                              localX, blockY + 1, localZ)]
+                        : quint8(DEEP_BLOCK_AIR);
+                    const bool carvable =
+                        current == DEEP_BLOCK_STONE ||
+                        current == DEEP_BLOCK_SOIL ||
+                        ((current == DEEP_BLOCK_SAND ||
+                          current == DEEP_BLOCK_GRAVEL) &&
+                         above != DEEP_BLOCK_WATER);
+                    if (!carvable)
+                        continue;
+                    current = blockY < 11
+                        ? DEEP_BLOCK_LAVA : DEEP_BLOCK_AIR;
+                }
+            }
+        }
+    }
+
+    static void carveCave(
+        DeepChunk16 *chunk, int chunkX, int chunkZ,
+        double x, double y, double z,
+        float width, double heightRatio)
+    {
+        const double radius = 1.5 +
+            minecraftSin(1.5707964f) * width;
+        carveRegion(
+            chunk, false, nullptr, chunkX, chunkZ,
+            x + 1.0, y, z, radius,
+            radius * heightRatio);
+    }
+
+    static void carveTunnels(
+        DeepChunk16 *chunk, uint64_t tunnelSeed,
+        int chunkX, int chunkZ,
+        double x, double y, double z,
+        float width, float yaw, float pitch,
+        int branchStart, int branchCount,
+        double heightRatio)
+    {
+        uint64_t random;
+        setSeed(&random, tunnelSeed);
+        const int split = nextInt(&random, branchCount / 2) +
+            branchCount / 4;
+        const bool gentle = nextInt(&random, 6) == 0;
+        float yawVelocity = 0.0f;
+        float pitchVelocity = 0.0f;
+        for (int branch = branchStart;
+             branch < branchCount; branch++)
+        {
+            const double radius = 1.5 +
+                minecraftSin(
+                    float(3.14159265358979323846 *
+                          branch / branchCount)) * width;
+            const double verticalRadius = radius * heightRatio;
+            const float horizontal = minecraftCos(pitch);
+            x += minecraftCos(yaw) * horizontal;
+            y += minecraftSin(pitch);
+            z += minecraftSin(yaw) * horizontal;
+            pitch *= gentle ? 0.92f : 0.7f;
+            pitch += pitchVelocity * 0.1f;
+            yaw += yawVelocity * 0.1f;
+            pitchVelocity *= 0.9f;
+            yawVelocity *= 0.75f;
+            pitchVelocity +=
+                (nextFloat(&random) - nextFloat(&random)) *
+                nextFloat(&random) * 2.0f;
+            yawVelocity +=
+                (nextFloat(&random) - nextFloat(&random)) *
+                nextFloat(&random) * 4.0f;
+            if (branch == split && width > 1.0f)
+            {
+                const uint64_t firstSeed = nextLong(&random);
+                const float firstWidth =
+                    nextFloat(&random) * 0.5f + 0.5f;
+                carveTunnels(
+                    chunk, firstSeed, chunkX, chunkZ,
+                    x, y, z, firstWidth,
+                    yaw - 1.5707964f, pitch / 3.0f,
+                    branch, branchCount, 1.0);
+                const uint64_t secondSeed = nextLong(&random);
+                const float secondWidth =
+                    nextFloat(&random) * 0.5f + 0.5f;
+                carveTunnels(
+                    chunk, secondSeed, chunkX, chunkZ,
+                    x, y, z, secondWidth,
+                    yaw + 1.5707964f, pitch / 3.0f,
+                    branch, branchCount, 1.0);
+                return;
+            }
+            if (nextInt(&random, 4) == 0)
+                continue;
+            if (!canCarveBranch(
+                    chunkX, chunkZ, x, z,
+                    branch, branchCount, width))
+            {
+                return;
+            }
+            carveRegion(
+                chunk, false, nullptr, chunkX, chunkZ,
+                x, y, z, radius, verticalRadius);
+        }
+    }
+
+    static void carveCavesFrom(
+        DeepChunk16 *chunk, uint64_t *random,
+        int sourceX, int sourceZ,
+        int chunkX, int chunkZ)
+    {
+        constexpr int branchCount = 112;
+        const int caveCount = nextInt(
+            random,
+            nextInt(random,
+                nextInt(random, 15) + 1) + 1);
+        for (int cave = 0; cave < caveCount; cave++)
+        {
+            const double x = sourceX * 16 + nextInt(random, 16);
+            const double y = nextInt(
+                random, nextInt(random, 120) + 8);
+            const double z = sourceZ * 16 + nextInt(random, 16);
+            int tunnels = 1;
+            if (nextInt(random, 4) == 0)
+            {
+                const float width =
+                    1.0f + nextFloat(random) * 6.0f;
+                const uint64_t caveSeed = nextLong(random);
+                carveCave(
+                    chunk, chunkX, chunkZ,
+                    x, y, z, width, 0.5);
+                (void) caveSeed;
+                tunnels += nextInt(random, 4);
+            }
+            for (int tunnel = 0; tunnel < tunnels; tunnel++)
+            {
+                const float yaw =
+                    nextFloat(random) *
+                    float(3.14159265358979323846 * 2.0);
+                const float pitch =
+                    (nextFloat(random) - 0.5f) / 4.0f;
+                float width =
+                    nextFloat(random) * 2.0f +
+                    nextFloat(random);
+                if (nextInt(random, 10) == 0)
+                {
+                    width *= nextFloat(random) *
+                        nextFloat(random) * 3.0f + 1.0f;
+                }
+                const int count = branchCount -
+                    nextInt(random, branchCount / 4);
+                const uint64_t tunnelSeed = nextLong(random);
+                carveTunnels(
+                    chunk, tunnelSeed, chunkX, chunkZ,
+                    x, y, z, width, yaw, pitch,
+                    0, count, 1.0);
+            }
+        }
+    }
+
+    static void carveRavineFrom(
+        DeepChunk16 *chunk, uint64_t *random,
+        int sourceX, int sourceZ,
+        int chunkX, int chunkZ)
+    {
+        constexpr int branchCount = 112;
+        double x = sourceX * 16 + nextInt(random, 16);
+        double y = nextInt(
+            random, nextInt(random, 40) + 8) + 20;
+        double z = sourceZ * 16 + nextInt(random, 16);
+        float yaw = nextFloat(random) *
+            float(3.14159265358979323846 * 2.0);
+        float pitch =
+            (nextFloat(random) - 0.5f) * 2.0f / 8.0f;
+        const float width =
+            (nextFloat(random) * 2.0f +
+             nextFloat(random)) * 2.0f;
+        const int count = branchCount -
+            nextInt(random, branchCount / 4);
+        const uint64_t ravineSeed = nextLong(random);
+
+        uint64_t tunnelRandom;
+        setSeed(&tunnelRandom, ravineSeed);
+        std::array<float, 256> stretch = {};
+        float currentStretch = 1.0f;
+        for (int i = 0; i < 256; i++)
+        {
+            if (i == 0 || nextInt(&tunnelRandom, 3) == 0)
+            {
+                currentStretch = 1.0f +
+                    nextFloat(&tunnelRandom) *
+                    nextFloat(&tunnelRandom);
+            }
+            stretch[i] = currentStretch * currentStretch;
+        }
+        float yawVelocity = 0.0f;
+        float pitchVelocity = 0.0f;
+        for (int branch = 0; branch < count; branch++)
+        {
+            double radius = 1.5 +
+                minecraftSin(
+                    float(3.14159265358979323846 *
+                          branch / count)) * width;
+            double verticalRadius = radius * 3.0;
+            radius *= nextFloat(&tunnelRandom) * 0.25 + 0.75;
+            verticalRadius *=
+                nextFloat(&tunnelRandom) * 0.25 + 0.75;
+            const float horizontal = minecraftCos(pitch);
+            x += minecraftCos(yaw) * horizontal;
+            y += minecraftSin(pitch);
+            z += minecraftSin(yaw) * horizontal;
+            pitch *= 0.7f;
+            pitch += pitchVelocity * 0.05f;
+            yaw += yawVelocity * 0.05f;
+            pitchVelocity *= 0.8f;
+            yawVelocity *= 0.5f;
+            pitchVelocity +=
+                (nextFloat(&tunnelRandom) -
+                 nextFloat(&tunnelRandom)) *
+                nextFloat(&tunnelRandom) * 2.0f;
+            yawVelocity +=
+                (nextFloat(&tunnelRandom) -
+                 nextFloat(&tunnelRandom)) *
+                nextFloat(&tunnelRandom) * 4.0f;
+            if (nextInt(&tunnelRandom, 4) == 0)
+                continue;
+            if (!canCarveBranch(
+                    chunkX, chunkZ, x, z,
+                    branch, count, width))
+            {
+                return;
+            }
+            carveRegion(
+                chunk, true, &stretch, chunkX, chunkZ,
+                x, y, z, radius, verticalRadius);
+        }
+    }
+
+    void setCarverSeed(
+        uint64_t *random, uint64_t carverSeed,
+        int chunkX, int chunkZ) const
+    {
+        setSeed(random, carverSeed);
+        const uint64_t first = nextLong(random);
+        const uint64_t second = nextLong(random);
+        const uint64_t mixed =
+            uint64_t(int64_t(chunkX)) * first ^
+            uint64_t(int64_t(chunkZ)) * second ^
+            carverSeed;
+        setSeed(random, mixed);
+    }
+
+    bool applyCarvers(
+        DeepChunk16 *chunk, int chunkX, int chunkZ)
+    {
+        const int carverBiome = getBiomeAt(
+            &generator, 4, chunkX * 4, 0, chunkZ * 4);
+        if (carverBiome < 0 || isOceanic(carverBiome))
+            return false;
+        for (int sourceX = chunkX - 8;
+             sourceX <= chunkX + 8; sourceX++)
+        {
+            for (int sourceZ = chunkZ - 8;
+                 sourceZ <= chunkZ + 8; sourceZ++)
+            {
+                uint64_t random;
+                setCarverSeed(
+                    &random, seed, sourceX, sourceZ);
+                if (nextFloat(&random) <= 0.14285715f)
+                {
+                    carveCavesFrom(
+                        chunk, &random, sourceX, sourceZ,
+                        chunkX, chunkZ);
+                }
+                setCarverSeed(
+                    &random, seed + 1, sourceX, sourceZ);
+                if (nextFloat(&random) <= 0.02f)
+                {
+                    carveRavineFrom(
+                        chunk, &random, sourceX, sourceZ,
+                        chunkX, chunkZ);
+                }
+            }
+        }
+        return true;
+    }
+
+    std::shared_ptr<DeepChunk16> getChunk(
+        int chunkX, int chunkZ)
+    {
+        const qint64 key = chunkKey(chunkX, chunkZ);
+        auto found = chunks.constFind(key);
+        if (found != chunks.constEnd())
+            return *found;
+        std::shared_ptr<DeepChunk16> chunk =
+            std::make_shared<DeepChunk16>();
+        chunk->valid = buildBase(
+            chunk.get(), chunkX, chunkZ) &&
+            applyCarvers(chunk.get(), chunkX, chunkZ);
+        chunks.insert(key, chunk);
+        return chunk;
+    }
+
+    uint64_t seed;
+    const VillageLayout16& layout;
+    Generator generator = {};
+    SurfaceNoise surfaceNoise = {};
+    QHash<qint64, std::array<double, 33>> columns;
+    QHash<qint64, std::shared_ptr<DeepChunk16>> chunks;
+};
+
 struct FeatureResolution16
 {
     int reason = VILLAGE_LOOT_UNRESOLVED_NONE;
+    Pos3 pos = {};
 
     void fail(int value)
     {
         if (reason == VILLAGE_LOOT_UNRESOLVED_NONE)
             reason = value;
     }
+
+    void fail(int value, const Pos3& position)
+    {
+        if (reason == VILLAGE_LOOT_UNRESOLVED_NONE)
+        {
+            reason = value;
+            pos = position;
+        }
+    }
 };
 
 FeatureBlockState featureBlockState(
     const VillageLayout16& layout, int pieceIndex,
     const QVector<Pos3>& placed, const Pos3& pos,
+    DeepTerrainResolver16 *terrain,
     FeatureResolution16 *resolution)
 {
     for (const Pos3& block : placed)
@@ -183,8 +1038,46 @@ FeatureBlockState featureBlockState(
 
     if (insidePlacementChunk)
     {
-        if (const VillagePathBlock16 *path =
-            villagePathAt(layout, pieceIndex, pos))
+        const VillagePathBlock16 *path = nullptr;
+        if (terrain)
+        {
+            const auto paths = layout.grassPathsByColumn.constFind(
+                horizontalKey(pos.x, pos.z));
+            if (paths != layout.grassPathsByColumn.constEnd())
+            {
+                int terrainHeight = -1;
+                for (const VillagePathBlock16& candidate : *paths)
+                {
+                    if (candidate.pieceIndex >= pieceIndex)
+                        continue;
+                    int expectedY = candidate.pos.y;
+                    if (candidate.terrainMatching)
+                    {
+                        if (terrainHeight < 0 &&
+                            !terrain->firstFreeHeight(
+                                pos.x, pos.z, &terrainHeight))
+                        {
+                            resolution->fail(
+                                VILLAGE_LOOT_UNRESOLVED_SURFACE_MISSING);
+                            return FEATURE_BLOCK_UNKNOWN;
+                        }
+                        expectedY = terrainHeight +
+                            candidate.gravityOffsetY;
+                    }
+                    if (expectedY == pos.y &&
+                        (!path || candidate.pieceIndex >
+                            path->pieceIndex))
+                    {
+                        path = &candidate;
+                    }
+                }
+            }
+        }
+        else
+        {
+            path = villagePathAt(layout, pieceIndex, pos);
+        }
+        if (path)
         {
             if (!path->stateKnown)
             {
@@ -196,70 +1089,147 @@ FeatureBlockState featureBlockState(
                 ? FEATURE_BLOCK_PATH
                 : FEATURE_BLOCK_STURDY;
         }
-        const auto blocks = layout.placedBlocks.constFind(
-            blockKey(pos));
-        if (blocks != layout.placedBlocks.constEnd())
+        const VillagePlacedBlock16 *latest = nullptr;
+        if (terrain)
         {
-            const VillagePlacedBlock16 *latest = nullptr;
-            for (const VillagePlacedBlock16& block : *blocks)
+            const auto blocks = layout.placedBlocksByColumn.constFind(
+                horizontalKey(pos.x, pos.z));
+            if (blocks != layout.placedBlocksByColumn.constEnd())
             {
-                if (block.pieceIndex < pieceIndex &&
-                    (!latest ||
-                     block.pieceIndex > latest->pieceIndex))
+                int terrainHeight = -1;
+                for (const VillagePlacedBlock16& block : *blocks)
                 {
-                    latest = &block;
+                    if (block.pieceIndex >= pieceIndex)
+                        continue;
+                    int expectedY = block.pos.y;
+                    if (block.terrainMatching)
+                    {
+                        if (terrainHeight < 0 &&
+                            !terrain->firstFreeHeight(
+                                pos.x, pos.z, &terrainHeight))
+                        {
+                            resolution->fail(
+                                VILLAGE_LOOT_UNRESOLVED_SURFACE_MISSING);
+                            return FEATURE_BLOCK_UNKNOWN;
+                        }
+                        expectedY = terrainHeight +
+                            block.gravityOffsetY;
+                    }
+                    if (expectedY == pos.y &&
+                        (!latest || block.pieceIndex >
+                            latest->pieceIndex))
+                    {
+                        latest = &block;
+                    }
                 }
             }
-            if (latest)
+        }
+        else
+        {
+            const auto blocks = layout.placedBlocks.constFind(
+                blockKey(pos));
+            if (blocks != layout.placedBlocks.constEnd())
             {
-                if (!latest->stateKnown)
+                for (const VillagePlacedBlock16& block : *blocks)
                 {
-                    resolution->fail(
-                        VILLAGE_LOOT_UNRESOLVED_TEMPLATE_STATE);
-                    return FEATURE_BLOCK_UNKNOWN;
+                    if (block.pieceIndex < pieceIndex &&
+                        (!latest || block.pieceIndex >
+                            latest->pieceIndex))
+                    {
+                        latest = &block;
+                    }
                 }
-                switch (latest->kind)
-                {
-                case VillagePlacedBlock16::STURDY:
-                    return FEATURE_BLOCK_STURDY;
-                case VillagePlacedBlock16::TREE_FREE:
-                    return FEATURE_BLOCK_TREE_FREE;
-                case VillagePlacedBlock16::TREE_FREE_SOLID:
-                    return FEATURE_BLOCK_TREE_FREE_SOLID;
-                case VillagePlacedBlock16::TREE_FREE_STURDY:
-                    return FEATURE_BLOCK_TREE_FREE_STURDY;
-                case VillagePlacedBlock16::SOIL:
-                    return FEATURE_BLOCK_SOIL;
-                case VillagePlacedBlock16::SAND:
-                    return FEATURE_BLOCK_SAND;
-                case VillagePlacedBlock16::WATER:
-                    return FEATURE_BLOCK_WATER;
-                default:
-                    return FEATURE_BLOCK_OCCUPIED;
-                }
+            }
+        }
+        if (latest)
+        {
+            if (!latest->stateKnown)
+            {
+                resolution->fail(
+                    VILLAGE_LOOT_UNRESOLVED_TEMPLATE_STATE);
+                return FEATURE_BLOCK_UNKNOWN;
+            }
+            switch (latest->kind)
+            {
+            case VillagePlacedBlock16::STURDY:
+                return FEATURE_BLOCK_STURDY;
+            case VillagePlacedBlock16::TREE_FREE:
+                return FEATURE_BLOCK_TREE_FREE;
+            case VillagePlacedBlock16::TREE_FREE_SOLID:
+                return FEATURE_BLOCK_TREE_FREE_SOLID;
+            case VillagePlacedBlock16::TREE_FREE_STURDY:
+                return FEATURE_BLOCK_TREE_FREE_STURDY;
+            case VillagePlacedBlock16::SOIL:
+                return FEATURE_BLOCK_SOIL;
+            case VillagePlacedBlock16::SAND:
+                return FEATURE_BLOCK_SAND;
+            case VillagePlacedBlock16::WATER:
+                return FEATURE_BLOCK_WATER;
+            default:
+                return FEATURE_BLOCK_OCCUPIED;
             }
         }
 
-      Pos3 below = pos;
-      below.y--;
-      const auto paths = layout.grassPathsByPosition.constFind(
-          blockKey(below));
-      if (paths != layout.grassPathsByPosition.constEnd())
-      {
-        for (const VillagePathBlock16& path : *paths)
+        Pos3 below = pos;
+        below.y--;
+        const VillagePathBlock16 *belowPath = nullptr;
+        if (terrain)
         {
-            if (path.pieceIndex >= pieceIndex)
-                continue;
-            if (!path.stateKnown)
+            const auto paths = layout.grassPathsByColumn.constFind(
+                horizontalKey(below.x, below.z));
+            if (paths != layout.grassPathsByColumn.constEnd())
             {
-                resolution->fail(VILLAGE_LOOT_UNRESOLVED_PATH_STATE);
+                int terrainHeight = -1;
+                for (const VillagePathBlock16& candidate : *paths)
+                {
+                    if (candidate.pieceIndex >= pieceIndex)
+                        continue;
+                    int expectedY = candidate.pos.y;
+                    if (candidate.terrainMatching)
+                    {
+                        if (terrainHeight < 0 &&
+                            !terrain->firstFreeHeight(
+                                below.x, below.z, &terrainHeight))
+                        {
+                            resolution->fail(
+                                VILLAGE_LOOT_UNRESOLVED_SURFACE_MISSING);
+                            return FEATURE_BLOCK_UNKNOWN;
+                        }
+                        expectedY = terrainHeight +
+                            candidate.gravityOffsetY;
+                    }
+                    if (expectedY == below.y &&
+                        (!belowPath || candidate.pieceIndex >
+                            belowPath->pieceIndex))
+                    {
+                        belowPath = &candidate;
+                    }
+                }
+            }
+        }
+        else
+        {
+            belowPath = villagePathAt(
+                layout, pieceIndex, below);
+        }
+        if (belowPath)
+        {
+            if (!belowPath->stateKnown)
+            {
+                resolution->fail(
+                    VILLAGE_LOOT_UNRESOLVED_PATH_STATE);
                 return FEATURE_BLOCK_UNKNOWN;
             }
-            if (path.aboveEmpty)
+            if (belowPath->aboveEmpty)
                 return FEATURE_BLOCK_AIR;
-            break;
         }
-      }
+    }
+
+    if (terrain)
+    {
+        FeatureBlockState detailed;
+        if (terrain->get(pos, &detailed))
+            return detailed;
     }
 
     const auto surface = layout.featureSurfaceHeights.constFind(
@@ -279,7 +1249,8 @@ FeatureBlockState featureBlockState(
             ? FEATURE_BLOCK_SAND
             : FEATURE_BLOCK_SOIL;
     }
-    resolution->fail(VILLAGE_LOOT_UNRESOLVED_DEEP_TERRAIN);
+    resolution->fail(
+        VILLAGE_LOOT_UNRESOLVED_DEEP_TERRAIN, pos);
     return FEATURE_BLOCK_UNKNOWN;
 }
 
@@ -294,6 +1265,7 @@ bool advanceBlockPile(
     uint64_t *random, const VillageLayout16& layout,
     int pieceIndex, const Pos3& origin,
     BlockPileProvider provider,
+    DeepTerrainResolver16 *terrain,
     FeatureResolution16 *resolution)
 {
     if (origin.y < 5)
@@ -330,7 +1302,7 @@ bool advanceBlockPile(
                 const FeatureBlockState candidateState =
                     featureBlockState(
                         layout, pieceIndex, placed, candidate,
-                        resolution);
+                        terrain, resolution);
                 if (candidateState == FEATURE_BLOCK_UNKNOWN)
                     return false;
                 if (candidateState != FEATURE_BLOCK_AIR)
@@ -341,7 +1313,7 @@ bool advanceBlockPile(
                 const FeatureBlockState supportState =
                     featureBlockState(
                         layout, pieceIndex, placed, support,
-                        resolution);
+                        terrain, resolution);
                 if (supportState == FEATURE_BLOCK_UNKNOWN)
                     return false;
 
@@ -377,6 +1349,7 @@ bool advanceBlockPile(
 bool advanceCactusPatch(
     uint64_t *random, const VillageLayout16& layout,
     int pieceIndex, const Pos3& origin,
+    DeepTerrainResolver16 *terrain,
     FeatureResolution16 *resolution)
 {
     uint64_t advanced = *random;
@@ -394,7 +1367,7 @@ bool advanceCactusPatch(
         const FeatureBlockState candidateState =
             featureBlockState(
                 layout, pieceIndex, cactus, candidate,
-                resolution);
+                terrain, resolution);
         if (candidateState == FEATURE_BLOCK_UNKNOWN)
             return false;
         if (candidateState != FEATURE_BLOCK_AIR)
@@ -412,7 +1385,7 @@ bool advanceCactusPatch(
             const FeatureBlockState state =
                 featureBlockState(
                     layout, pieceIndex, cactus, adjacent,
-                    resolution);
+                    terrain, resolution);
             if (state == FEATURE_BLOCK_UNKNOWN)
                 return false;
             if (state == FEATURE_BLOCK_OCCUPIED)
@@ -439,21 +1412,19 @@ bool advanceCactusPatch(
         const FeatureBlockState belowState =
             featureBlockState(
                 layout, pieceIndex, cactus, below,
-                resolution);
+                terrain, resolution);
         if (belowState == FEATURE_BLOCK_UNKNOWN)
             return false;
         if (belowState != FEATURE_BLOCK_SAND &&
             belowState != FEATURE_BLOCK_PLACED)
-        {
             continue;
-        }
 
         Pos3 above = candidate;
         above.y++;
         const FeatureBlockState aboveState =
             featureBlockState(
                 layout, pieceIndex, cactus, above,
-                resolution);
+                terrain, resolution);
         if (aboveState == FEATURE_BLOCK_UNKNOWN ||
             aboveState == FEATURE_BLOCK_OCCUPIED)
         {
@@ -493,6 +1464,7 @@ bool treeAreaIsFree(
     const VillageLayout16& layout, int pieceIndex,
     int baseX, int baseY, int baseZ, int treeHeight,
     int limit, int lowerRadius, int upperRadius,
+    DeepTerrainResolver16 *terrain,
     bool *treeFits, FeatureResolution16 *resolution)
 {
     *treeFits = true;
@@ -512,7 +1484,7 @@ bool treeAreaIsFree(
                             baseX + x,
                             baseY + y,
                             baseZ + z,
-                        }, resolution);
+                        }, terrain, resolution);
                 if (state == FEATURE_BLOCK_UNKNOWN)
                     return false;
                 if (state != FEATURE_BLOCK_AIR &&
@@ -533,10 +1505,11 @@ bool treeAreaIsFree(
 bool placeAcaciaLog(
     const VillageLayout16& layout, int pieceIndex,
     QVector<Pos3> *logs, const Pos3& pos,
+    DeepTerrainResolver16 *terrain,
     bool *placed, FeatureResolution16 *resolution)
 {
     const FeatureBlockState state = featureBlockState(
-        layout, pieceIndex, *logs, pos, resolution);
+        layout, pieceIndex, *logs, pos, terrain, resolution);
     if (state == FEATURE_BLOCK_UNKNOWN)
         return false;
     *placed = state == FEATURE_BLOCK_AIR ||
@@ -562,6 +1535,7 @@ bool stateRaisesOceanFloor(FeatureBlockState state)
 bool treeRuntimeBase(
     const VillageLayout16& layout, int pieceIndex,
     const Pos3& origin, int *baseY, bool *mayGrow,
+    DeepTerrainResolver16 *terrain,
     FeatureResolution16 *resolution)
 {
     const auto surface = layout.featureSurfaceHeights.constFind(
@@ -607,7 +1581,8 @@ bool treeRuntimeBase(
     {
         const FeatureBlockState state = featureBlockState(
             layout, pieceIndex, noFeatureBlocks,
-            Pos3{origin.x, y, origin.z}, resolution);
+            Pos3{origin.x, y, origin.z}, terrain,
+            resolution);
         if (state == FEATURE_BLOCK_UNKNOWN)
             return false;
         if (state == FEATURE_BLOCK_AIR)
@@ -646,7 +1621,8 @@ bool treeRuntimeBase(
 bool advanceTree(
     uint64_t *random, const VillageLayout16& layout,
     int pieceIndex, const Pos3& origin,
-    VillageTreeType type, FeatureResolution16 *resolution)
+    VillageTreeType type, DeepTerrainResolver16 *terrain,
+    FeatureResolution16 *resolution)
 {
     uint64_t advanced = *random;
     int treeHeight;
@@ -707,7 +1683,7 @@ bool advanceTree(
     bool mayGrow = false;
     if (!treeRuntimeBase(
             layout, pieceIndex, origin, &baseY, &mayGrow,
-            resolution))
+            terrain, resolution))
     {
         return false;
     }
@@ -729,7 +1705,8 @@ bool advanceTree(
     const QVector<Pos3> noPlacedBlocks;
     const FeatureBlockState substrate = featureBlockState(
         layout, pieceIndex, noPlacedBlocks,
-        Pos3{origin.x, baseY - 1, origin.z}, resolution);
+        Pos3{origin.x, baseY - 1, origin.z}, terrain,
+        resolution);
     if (substrate == FEATURE_BLOCK_UNKNOWN)
         return false;
     if (substrate != FEATURE_BLOCK_SOIL)
@@ -742,7 +1719,7 @@ bool advanceTree(
     if (!treeAreaIsFree(
             layout, pieceIndex,
             origin.x, baseY, origin.z, treeHeight,
-            limit, lowerRadius, upperRadius, &fits,
+            limit, lowerRadius, upperRadius, terrain, &fits,
             resolution))
     {
         return false;
@@ -792,7 +1769,7 @@ bool advanceTree(
             bool placed;
             if (!placeAcaciaLog(
                     layout, pieceIndex, &logs,
-                    Pos3{x, baseY + y, z}, &placed,
+                    Pos3{x, baseY + y, z}, terrain, &placed,
                     resolution))
             {
                 return false;
@@ -822,7 +1799,7 @@ bool advanceTree(
                 bool placed;
                 if (!placeAcaciaLog(
                         layout, pieceIndex, &logs,
-                        Pos3{x, baseY + y, z}, &placed,
+                        Pos3{x, baseY + y, z}, terrain, &placed,
                         resolution))
                 {
                     return false;
@@ -896,7 +1873,8 @@ bool advanceSimpleBlockPile(
 
 bool advanceSafeFeature(
     uint64_t *random, const VillageLayout16& layout,
-    int pieceIndex, FeatureResolution16 *resolution)
+    int pieceIndex, DeepTerrainResolver16 *terrain,
+    FeatureResolution16 *resolution)
 {
     const VillagePiece16& piece = layout.pieces[pieceIndex];
     const QString& feature = piece.feature;
@@ -939,7 +1917,7 @@ bool advanceSafeFeature(
     {
         return advanceBlockPile(
             random, layout, pieceIndex, piece.pos,
-            PILE_ROTATED, resolution);
+            PILE_ROTATED, terrain, resolution);
     }
     if (feature.contains(
             QLatin1String("PUMPKIN_PILE_CONFIG")) ||
@@ -948,42 +1926,42 @@ bool advanceSafeFeature(
     {
         return advanceBlockPile(
             random, layout, pieceIndex, piece.pos,
-            PILE_WEIGHTED, resolution);
+            PILE_WEIGHTED, terrain, resolution);
     }
     if (feature.contains(
             QLatin1String("CACTUS_CONFIG")))
     {
         return advanceCactusPatch(
             random, layout, pieceIndex, piece.pos,
-            resolution);
+            terrain, resolution);
     }
     if (feature.contains(
             QLatin1String("NORMAL_TREE_CONFIG")))
     {
         return advanceTree(
             random, layout, pieceIndex, piece.pos,
-            TREE_NORMAL, resolution);
+            TREE_NORMAL, terrain, resolution);
     }
     if (feature.contains(
             QLatin1String("PINE_TREE_CONFIG")))
     {
         return advanceTree(
             random, layout, pieceIndex, piece.pos,
-            TREE_PINE, resolution);
+            TREE_PINE, terrain, resolution);
     }
     if (feature.contains(
             QLatin1String("SPRUCE_TREE_CONFIG")))
     {
         return advanceTree(
             random, layout, pieceIndex, piece.pos,
-            TREE_SPRUCE, resolution);
+            TREE_SPRUCE, terrain, resolution);
     }
     if (feature.contains(
             QLatin1String("ACACIA_TREE_CONFIG")))
     {
         return advanceTree(
             random, layout, pieceIndex, piece.pos,
-            TREE_ACACIA, resolution);
+            TREE_ACACIA, terrain, resolution);
     }
     resolution->fail(VILLAGE_LOOT_UNRESOLVED_UNKNOWN_FEATURE);
     return false;
@@ -1016,10 +1994,11 @@ const char *villageLootUnresolvedReasonName16(int reason)
     }
 }
 
-bool assignVillageLootSeedsSingleStart16(
+bool assignVillageLootSeedsSingleStartImpl16(
     QVector<VillageLootChestSeed16> *out,
     const VillageLayout16& layout, uint64_t worldSeed,
     const QVector<Pos>& overlappingChestChunks,
+    DeepTerrainResolver16 *terrain,
     QString *error)
 {
     if (!out)
@@ -1129,6 +2108,7 @@ bool assignVillageLootSeedsSingleStart16(
         bool unresolved = false;
         int unresolvedFeatureIndex = -1;
         int unresolvedReason = VILLAGE_LOOT_UNRESOLVED_NONE;
+        Pos3 unresolvedPos = {};
         for (int pieceIndex = 0;
              pieceIndex < layout.pieces.size();
              pieceIndex++)
@@ -1149,11 +2129,12 @@ bool assignVillageLootSeedsSingleStart16(
                         FeatureResolution16 resolution;
                         const bool exact = advanceSafeFeature(
                             &random, layout, pieceIndex,
-                            &resolution);
+                            terrain, &resolution);
                         if (!exact)
                         {
                             unresolvedFeatureIndex = pieceIndex;
                             unresolvedReason = resolution.reason;
+                            unresolvedPos = resolution.pos;
                         }
                         return exact;
                     }())
@@ -1186,6 +2167,8 @@ bool assignVillageLootSeedsSingleStart16(
                             unresolvedFeatureIndex;
                         (*out)[outputIndex].unresolvedReason =
                             unresolvedReason;
+                        (*out)[outputIndex].unresolvedPos =
+                            unresolvedPos;
                         assigned[outputIndex] = true;
                     }
                     continue;
@@ -1218,6 +2201,53 @@ bool assignVillageLootSeedsSingleStart16(
         return false;
     }
     return true;
+}
+
+bool assignVillageLootSeedsSingleStart16(
+    QVector<VillageLootChestSeed16> *out,
+    const VillageLayout16& layout, uint64_t worldSeed,
+    const QVector<Pos>& overlappingChestChunks,
+    QString *error)
+{
+    return assignVillageLootSeedsSingleStartImpl16(
+        out, layout, worldSeed, overlappingChestChunks,
+        nullptr, error);
+}
+
+bool assignVillageLootSeedsSingleStart16(
+    QVector<VillageLootChestSeed16> *out,
+    const VillageLayout16& layout, uint64_t worldSeed,
+    const QVector<Pos>& overlappingChestChunks,
+    int terrainMode, QString *error)
+{
+    if (!assignVillageLootSeedsSingleStartImpl16(
+            out, layout, worldSeed, overlappingChestChunks,
+            nullptr, error))
+    {
+        return false;
+    }
+    if (terrainMode != VILLAGE_LOOT_TERRAIN_DETAILED)
+        return true;
+
+    bool needsTerrain = false;
+    for (const VillageLootChestSeed16& chest : *out)
+    {
+        if (chest.quality ==
+                VILLAGE_LOOT_SEED_UNRESOLVED_FEATURE &&
+            chest.unresolvedReason ==
+                VILLAGE_LOOT_UNRESOLVED_DEEP_TERRAIN)
+        {
+            needsTerrain = true;
+            break;
+        }
+    }
+    if (!needsTerrain)
+        return true;
+
+    DeepTerrainResolver16 terrain(worldSeed, layout);
+    return assignVillageLootSeedsSingleStartImpl16(
+        out, layout, worldSeed, overlappingChestChunks,
+        &terrain, error);
 }
 
 bool assignVillageLootSeedsSingleStart16(

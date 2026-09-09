@@ -137,6 +137,7 @@ struct Piece16
     int depth = 0;
     int groundLevelDelta = 1;
     Box3 box;
+    QVector<VillageJunction16> junctions;
 };
 
 struct HalfOpenBox
@@ -1542,6 +1543,40 @@ bool generateVillageLayout16WithHeights(
                             ? parent.groundLevelDelta -
                                 verticalOffset
                             : 1;
+                        int junctionGroundY;
+                        if (parentRigid)
+                        {
+                            junctionGroundY =
+                                parent.box.y0 + sourceYInParent;
+                        }
+                        else if (candidateRigid)
+                        {
+                            junctionGroundY =
+                                targetY + candidateJigsaw.pos.y;
+                        }
+                        else
+                        {
+                            junctionGroundY =
+                                sourceSurfaceHeight +
+                                verticalOffset / 2;
+                        }
+                        pieces[state.pieceIndex].junctions.push_back({
+                            {outside.x,
+                             junctionGroundY - sourceYInParent +
+                                 parent.groundLevelDelta,
+                             outside.z},
+                            verticalOffset,
+                            candidateElement.terrainMatching,
+                        });
+                        candidate.junctions.push_back({
+                            {source.pos.x,
+                             junctionGroundY -
+                                 candidateJigsaw.pos.y +
+                                 candidate.groundLevelDelta,
+                             source.pos.z},
+                            -verticalOffset,
+                            parent.element.terrainMatching,
+                        });
                         const int pieceIndex = pieces.size();
                         pieces.push_back(candidate);
                         if (pieces.size() > maximumPieces)
@@ -1611,6 +1646,7 @@ bool generateVillageLayout16WithHeights(
             piece.groundLevelDelta;
         generated.terrainMatching =
             piece.element.terrainMatching;
+        generated.junctions = piece.junctions;
         out->pieces.push_back(generated);
     }
 
@@ -1700,9 +1736,15 @@ bool generateVillageLayout16WithHeights(
             generated.aboveEmpty = pathBlock.aboveEmpty;
             generated.isPath = isPath;
             generated.stateKnown = true;
+            generated.terrainMatching =
+                piece.element.terrainMatching;
+            generated.gravityOffsetY = path.y - 1;
             out->grassPaths.push_back(generated);
             out->grassPathsByPosition[
                 blockKey(world)].push_back(generated);
+            out->grassPathsByColumn[
+                horizontalKey(world.x, world.z)].push_back(
+                    generated);
         }
     }
 
@@ -1820,6 +1862,9 @@ bool generateVillageLayout16WithHeights(
                     QLatin1String("/zombie/"));
             generated.stateKnown = !zombieTemplate ||
                 zombieFeatureBlockStateKnown(block, villageType);
+            generated.terrainMatching =
+                piece.element.terrainMatching;
+            generated.gravityOffsetY = block.pos.y - 1;
             if (piece.element.terrainMatching &&
                 heights.get(world.x, world.z) > 63)
             {
@@ -1841,6 +1886,9 @@ bool generateVillageLayout16WithHeights(
             }
             out->placedBlocks[blockKey(world)].push_back(
                 generated);
+            out->placedBlocksByColumn[
+                horizontalKey(world.x, world.z)].push_back(
+                    generated);
         }
     }
     return true;

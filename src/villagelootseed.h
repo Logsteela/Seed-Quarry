@@ -15,6 +15,12 @@ enum VillageLootSeedQuality16
     VILLAGE_LOOT_SEED_UNRESOLVED_OVERLAP,
 };
 
+enum VillageLootTerrainMode16
+{
+    VILLAGE_LOOT_TERRAIN_LIGHT,
+    VILLAGE_LOOT_TERRAIN_DETAILED,
+};
+
 enum VillageLootSeedUnresolvedReason16
 {
     VILLAGE_LOOT_UNRESOLVED_NONE,
@@ -44,6 +50,7 @@ struct VillageLootChestSeed16
     int quality = VILLAGE_LOOT_SEED_EXACT;
     int unresolvedFeatureIndex = -1;
     int unresolvedReason = VILLAGE_LOOT_UNRESOLVED_NONE;
+    Pos3 unresolvedPos = {};
 
     bool isExact() const
     {
@@ -81,5 +88,16 @@ bool assignVillageLootSeedsSingleStart16(
     const VillageLayout16& layout, uint64_t worldSeed,
     const QVector<Pos>& overlappingChestChunks,
     QString *error = nullptr);
+
+/**
+ * Detailed terrain retries only chunks which the light compact model left
+ * unresolved. It reconstructs Java 1.16.1 base terrain, surface layers, and
+ * land cave/ravine carvers; unsupported terrain remains explicitly unknown.
+ */
+bool assignVillageLootSeedsSingleStart16(
+    QVector<VillageLootChestSeed16> *out,
+    const VillageLayout16& layout, uint64_t worldSeed,
+    const QVector<Pos>& overlappingChestChunks,
+    int terrainMode, QString *error = nullptr);
 
 #endif

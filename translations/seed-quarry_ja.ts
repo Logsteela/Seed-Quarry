@@ -1200,13 +1200,37 @@
         </message>
         <message>
             <location filename="../src/conditiondialog.ui" line="1393" />
-            <source>Approximate surface height</source>
-            <translation type="unfinished"></translation>
+            <source>Approximate terrain shape</source>
+            <translation>近似地形形状</translation>
         </message>
         <message>
             <location filename="../src/conditiondialog.ui" line="1399" />
-            <source>Height (Y-level)</source>
-            <translation type="unfinished"></translation>
+            <source>Measure:</source>
+            <translation>測定値:</translation>
+        </message>
+        <message>
+            <source>Value range:</source>
+            <translation>値の範囲:</translation>
+        </message>
+        <message>
+            <source>Uses the existing approximate 1:4 surface model. Large areas are sampled automatically at no more than 9 by 9 positions.</source>
+            <translation>既存の1:4近似表面モデルを使用します。広い範囲は最大9×9地点で自動的にサンプリングされます。</translation>
+        </message>
+        <message>
+            <source>Average sampled height</source>
+            <translation>標本高度の平均</translation>
+        </message>
+        <message>
+            <source>Minimum sampled height</source>
+            <translation>標本高度の最小値</translation>
+        </message>
+        <message>
+            <source>Maximum sampled height</source>
+            <translation>標本高度の最大値</translation>
+        </message>
+        <message>
+            <source>Sampled relief (maximum - minimum)</source>
+            <translation>標本起伏（最大－最小）</translation>
         </message>
         <message>
             <location filename="../src/conditiondialog.ui" line="1407" />
@@ -2926,13 +2950,29 @@
         </message>
         <message>
             <location filename="../src/search.h" line="375" />
-            <source>Surface height</source>
-            <translation type="unfinished"></translation>
+            <source>Terrain shape (approximate)</source>
+            <translation>地形形状（近似）</translation>
+        </message>
+        <message>
+            <source>average height</source>
+            <translation>平均高度</translation>
+        </message>
+        <message>
+            <source>minimum height</source>
+            <translation>最低高度</translation>
+        </message>
+        <message>
+            <source>maximum height</source>
+            <translation>最高高度</translation>
+        </message>
+        <message>
+            <source>relief</source>
+            <translation>起伏</translation>
         </message>
         <message>
             <location filename="../src/search.h" line="376" />
-            <source>Check the approximate surface height at scale 1:4 at a single coordinate.</source>
-            <translation type="unfinished"></translation>
+            <source>Checks the average, minimum, maximum, or relief of approximate surface heights in an area. Large areas are sampled on an automatic grid of at most 9 by 9 points.</source>
+            <translation>範囲内の近似表面高度について、平均・最小・最大・起伏を検査します。広い範囲は最大9×9地点の自動グリッドでサンプリングされます。</translation>
         </message>
         <message>
             <location filename="../src/search.h" line="383" />
@@ -3483,8 +3523,8 @@
         </message>
         <message>
             <location filename="../src/formsearchcontrol.ui" line="163" />
-            <source>Exact checks every eligible upper-16-bit seed. Fast sampled mode may skip the rest of a 48-bit family after one otherwise-valid village seed fails its Loot conditions, so it can miss matches.</source>
-            <translation>厳密検索は対象となる上位16bitをすべて確認します。高速・近似検索は、Loot以外の条件を満たす代表的な村SeedがLoot条件に失敗した場合、同じ48-bit familyの残りを省略することがあり、該当Seedを見落とす可能性があります。</translation>
+            <source>Exact checks every eligible upper-16-bit seed. Fast sampled mode may skip an unproductive 48-bit family after one otherwise-valid village seed fails its Loot conditions. Once that family produces a Loot match, all its remaining upper-16-bit seeds are checked.</source>
+            <translation>厳密検索は対象となる上位16bitをすべて確認します。高速・近似検索は、Loot以外の条件を満たす代表的な村SeedがLoot条件に失敗した場合、まだ成果のない48-bit familyの残りを省略することがあります。一度でもLoot条件に一致したfamilyでは、残りの上位16bitをすべて確認します。</translation>
         </message>
         <message>
             <location filename="../src/formsearchcontrol.ui" line="178" />
@@ -3536,6 +3576,21 @@
             <location filename="../src/formsearchcontrol.cpp" line="135" />
             <source>Fast sampled Loot search</source>
             <translation>高速・近似Loot検索</translation>
+        </message>
+        <message>
+            <location filename="../src/formsearchcontrol.cpp" line="137" />
+            <source>Light Village terrain</source>
+            <translation>軽量な村地形</translation>
+        </message>
+        <message>
+            <location filename="../src/formsearchcontrol.cpp" line="139" />
+            <source>Detailed Village terrain</source>
+            <translation>詳細な村地形</translation>
+        </message>
+        <message>
+            <location filename="../src/formsearchcontrol.ui" line="170" />
+            <source>Detailed mode retries only Village Loot cases left unresolved by the light model. It reconstructs Java 1.16.1 terrain, surface layers, land caves, ravines, and jigsaw terrain influence. Unsupported cases remain unknown rather than being guessed.</source>
+            <translation>詳細モードは、軽量モデルで未解決になった村のLootだけを再試行します。Java 1.16.1の地形、表層、陸上の洞窟と峡谷、ジグソー構造物による地形補正を再現します。未対応の事例は推測せずUNKNOWNのままにします。</translation>
         </message>
         <message>
             <location filename="../src/formsearchcontrol.cpp" line="271" />

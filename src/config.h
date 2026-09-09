@@ -237,6 +237,7 @@ struct SearchConfig
     uint64_t startseed;
     bool stoponres;
     bool fastFamilyLoot;
+    bool detailedVillageTerrain;
     uint64_t smin;
     uint64_t smax;
 

@@ -85,6 +85,7 @@ public:
     int                         itemsize;   // number of seeds per search item
     int                         threadcnt;  // numbr of worker threads
     bool                        fastFamilyLoot;
+    bool                        detailedVillageTerrain;
     bool                        fastVillageFamilySkip;
     Gen48Config                 gen48;      // 48-bit generator settings
     std::vector<uint64_t>       slist;      // candidate list

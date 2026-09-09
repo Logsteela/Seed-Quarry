@@ -50,7 +50,19 @@ QString Condition::summary(bool aligntab) const
     else
     {
         txts = QApplication::translate("Filter", ft.name);
-        if (type == F_LUA)
+        if (type == F_HEIGHT)
+        {
+            const char *metric = QT_TRANSLATE_NOOP(
+                "Filter", "average height");
+            if (para == Condition::HEIGHT_MINIMUM)
+                metric = QT_TRANSLATE_NOOP("Filter", "minimum height");
+            else if (para == Condition::HEIGHT_MAXIMUM)
+                metric = QT_TRANSLATE_NOOP("Filter", "maximum height");
+            else if (para == Condition::HEIGHT_RELIEF)
+                metric = QT_TRANSLATE_NOOP("Filter", "relief");
+            txts += ": " + QApplication::translate("Filter", metric);
+        }
+        else if (type == F_LUA)
         {
             QMap<uint64_t, QString> scripts;
             getScripts(scripts);
@@ -314,6 +326,7 @@ SearchThreadEnv::SearchThreadEnv()
 , l_states()
 , loot_rules()
 , fastFamilyLoot()
+, detailedVillageTerrain(true)
 , hasVillageLoot()
 , ignoreVillageLoot()
 , lootCache()
@@ -330,16 +343,19 @@ SearchThreadEnv::~SearchThreadEnv()
 
 QString SearchThreadEnv::init(
     int mc, bool large, const ConditionTree& condtree,
-    bool fastFamilyLoot)
+    bool fastFamilyLoot, bool detailedVillageTerrain)
 {
     this->condtree = condtree;
     this->mc = mc;
     this->large = large;
     this->seed = 0;
     this->fastFamilyLoot = fastFamilyLoot;
+    this->detailedVillageTerrain = detailedVillageTerrain;
     this->hasVillageLoot = false;
     this->ignoreVillageLoot = false;
     this->lootCache.reset();
+    this->lootCache.detailedVillageTerrain =
+        detailedVillageTerrain;
     this->surfdim = DIM_UNDEF;
     this->octaves = 0;
     uint32_t flags = 0;
@@ -2606,8 +2622,10 @@ L_qm_any:
     case F_HEIGHT:
         rx1 = x1 >> 2;
         rz1 = z1 >> 2;
-        cent->x = x1;
-        cent->z = z1;
+        rx2 = x2 >> 2;
+        rz2 = z2 >> 2;
+        cent->x = int((int64_t(x1) + x2) / 2);
+        cent->z = int((int64_t(z1) + z2) / 2);
         if (imax) *imax = 1;
         if (env->searchpass != PASS_FULL_64)
             return COND_MAYBE_POS_VALID;
@@ -2616,12 +2634,67 @@ L_qm_any:
         {
             int ymin = cond->limok[NP_DEPTH][0];
             int ymax = cond->limok[NP_DEPTH][1];
-            float y;
-            mapApproxHeight(&y, nullptr, &env->g, &env->sn, rx1, rz1, 1, 1);
+            // Bound work for large areas. The metric is intentionally based
+            // on the documented approximate sample grid, not exact terrain.
+            constexpr int maxAxisSamples = 9;
+            const int xstride = std::max(
+                1, (rx2 - rx1 + maxAxisSamples - 2) /
+                    (maxAxisSamples - 1));
+            const int zstride = std::max(
+                1, (rz2 - rz1 + maxAxisSamples - 2) /
+                    (maxAxisSamples - 1));
+            QVector<int> sampleX;
+            QVector<int> sampleZ;
+            for (int x = rx1; x < rx2; x += xstride)
+                sampleX.push_back(x);
+            for (int z = rz1; z < rz2; z += zstride)
+                sampleZ.push_back(z);
+            sampleX.push_back(rx2);
+            sampleZ.push_back(rz2);
+
+            double minHeight = 1e30;
+            double maxHeight = -1e30;
+            double heightSum = 0;
+            int sampleCount = 0;
+            for (int z : sampleZ)
+            {
+                for (int x : sampleX)
+                {
+                    float y;
+                    if (mapApproxHeight(
+                            &y, nullptr, &env->g, &env->sn,
+                            x, z, 1, 1) != 0)
+                    {
+                        return COND_FAILED;
+                    }
+                    minHeight = std::min(minHeight, double(y));
+                    maxHeight = std::max(maxHeight, double(y));
+                    heightSum += y;
+                    sampleCount++;
+                }
+            }
+
+            double value;
+            switch (cond->para)
+            {
+            case Condition::HEIGHT_MINIMUM:
+                value = minHeight;
+                break;
+            case Condition::HEIGHT_MAXIMUM:
+                value = maxHeight;
+                break;
+            case Condition::HEIGHT_RELIEF:
+                value = maxHeight - minHeight;
+                break;
+            case Condition::HEIGHT_AVERAGE:
+            default:
+                value = heightSum / sampleCount;
+                break;
+            }
             if (cond->flags & Condition::FLG_IN_RANGE)
-                valid = y >= ymin && y <= ymax;
+                valid = value >= ymin && value <= ymax;
             else
-                valid = y <= ymin || y >= ymax;
+                valid = value <= ymin || value >= ymax;
         }
         return valid ? COND_OK : COND_FAILED;
 

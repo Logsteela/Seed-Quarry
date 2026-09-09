@@ -238,6 +238,16 @@ ConditionDialog::ConditionDialog(FormConditions *parent, MapView *mapview, Confi
     ui->comboScale->addItem("1:64", QVariant::fromValue(64));
     ui->comboScale->addItem("1:256", QVariant::fromValue(256));
 
+    ui->comboHeightMetric->addItem(
+        tr("Average sampled height"), Condition::HEIGHT_AVERAGE);
+    ui->comboHeightMetric->addItem(
+        tr("Minimum sampled height"), Condition::HEIGHT_MINIMUM);
+    ui->comboHeightMetric->addItem(
+        tr("Maximum sampled height"), Condition::HEIGHT_MAXIMUM);
+    ui->comboHeightMetric->addItem(
+        tr("Sampled relief (maximum - minimum)"),
+        Condition::HEIGHT_RELIEF);
+
     for (int i = 0; i < 256; i++)
     {
         QString bname = getBiomeDisplay(wi.mc, i);
@@ -474,6 +484,9 @@ ConditionDialog::ConditionDialog(FormConditions *parent, MapView *mapview, Confi
 
         ui->comboClimatePara->setCurrentIndex(ui->comboClimatePara->findData(QVariant::fromValue(cond.para)));
         on_comboClimatePara_currentIndexChanged(cond.para);
+        int heightMetricIndex = ui->comboHeightMetric->findData(cond.para);
+        ui->comboHeightMetric->setCurrentIndex(
+            heightMetricIndex >= 0 ? heightMetricIndex : 0);
         ui->comboOctaves->setCurrentIndex(cond.octave);
         ui->comboMinMax->setCurrentIndex((cond.minmax & Condition::E_LOCATE_MAX) ? 1 : 0);
         QString vmin, vmax;
@@ -1379,6 +1392,11 @@ void ConditionDialog::onAccept()
         c.count = ui->checkSamplePos2->isChecked() ? 1 : 0;
         c.converage = ui->lineCoverage2->text().toFloat() / 100.0;
         c.confidence = ui->lineConfidence2->text().toFloat() / 100.0;
+    }
+    if (ui->stackedWidget->currentWidget() == ui->pageHeight)
+    {
+        c.para = ui->comboHeightMetric->currentData().toInt();
+        c.step = 0; // reserved for a future explicit sampling policy
     }
     if (ui->stackedWidget->currentWidget() == ui->pageTemps)
     {

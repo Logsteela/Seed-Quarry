@@ -142,6 +142,7 @@ SearchMaster::SearchMaster(QWidget *parent)
     , itemsize()
     , threadcnt()
     , fastFamilyLoot()
+    , detailedVillageTerrain(true)
     , fastVillageFamilySkip()
     , gen48()
     , slist()
@@ -298,7 +299,8 @@ bool SearchMaster::set(QWidget *widget, const Session& s)
             s.wi.mc, s.wi.large, condtree,
             (s.sc.searchtype == SEARCH_BLOCKS ||
              s.sc.searchtype == SEARCH_48ONLY) &&
-                s.sc.fastFamilyLoot);
+                s.sc.fastFamilyLoot,
+            s.sc.detailedVillageTerrain);
     }
     if (!err.isEmpty())
     {
@@ -315,6 +317,8 @@ bool SearchMaster::set(QWidget *widget, const Session& s)
         (s.sc.searchtype == SEARCH_BLOCKS ||
          s.sc.searchtype == SEARCH_48ONLY) &&
         s.sc.fastFamilyLoot;
+    this->detailedVillageTerrain =
+        s.sc.detailedVillageTerrain;
     this->fastVillageFamilySkip =
         s.sc.searchtype == SEARCH_BLOCKS &&
         this->fastFamilyLoot &&
@@ -978,7 +982,8 @@ void SearchWorker::run()
     Pos origin = {0,0};
     env.init(
         master->mc, master->large, master->condtree,
-        master->fastFamilyLoot);
+        master->fastFamilyLoot,
+        master->detailedVillageTerrain);
 
     switch (master->searchtype)
     {
@@ -1112,6 +1117,7 @@ void SearchWorker::run()
                 continue;
             }
 
+            bool villageLootMatchedInFamily = false;
             for (int i = 0; i < scnt; i++)
             {
                 seed = (high << 48) | low;
@@ -1137,13 +1143,19 @@ void SearchWorker::run()
                             origin, &env, PASS_FULL_64, nullptr);
                     if (withVillageLoot == COND_OK)
                     {
+                        // A matching seed makes this lower-48 family
+                        // promising. Keep every remaining upper-16 seed so
+                        // nearby matches in the same family are not lost.
+                        villageLootMatchedInFamily = true;
                         if (!*env.stop)
                             emit result(seed);
                     }
-                    else if (withVillageLoot == COND_FAILED)
+                    else if (withVillageLoot == COND_FAILED &&
+                             !villageLootMatchedInFamily)
                     {
                         // Non-exhaustive speed mode: one representative that
-                        // passes every other condition rejected this family.
+                        // passes every other condition rejected this family,
+                        // but only while the family has produced no match.
                         break;
                     }
                 }

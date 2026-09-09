@@ -19,6 +19,13 @@
 typedef int (*VillageHeightCallback16)(
     void *context, int blockX, int blockZ);
 
+struct VillageJunction16
+{
+    Pos3 source = {};
+    int deltaY = 0;
+    bool destinationTerrainMatching = false;
+};
+
 struct VillagePiece16
 {
     enum ElementType {
@@ -36,6 +43,7 @@ struct VillagePiece16
     int groundLevelDelta = 1;
     int elementType = LEGACY_TEMPLATE;
     bool terrainMatching = false;
+    QVector<VillageJunction16> junctions;
 };
 
 struct VillageContainer16
@@ -62,6 +70,8 @@ struct VillagePathBlock16
     // At sea level the street processor replaces the path with planks.
     bool isPath = true;
     bool stateKnown = true;
+    bool terrainMatching = false;
+    int gravityOffsetY = 0;
 };
 
 struct VillagePlacedBlock16
@@ -82,6 +92,8 @@ struct VillagePlacedBlock16
     int kind = OCCUPIED;
     QString block;
     bool stateKnown = true;
+    bool terrainMatching = false;
+    int gravityOffsetY = 0;
 };
 
 struct VillageLayout16
@@ -104,7 +116,11 @@ struct VillageLayout16
     QVector<VillagePathBlock16> grassPaths;
     QHash<qint64, QVector<VillagePathBlock16>>
         grassPathsByPosition;
+    QHash<qint64, QVector<VillagePathBlock16>>
+        grassPathsByColumn;
     QHash<qint64, QVector<VillagePlacedBlock16>> placedBlocks;
+    QHash<qint64, QVector<VillagePlacedBlock16>>
+        placedBlocksByColumn;
     // Exact WORLD_SURFACE_WG samples needed only by feature pieces which can
     // affect a later loot container in the same chunk.
     QHash<qint64, int> featureSurfaceHeights;

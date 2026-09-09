@@ -418,7 +418,8 @@ bool chestPositionMatches(
 
 bool getStructureLoot(
     LootChestSet *out, const LootRuleSet& rules,
-    int mc, uint64_t worldSeed, Pos pos, int biomeId)
+    int mc, uint64_t worldSeed, Pos pos, int biomeId,
+    bool detailedVillageTerrain)
 {
     if (!out || !isLootSupported(rules.structureType, mc))
         return false;
@@ -518,7 +519,10 @@ bool getStructureLoot(
         }
         if (!assignVillageLootSeedsSingleStart16(
                 &generatedChests, layout, worldSeed,
-                overlappingRngChunks))
+                overlappingRngChunks,
+                detailedVillageTerrain
+                    ? VILLAGE_LOOT_TERRAIN_DETAILED
+                    : VILLAGE_LOOT_TERRAIN_LIGHT))
         {
             return false;
         }
@@ -627,6 +631,8 @@ bool getCachedRuleCounts(
         villageKey.biomeId = biomeId;
         villageKey.contentsRequired =
             hasVillageItemContentRule(rules);
+        villageKey.detailedVillageTerrain =
+            cache->detailedVillageTerrain;
         auto found = cache->villageEntries.find(villageKey);
         if (found != cache->villageEntries.end())
         {
@@ -649,7 +655,8 @@ bool getCachedRuleCounts(
         {
             cache->villageCalculations++;
             if (!getStructureLoot(
-                    &loots, rules, mc, worldSeed, pos, biomeId))
+                    &loots, rules, mc, worldSeed, pos, biomeId,
+                    cache->detailedVillageTerrain))
             {
                 return false;
             }
@@ -681,7 +688,8 @@ bool getCachedRuleCounts(
         }
     }
     else if (!getStructureLoot(
-                 &loots, rules, mc, worldSeed, pos, biomeId))
+                 &loots, rules, mc, worldSeed, pos, biomeId,
+                 cache ? cache->detailedVillageTerrain : true))
     {
         return false;
     }
@@ -776,7 +784,10 @@ bool VillageLootRawCacheKey::operator<(
         return z < other.z;
     if (biomeId != other.biomeId)
         return biomeId < other.biomeId;
-    return contentsRequired < other.contentsRequired;
+    if (contentsRequired != other.contentsRequired)
+        return contentsRequired < other.contentsRequired;
+    return detailedVillageTerrain <
+        other.detailedVillageTerrain;
 }
 
 void LootSearchCache::reset()

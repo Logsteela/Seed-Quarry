@@ -370,11 +370,13 @@ static const struct FilterList : private FilterInfo
             ""
         };
         list[F_HEIGHT] = FilterInfo{
-            CAT_OTHER, 1, LOC_POS, 0, 4, BR_NONE, MC_1_1, MC_NEWEST, 0, 0, disp++,
+            CAT_OTHER, 1, LOC_REC, 0, 4, BR_NONE, MC_1_1, MC_NEWEST, 0, 0, disp++,
             "height",
-            QT_TRANSLATE_NOOP("Filter", "Surface height"),
+            QT_TRANSLATE_NOOP("Filter", "Terrain shape (approximate)"),
             QT_TRANSLATE_NOOP("Filter",
-            "Check the approximate surface height at scale 1:4 at a single coordinate.")
+            "Checks the average, minimum, maximum, or relief of approximate "
+            "surface heights in an area. Large areas are sampled on an automatic "
+            "grid of at most 9 by 9 points.")
         };
 
         list[F_FIRST_STRONGHOLD] = FilterInfo{
@@ -596,6 +598,12 @@ struct /*__attribute__((packed))*/ Condition
         FLG_INVERT      = 0x0040,
         FLG_LOOT        = 0x0080,
     };
+    enum { // values stored in para for F_HEIGHT
+        HEIGHT_AVERAGE = 0,
+        HEIGHT_MINIMUM,
+        HEIGHT_MAXIMUM,
+        HEIGHT_RELIEF,
+    };
     enum { // variant flags
         VAR_WITH_START  = 0x0001, // restrict start piece index and biome
         VAR_ABANODONED  = 0x0002, // zombie village
@@ -772,6 +780,7 @@ struct SearchThreadEnv
     std::map<uint64_t, lua_State*> l_states;
     std::map<uint64_t, LootRuleSet> loot_rules;
     bool fastFamilyLoot;
+    bool detailedVillageTerrain;
     bool hasVillageLoot;
     bool ignoreVillageLoot;
     LootSearchCache lootCache;
@@ -781,7 +790,8 @@ struct SearchThreadEnv
 
     QString init(
         int mc, bool large, const ConditionTree& condtree,
-        bool fastFamilyLoot = false);
+        bool fastFamilyLoot = false,
+        bool detailedVillageTerrain = true);
 
     void setSeed(uint64_t seed);
     void init4Dim(int dim);

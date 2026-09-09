@@ -158,9 +158,16 @@ QPushButton:hover {
         </spacer>
        </item>
        <item>
-        <widget class="QComboBox" name="comboLootMode">
+       <widget class="QComboBox" name="comboLootMode">
          <property name="toolTip">
-          <string>Exact checks every eligible upper-16-bit seed. Fast sampled mode may skip the rest of a 48-bit family after one otherwise-valid village seed fails its Loot conditions, so it can miss matches.</string>
+          <string>Exact checks every eligible upper-16-bit seed. Fast sampled mode may skip an unproductive 48-bit family after one otherwise-valid village seed fails its Loot conditions. Once that family produces a Loot match, all its remaining upper-16-bit seeds are checked.</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QComboBox" name="comboVillageTerrainMode">
+         <property name="toolTip">
+          <string>Detailed mode retries only Village Loot cases left unresolved by the light model. It reconstructs Java 1.16.1 terrain, surface layers, land caves, ravines, and jigsaw terrain influence. Unsupported cases remain unknown rather than being guessed.</string>
          </property>
         </widget>
        </item>
