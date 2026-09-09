@@ -160,7 +160,7 @@ QPushButton:hover {
        <item>
        <widget class="QComboBox" name="comboLootMode">
          <property name="toolTip">
-          <string>Exact checks every eligible upper-16-bit seed. Fast sampled mode may skip an unproductive 48-bit family after one otherwise-valid village seed fails its Loot conditions. Once that family produces a Loot match, all its remaining upper-16-bit seeds are checked.</string>
+          <string>Exact checks every eligible upper-16-bit seed. Fast mode checks lower-48-dependent Loot first. Bastion layout and Loot are fixed by those lower 48 bits, so a failed family is rejected exactly and a matching family keeps every eligible upper-16-bit seed. Village Loot uses one otherwise-valid upper-16-bit sample and may skip false negatives until that family produces a match.</string>
          </property>
         </widget>
        </item>

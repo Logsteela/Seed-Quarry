@@ -172,8 +172,7 @@ static int lootUniform(uint64_t *rng, int low, int high)
     return low >= high ? low : low + nextInt(rng, high - low + 1);
 }
 
-static int selectRandomEnchantment16(
-    uint64_t *rng, int item, int *level)
+static const uint8_t *applicableEnchantments16(int item, int *count)
 {
     static const uint8_t sword[] = {
         DP_ENCH_SHARPNESS, DP_ENCH_SMITE, DP_ENCH_BANE_OF_ARTHROPODS,
@@ -221,52 +220,60 @@ static int selectRandomEnchantment16(
         DP_ENCH_PIERCING, DP_ENCH_MENDING, DP_ENCH_VANISHING_CURSE,
     };
 
-    const uint8_t *applicable = 0;
-    int count = 0;
+    *count = 0;
     switch (item)
     {
-    case DP_LOOT_ENCHANTED_BOOK:
+    case DP_LOOT_GOLDEN_SWORD:
+    case DP_LOOT_IRON_SWORD:
+    case DP_LOOT_DIAMOND_SWORD:
+        *count = sizeof(sword); return sword;
+    case DP_LOOT_GOLDEN_AXE:
+        *count = sizeof(axe); return axe;
+    case DP_LOOT_GOLDEN_HOE:
+    case DP_LOOT_GOLDEN_SHOVEL:
+    case DP_LOOT_GOLDEN_PICKAXE:
+    case DP_LOOT_DIAMOND_SHOVEL:
+        *count = sizeof(digger); return digger;
+    case DP_LOOT_GOLDEN_BOOTS:
+    case DP_LOOT_LEATHER_BOOTS:
+    case DP_LOOT_DIAMOND_BOOTS:
+        *count = sizeof(boots); return boots;
+    case DP_LOOT_GOLDEN_CHESTPLATE:
+    case DP_LOOT_LEATHER_CHESTPLATE:
+    case DP_LOOT_DIAMOND_CHESTPLATE:
+        *count = sizeof(chestplate); return chestplate;
+    case DP_LOOT_GOLDEN_HELMET:
+    case DP_LOOT_LEATHER_HELMET:
+    case DP_LOOT_DIAMOND_HELMET:
+        *count = sizeof(helmet); return helmet;
+    case DP_LOOT_GOLDEN_LEGGINGS:
+    case DP_LOOT_LEATHER_LEGGINGS:
+    case DP_LOOT_DIAMOND_LEGGINGS:
+        *count = sizeof(leggings); return leggings;
+    case DP_LOOT_CROSSBOW:
+        *count = sizeof(crossbow); return crossbow;
+    }
+    return 0;
+}
+
+static int selectRandomEnchantment16(
+    uint64_t *rng, int item, int *level)
+{
+    if (item == DP_LOOT_ENCHANTED_BOOK)
+    {
         /*
          * The pre-Soul-Speed ids are deliberately in the same order as the
          * 1.16.1 enchantment registry after the non-discoverable Soul Speed
          * entry is filtered out.
          */
-        {
-            int enchantment = nextInt(rng, DP_BOOK_ENCHANTMENTS_16);
-            int maxLevel = DP_BOOK_MAX_LEVEL_16[enchantment];
-            *level = maxLevel > 1 ? 1 + nextInt(rng, maxLevel) : 1;
-            return enchantment;
-        }
-    case DP_LOOT_GOLDEN_SWORD:
-    case DP_LOOT_IRON_SWORD:
-    case DP_LOOT_DIAMOND_SWORD:
-        applicable = sword; count = sizeof(sword); break;
-    case DP_LOOT_GOLDEN_AXE:
-        applicable = axe; count = sizeof(axe); break;
-    case DP_LOOT_GOLDEN_HOE:
-    case DP_LOOT_GOLDEN_SHOVEL:
-    case DP_LOOT_GOLDEN_PICKAXE:
-    case DP_LOOT_DIAMOND_SHOVEL:
-        applicable = digger; count = sizeof(digger); break;
-    case DP_LOOT_GOLDEN_BOOTS:
-    case DP_LOOT_LEATHER_BOOTS:
-    case DP_LOOT_DIAMOND_BOOTS:
-        applicable = boots; count = sizeof(boots); break;
-    case DP_LOOT_GOLDEN_CHESTPLATE:
-    case DP_LOOT_LEATHER_CHESTPLATE:
-    case DP_LOOT_DIAMOND_CHESTPLATE:
-        applicable = chestplate; count = sizeof(chestplate); break;
-    case DP_LOOT_GOLDEN_HELMET:
-    case DP_LOOT_LEATHER_HELMET:
-    case DP_LOOT_DIAMOND_HELMET:
-        applicable = helmet; count = sizeof(helmet); break;
-    case DP_LOOT_GOLDEN_LEGGINGS:
-    case DP_LOOT_LEATHER_LEGGINGS:
-    case DP_LOOT_DIAMOND_LEGGINGS:
-        applicable = leggings; count = sizeof(leggings); break;
-    case DP_LOOT_CROSSBOW:
-        applicable = crossbow; count = sizeof(crossbow); break;
+        int enchantment = nextInt(rng, DP_BOOK_ENCHANTMENTS_16);
+        int maxLevel = DP_BOOK_MAX_LEVEL_16[enchantment];
+        *level = maxLevel > 1 ? 1 + nextInt(rng, maxLevel) : 1;
+        return enchantment;
     }
+    int count = 0;
+    const uint8_t *applicable =
+        applicableEnchantments16(item, &count);
     if (count > 0)
     {
         int enchantment = applicable[nextInt(rng, count)];
@@ -278,10 +285,32 @@ static int selectRandomEnchantment16(
     return -1;
 }
 
-static void consumeRandomEnchantment(uint64_t *rng, int item)
+static void recordEnchantment(StructureLoot *out, int item,
+                              int enchantment, int level, int count)
 {
-    int level;
-    selectRandomEnchantment16(rng, item, &level);
+    if (!out || item < 0 || item >= DP_LOOT_ITEM_COUNT ||
+        enchantment < 0 || enchantment >= DP_ENCH_COUNT ||
+        level < 1 || level > DP_ENCH_MAX_LEVEL || count <= 0)
+        return;
+
+    for (int i = 0; i < out->enchantmentCount; i++)
+    {
+        StructureLootEnchantment *entry = out->enchantments + i;
+        if (entry->item == item && entry->enchantment == enchantment &&
+            entry->level == level)
+        {
+            entry->count += count;
+            return;
+        }
+    }
+    if (out->enchantmentCount >= STRUCTURE_LOOT_MAX_ENCHANTMENTS)
+        return;
+    StructureLootEnchantment *entry =
+        out->enchantments + out->enchantmentCount++;
+    entry->item = item;
+    entry->enchantment = enchantment;
+    entry->level = level;
+    entry->count = count;
 }
 
 static void consumeStewEffect(uint64_t *rng)
@@ -318,7 +347,13 @@ static void generateLootPool(
             rng, entry->minCount, entry->maxCount);
         out->count[entry->item] += count;
         if (entry->function == LOOT_FUNCTION_ENCHANT_RANDOMLY)
-            consumeRandomEnchantment(rng, entry->item);
+        {
+            int enchantment, level;
+            enchantment = selectRandomEnchantment16(
+                rng, entry->item, &level);
+            recordEnchantment(
+                out, entry->item, enchantment, level, count);
+        }
         else if (entry->function == LOOT_FUNCTION_STEW_EFFECT)
             consumeStewEffect(rng);
     }
@@ -446,7 +481,11 @@ int getDesertPyramidLoot16(DesertPyramidLoot *out, uint64_t worldSeed,
             out->count[item] += primaryCount(
                 &lootRng, item, &enchantment, &level);
             if (enchantment >= 0 && level > 0)
+            {
                 out->enchantedBook[enchantment][level]++;
+                recordEnchantment(
+                    out, item, enchantment, level, 1);
+            }
         }
     }
 
@@ -889,10 +928,12 @@ int generateStructureLootTable16(
             }
 
             out->count[entry->item] += count;
-            if (entry->item == DP_LOOT_ENCHANTED_BOOK &&
-                enchantment >= 0 && level > 0)
+            if (enchantment >= 0 && level > 0)
             {
-                out->enchantedBook[enchantment][level] += count;
+                recordEnchantment(
+                    out, entry->item, enchantment, level, count);
+                if (entry->item == DP_LOOT_ENCHANTED_BOOK)
+                    out->enchantedBook[enchantment][level] += count;
             }
         }
     }
@@ -1199,6 +1240,63 @@ int structureLootItemAvailable(int structureType, int item)
         return 0;
     }
     return 0;
+}
+
+static int enchantmentAppliesToItem16(int item, int enchantment)
+{
+    if (item == DP_LOOT_ENCHANTED_BOOK)
+        return enchantment >= 0 &&
+            enchantment < DP_BOOK_ENCHANTMENTS_16;
+    int count = 0;
+    const uint8_t *applicable =
+        applicableEnchantments16(item, &count);
+    for (int i = 0; i < count; i++)
+        if (applicable[i] == enchantment)
+            return 1;
+    return 0;
+}
+
+int structureLootEnchantmentAvailable(int structureType, int item,
+                                      int enchantment)
+{
+    if (structureType != Bastion || item < 0 ||
+        item >= DP_LOOT_ITEM_COUNT || enchantment < 0 ||
+        enchantment >= DP_ENCH_COUNT)
+        return 0;
+
+    int hasRandomEnchant = 0;
+    int hasSoulSpeed = 0;
+    for (int table = LOOT_TABLE16_BASTION_BRIDGE;
+         table < LOOT_TABLE16_COUNT; table++)
+    {
+        const LootTableDefinition16 *definition =
+            STRUCTURE_LOOT_TABLES_16 + table;
+        for (int poolIndex = 0;
+             poolIndex < definition->poolCount; poolIndex++)
+        {
+            const LootTablePool16 *pool =
+                STRUCTURE_LOOT_POOLS_16 +
+                definition->firstPool + poolIndex;
+            for (int entryIndex = 0;
+                 entryIndex < pool->entryCount; entryIndex++)
+            {
+                const LootTableEntry16 *entry =
+                    STRUCTURE_LOOT_ENTRIES_16 +
+                    pool->firstEntry + entryIndex;
+                if (entry->item != item ||
+                    !(entry->flags & LT16_ENCHANT))
+                    continue;
+                if (entry->flags & LT16_SOUL_SPEED)
+                    hasSoulSpeed = 1;
+                else
+                    hasRandomEnchant = 1;
+            }
+        }
+    }
+    if (enchantment == DP_ENCH_SOUL_SPEED)
+        return hasSoulSpeed;
+    return hasRandomEnchant &&
+        enchantmentAppliesToItem16(item, enchantment);
 }
 
 const char *desertPyramidEnchantmentName(int enchantment)

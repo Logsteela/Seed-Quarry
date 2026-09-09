@@ -67,4 +67,13 @@ bool generateBastionLayout16(
     BastionLayout16 *out, uint64_t worldSeed,
     int chunkX, int chunkZ, QString *error = nullptr);
 
+/**
+ * Loot-search path that omits the exported piece list. Jigsaw placement is
+ * still reconstructed exactly; only metadata unused by Loot conditions is
+ * skipped.
+ */
+bool generateBastionLootChests16(
+    QVector<BastionLootChest16> *out, uint64_t worldSeed,
+    int chunkX, int chunkZ, QString *error = nullptr);
+
 #endif

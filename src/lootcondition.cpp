@@ -20,7 +20,7 @@ namespace {
 
 static const char *const lootConditionTranslationKeys[] = {
     QT_TRANSLATE_NOOP("LootCondition",
-        "Exact bastion chest search currently supports Java 1.16.1 only."),
+        "Exact bastion chest search currently supports Java 1.16 only."),
     QT_TRANSLATE_NOOP("LootCondition",
         "Exact village piece and chest-position search currently supports Java 1.16 only."),
     QT_TRANSLATE_NOOP("LootCondition",
@@ -49,6 +49,8 @@ static const char *const lootConditionTranslationKeys[] = {
         "The selected item does not occur in this structure's chests."),
     QT_TRANSLATE_NOOP("LootCondition", "The item-count range is invalid."),
     QT_TRANSLATE_NOOP("LootCondition", "The enchantment selection is invalid."),
+    QT_TRANSLATE_NOOP("LootCondition",
+        "The selected enchantment cannot occur on this item in this structure."),
     QT_TRANSLATE_NOOP("LootCondition", "The enchantment-level range is invalid."),
     QT_TRANSLATE_NOOP("LootCondition", "The Loot-condition data format is invalid."),
     QT_TRANSLATE_NOOP("LootCondition", "The Loot-condition data is truncated."),
@@ -71,12 +73,6 @@ const quint16 LOOT_RULE_VERSION_POSITION = 2;
 QMutex g_lootRuleMutex;
 QHash<quint64, QByteArray> g_lootRuleData;
 QHash<quint64, LootRuleSet> g_lootRuleSets;
-
-struct LootAccumulator
-{
-    quint64 count[DP_LOOT_ITEM_COUNT] = {};
-    quint64 enchantedBook[DP_ENCH_COUNT][DP_ENCH_MAX_LEVEL + 1] = {};
-};
 
 struct GeneratedLootChest
 {
@@ -270,28 +266,27 @@ quint64 contentHash(const QByteArray& data)
     return hash ? hash : 1;
 }
 
-void addLoot(LootAccumulator *dst, const DesertPyramidLoot& src)
-{
-    for (int item = 0; item < DP_LOOT_ITEM_COUNT; item++)
-        dst->count[item] += src.count[item];
-    for (int ench = 0; ench < DP_ENCH_COUNT; ench++)
-        for (int level = 1; level <= DP_ENCH_MAX_LEVEL; level++)
-            dst->enchantedBook[ench][level] +=
-                src.enchantedBook[ench][level];
-}
-
-quint64 countRule(const LootAccumulator& loot, const LootRule& rule)
+quint64 countRule(const StructureLoot& loot, const LootRule& rule)
 {
     if (rule.item == DP_LOOT_ANY_CONTAINER)
         return 1;
-    if (rule.item != DP_LOOT_ENCHANTED_BOOK || rule.enchantment < 0)
+    if (rule.enchantment < 0)
         return loot.count[rule.item];
 
     quint64 count = 0;
     int low = qMax(1, rule.minLevel);
     int high = qMin(DP_ENCH_MAX_LEVEL, rule.maxLevel);
-    for (int level = low; level <= high; level++)
-        count += loot.enchantedBook[rule.enchantment][level];
+    for (int index = 0; index < loot.enchantmentCount; index++)
+    {
+        const StructureLootEnchantment& entry =
+            loot.enchantments[index];
+        if (entry.item == rule.item &&
+            entry.enchantment == rule.enchantment &&
+            entry.level >= low && entry.level <= high)
+        {
+            count += entry.count;
+        }
+    }
     return count;
 }
 
@@ -371,12 +366,10 @@ LootMatchStatus matchesChest(
 QVector<uint64_t> getRuleCounts(
     const LootRuleSet& rules, const StructureLoot& loot)
 {
-    LootAccumulator accumulated;
-    addLoot(&accumulated, loot);
     QVector<uint64_t> counts;
     counts.reserve(rules.rules.size());
     for (const LootRule& rule : rules.rules)
-        counts.push_back(countRule(accumulated, rule));
+        counts.push_back(countRule(loot, rule));
     return counts;
 }
 
@@ -477,13 +470,13 @@ bool getStructureLoot(
     }
     if (rules.structureType == Bastion)
     {
-        BastionLayout16 layout;
-        if (!generateBastionLayout16(
-                &layout, worldSeed, chunkX, chunkZ))
+        QVector<BastionLootChest16> generatedChests;
+        if (!generateBastionLootChests16(
+                &generatedChests, worldSeed, chunkX, chunkZ))
             return false;
-        out->chests.reserve(layout.chests.size());
+        out->chests.reserve(generatedChests.size());
         for (const BastionLootChest16& generated :
-             layout.chests)
+             generatedChests)
         {
             GeneratedLootChest chest;
             chest.present = generateStructureLootTable16(
@@ -815,7 +808,7 @@ bool isLootSupported(int structureType, int mc)
     if (fixedStructureSupported)
         return mc == MC_1_16_1 || mc == MC_1_16_5;
     if (structureType == Bastion)
-        return mc == MC_1_16_1 &&
+        return (mc == MC_1_16_1 || mc == MC_1_16) &&
             isBastionStructureData16Available();
     if (structureType == Village)
         return (mc == MC_1_16_1 || mc == MC_1_16) &&
@@ -829,10 +822,10 @@ QString lootSupportDescription(int structureType, int mc)
         return QString();
     if (structureType == Bastion)
     {
-        if (mc != MC_1_16_1)
+        if (mc != MC_1_16_1 && mc != MC_1_16)
         {
             return lootConditionTr(
-                "Exact bastion chest search currently supports Java 1.16.1 only.");
+                "Exact bastion chest search currently supports Java 1.16 only.");
         }
         QString error;
         isBastionStructureData16Available(&error);
@@ -948,8 +941,21 @@ QString validateLootRuleSet(const LootRuleSet& rules, int mc)
         if (rule.enchantment < -1 ||
             rule.enchantment >= DP_ENCH_COUNT)
             return lootConditionTr("The enchantment selection is invalid.");
-        if (rule.item == DP_LOOT_ENCHANTED_BOOK &&
-            rule.enchantment >= 0 &&
+        const bool enchantmentSupported =
+            rule.item == DP_LOOT_ENCHANTED_BOOK
+                ? (rules.structureType != Bastion ||
+                   structureLootEnchantmentAvailable(
+                       rules.structureType, rule.item,
+                       rule.enchantment))
+                : structureLootEnchantmentAvailable(
+                      rules.structureType, rule.item,
+                      rule.enchantment);
+        if (rule.enchantment >= 0 && !enchantmentSupported)
+        {
+            return lootConditionTr(
+                "The selected enchantment cannot occur on this item in this structure.");
+        }
+        if (rule.enchantment >= 0 &&
             (rule.minLevel < 1 ||
              rule.maxLevel > desertPyramidEnchantmentMaxLevel(
                  rule.enchantment) ||

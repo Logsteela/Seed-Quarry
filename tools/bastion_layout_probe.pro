@@ -11,11 +11,15 @@ INCLUDEPATH += $$PWD/..
 SOURCES += \
     $$PWD/bastion_layout_probe.cpp \
     $$PWD/../src/bastionstructure.cpp \
-    $$PWD/../src/lootcondition.cpp
+    $$PWD/../src/lootcondition.cpp \
+    $$PWD/../src/villagelootseed.cpp \
+    $$PWD/../src/villagestructure.cpp
 
 HEADERS += \
     $$PWD/../src/bastionstructure.h \
     $$PWD/../src/lootcondition.h \
+    $$PWD/../src/villagelootseed.h \
+    $$PWD/../src/villagestructure.h \
     $$PWD/../cubiomes/finders.h \
     $$PWD/../cubiomes/loot.h
 

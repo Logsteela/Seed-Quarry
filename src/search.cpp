@@ -962,7 +962,16 @@ static bool isVariantOk(const Condition *c, SearchThreadEnv *e, int stype, int v
     else if (stype == Bastion)
     {
         if (e->mc <= MC_1_15) return true;
-        getVariant(&sv, stype, e->mc, e->seed, pos->x, pos->z, -1);
+        // The public 1.16 selector normally aliases the latest 1.16 patch,
+        // but Seed Quarry's Bastion Loot reconstruction intentionally targets
+        // 1.16.1. Keep optional start-type/rotation filters on the same RNG
+        // ordering whenever they are combined with Bastion Loot.
+        const int variantMc =
+            e->mc == MC_1_16 && (c->flags & Condition::FLG_LOOT)
+                ? MC_1_16_1 : e->mc;
+        getVariant(
+            &sv, stype, variantMc, e->seed,
+            pos->x, pos->z, -1);
         int rotation = c->deps[Condition::DEP_BASTION_ROTATION];
         if (rotation && sv.rotation != rotation - 1)
             return false;

@@ -1,4 +1,5 @@
 #include "src/search.h"
+#include "src/bastionstructure.h"
 #include "src/villagelootseed.h"
 #include "src/villagestructure.h"
 
@@ -379,6 +380,106 @@ int main(int argc, char **argv)
     assert(villageCache.villageChestCount > 0);
     assert(villageCache.villageChestCount <= 4096);
 
+    const uint64_t bastionSeed =
+        uint64_t(INT64_C(-8710769437106169188));
+    const Pos bastionPos = {-12 * 16, -22 * 16};
+    BastionLayout16 bastionLayout;
+    QString bastionError;
+    assert(generateBastionLayout16(
+        &bastionLayout, bastionSeed, -12, -22,
+        &bastionError));
+    assert(bastionLayout.startType ==
+        BastionLayout16::TREASURE_ROOM);
+    assert(bastionLayout.pieceCount == 180);
+    assert(bastionLayout.chests.size() == 9);
+    QVector<BastionLootChest16> lightBastionChests;
+    assert(generateBastionLootChests16(
+        &lightBastionChests, bastionSeed, -12, -22,
+        &bastionError));
+    assert(lightBastionChests.size() ==
+        bastionLayout.chests.size());
+    for (int chest = 0;
+         chest < lightBastionChests.size(); chest++)
+    {
+        assert(lightBastionChests[chest].pos.x ==
+            bastionLayout.chests[chest].pos.x);
+        assert(lightBastionChests[chest].pos.y ==
+            bastionLayout.chests[chest].pos.y);
+        assert(lightBastionChests[chest].pos.z ==
+            bastionLayout.chests[chest].pos.z);
+        assert(lightBastionChests[chest].table ==
+            bastionLayout.chests[chest].table);
+        assert(lightBastionChests[chest].lootTableSeed ==
+            bastionLayout.chests[chest].lootTableSeed);
+    }
+    assert(structureLootEnchantmentAvailable(
+        Bastion, DP_LOOT_CROSSBOW, DP_ENCH_QUICK_CHARGE));
+    assert(structureLootEnchantmentAvailable(
+        Bastion, DP_LOOT_GOLDEN_BOOTS, DP_ENCH_SOUL_SPEED));
+    assert(structureLootEnchantmentAvailable(
+        Bastion, DP_LOOT_ENCHANTED_BOOK, DP_ENCH_SOUL_SPEED));
+    assert(!structureLootEnchantmentAvailable(
+        Bastion, DP_LOOT_ENCHANTED_BOOK, DP_ENCH_PROTECTION));
+    assert(!structureLootEnchantmentAvailable(
+        Bastion, DP_LOOT_GOLDEN_SWORD, DP_ENCH_SHARPNESS));
+
+    LootRuleSet bastionEnchantment;
+    bastionEnchantment.structureType = Bastion;
+    bastionEnchantment.logic = LootRuleSet::LOGIC_ALL;
+    bastionEnchantment.instanceMode = LootRuleSet::INSTANCE_ANY;
+    bastionEnchantment.chestMode = LootRuleSet::CHEST_ANY;
+    bool foundBastionEnchantment = false;
+    for (const BastionLootChest16& generated :
+         lightBastionChests)
+    {
+        StructureLoot chestLoot = {};
+        assert(generateStructureLootTable16(
+            &chestLoot, generated.table,
+            generated.lootTableSeed));
+        if (chestLoot.enchantmentCount == 0)
+            continue;
+        const StructureLootEnchantment& enchanted =
+            chestLoot.enchantments[0];
+        LootRule rule = itemRule(enchanted.item, 1, -1);
+        rule.enchantment = enchanted.enchantment;
+        rule.minLevel = rule.maxLevel = enchanted.level;
+        bastionEnchantment.rules = {rule};
+        bastionEnchantment.chestPositionMode =
+            LootRuleSet::CHEST_POSITION_ABSOLUTE;
+        bastionEnchantment.chestMinX =
+            bastionEnchantment.chestMaxX = generated.pos.x;
+        bastionEnchantment.chestMinY =
+            bastionEnchantment.chestMaxY = generated.pos.y;
+        bastionEnchantment.chestMinZ =
+            bastionEnchantment.chestMaxZ = generated.pos.z;
+        foundBastionEnchantment = true;
+        break;
+    }
+    assert(foundBastionEnchantment);
+    assert(validateLootRuleSet(
+        bastionEnchantment, MC_1_16).isEmpty());
+    LootSearchCache bastionCache;
+    assert(matchStructureLoot(
+        bastionEnchantment, MC_1_16, bastionSeed,
+        bastionPos, -1, &bastionCache));
+    const uint64_t bastionSameLower48 =
+        (bastionSeed & MASK48) |
+        (UINT64_C(0x1234) << 48);
+    assert(matchStructureLoot(
+        bastionEnchantment, MC_1_16,
+        bastionSameLower48, bastionPos, -1,
+        &bastionCache));
+    assert(bastionCache.calculations == 1);
+    assert(bastionCache.hits == 1);
+    assert(canMatchStructureLoot48(
+        bastionEnchantment, MC_1_16,
+        bastionSeed, bastionPos, &bastionCache));
+    LootRuleSet rejectedBastionLoot = bastionEnchantment;
+    rejectedBastionLoot.rules[0].minCount = 99;
+    assert(!canMatchStructureLoot48(
+        rejectedBastionLoot, MC_1_16,
+        bastionSeed, bastionPos, nullptr));
+
     LootRuleSet rejectedVillageLoot = villagePosition;
     rejectedVillageLoot.chestPositionMode =
         LootRuleSet::CHEST_POSITION_ANY;
@@ -739,6 +840,9 @@ int main(int argc, char **argv)
     assert(isLootSupported(Village, MC_1_16_1));
     assert(isLootSupported(Village, MC_1_16));
     assert(!isLootSupported(Village, MC_1_17));
+    assert(isLootSupported(Bastion, MC_1_16_1));
+    assert(isLootSupported(Bastion, MC_1_16));
+    assert(!isLootSupported(Bastion, MC_1_17));
     assert(structureLootItemAvailable(
         Shipwreck, DP_LOOT_FILLED_MAP));
     assert(!structureLootItemAvailable(

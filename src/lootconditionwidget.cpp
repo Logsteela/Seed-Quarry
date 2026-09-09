@@ -17,7 +17,7 @@ namespace {
 // Keep custom translation-wrapper strings visible to lupdate.
 static const char *const lootEditorTranslationKeys[] = {
     QT_TRANSLATE_NOOP("LootEditor", "No maximum"),
-    QT_TRANSLATE_NOOP("LootEditor", "Any enchantment"),
+    QT_TRANSLATE_NOOP("LootEditor", "No enchantment filter"),
     QT_TRANSLATE_NOOP("LootEditor", "Remove"),
     QT_TRANSLATE_NOOP("LootEditor", "Count"),
     QT_TRANSLATE_NOOP("LootEditor", "Enchantment"),
@@ -61,6 +61,10 @@ static const char *const lootEditorTranslationKeys[] = {
     QT_TRANSLATE_NOOP("LootEditor",
         "Count ranges are inclusive and may have no maximum. Selecting an "
         "enchanted book also enables enchantment and level filters."),
+    QT_TRANSLATE_NOOP("LootEditor",
+        "Bastion layout and chest Loot are reconstructed exactly from the "
+        "lower 48 bits in Java 1.16. Select an enchantable book or piece of "
+        "equipment to enable enchantment and level filters."),
 };
 
 QString itemDisplayName(int item)
@@ -300,9 +304,7 @@ public:
         maxCount->setValue(-1);
 
         enchantment = new QComboBox(this);
-        enchantment->addItem(lootTr("Any enchantment"), -1);
-        for (int i = 0; i < DP_ENCH_COUNT; i++)
-            enchantment->addItem(enchantmentDisplayName(i), i);
+        updateEnchantments();
 
         minLevel = new QSpinBox(this);
         maxLevel = new QSpinBox(this);
@@ -332,7 +334,10 @@ public:
         layout->setColumnStretch(2, 1);
 
         connect(item, qOverload<int>(&QComboBox::currentIndexChanged),
-                this, [this] { updateEnchantmentState(); });
+                this, [this] {
+                    updateEnchantments();
+                    updateEnchantmentState();
+                });
         connect(enchantment, qOverload<int>(&QComboBox::currentIndexChanged),
                 this, [this] { updateEnchantmentState(); });
         updateEnchantmentState();
@@ -353,10 +358,9 @@ public:
     void setValue(const LootRule& rule)
     {
         item->setCurrentIndex(item->findData(rule.item));
+        updateEnchantments(rule.enchantment);
         minCount->setValue(rule.minCount);
         maxCount->setValue(rule.maxCount);
-        enchantment->setCurrentIndex(
-            enchantment->findData(rule.enchantment));
         minLevel->setValue(rule.minLevel);
         maxLevel->setValue(rule.maxLevel);
         updateEnchantmentState();
@@ -368,6 +372,7 @@ public:
             return;
         m_structureType = structureType;
         updateItems();
+        updateEnchantments();
         updateEnchantmentState();
     }
 
@@ -386,11 +391,10 @@ public:
 
     void updateEnchantmentState()
     {
-        bool book = item->currentData().toInt() ==
-            DP_LOOT_ENCHANTED_BOOK;
-        enchantment->setEnabled(book);
+        const bool enchantable = enchantment->count() > 1;
+        enchantment->setEnabled(enchantable);
         int ench = enchantment->currentData().toInt();
-        bool levels = book && ench >= 0;
+        bool levels = enchantable && ench >= 0;
         minLevel->setEnabled(levels);
         maxLevel->setEnabled(levels);
         int maximum = levels
@@ -400,6 +404,30 @@ public:
         maxLevel->setMaximum(maximum);
         if (maxLevel->value() < minLevel->value())
             maxLevel->setValue(minLevel->value());
+    }
+
+    void updateEnchantments(int requested = -2)
+    {
+        int oldEnchantment = requested == -2
+            ? enchantment->currentData().toInt()
+            : requested;
+        const int selectedItem = item->currentData().toInt();
+        enchantment->clear();
+        enchantment->addItem(lootTr("No enchantment filter"), -1);
+        for (int i = 0; i < DP_ENCH_COUNT; i++)
+        {
+            const bool available =
+                selectedItem == DP_LOOT_ENCHANTED_BOOK
+                    ? (m_structureType != Bastion ||
+                       structureLootEnchantmentAvailable(
+                           m_structureType, selectedItem, i))
+                    : structureLootEnchantmentAvailable(
+                          m_structureType, selectedItem, i);
+            if (available)
+                enchantment->addItem(enchantmentDisplayName(i), i);
+        }
+        int index = enchantment->findData(oldEnchantment);
+        enchantment->setCurrentIndex(index >= 0 ? index : 0);
     }
 
     QComboBox *item;
@@ -754,6 +782,16 @@ void LootRuleEditor::updateEnabledState()
             "calculation. Candidates whose content RNG cannot be determined safely "
             "are treated as unknown and are not mixed into final results. "
             "Position-only searches remain available. Count ranges are inclusive.");
+        m_support->hide();
+        setToolTip(help);
+        m_enabled->setToolTip(help);
+    }
+    else if (m_structureType == Bastion)
+    {
+        const QString help = lootTr(
+            "Bastion layout and chest Loot are reconstructed exactly from the "
+            "lower 48 bits in Java 1.16. Select an enchantable book or piece of "
+            "equipment to enable enchantment and level filters.");
         m_support->hide();
         setToolTip(help);
         m_enabled->setToolTip(help);

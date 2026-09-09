@@ -6,6 +6,10 @@
 #include <QCoreApplication>
 #include <QTextStream>
 
+#ifdef Q_OS_WIN
+#include <windows.h>
+#endif
+
 extern "C" int getStructureConfig_override(
     int structureType, int mc, StructureConfig *config)
 {
@@ -14,6 +18,12 @@ extern "C" int getStructureConfig_override(
 
 int main(int argc, char **argv)
 {
+#ifdef Q_OS_WIN
+    SetErrorMode(
+        SEM_FAILCRITICALERRORS |
+        SEM_NOGPFAULTERRORBOX |
+        SEM_NOOPENFILEERRORBOX);
+#endif
     QCoreApplication application(argc, argv);
     QTextStream output(stdout);
     QTextStream errors(stderr);
@@ -114,6 +124,19 @@ int main(int argc, char **argv)
                        << structureLootItemName(item) << '|'
                        << loot.count[item] << '\n';
             }
+        }
+        for (int enchantmentIndex = 0;
+             enchantmentIndex < loot.enchantmentCount;
+             enchantmentIndex++)
+        {
+            const StructureLootEnchantment& enchanted =
+                loot.enchantments[enchantmentIndex];
+            output << "E|" << index << '|'
+                   << structureLootItemName(enchanted.item) << '|'
+                   << desertPyramidEnchantmentName(
+                          enchanted.enchantment) << '|'
+                   << enchanted.level << '|'
+                   << enchanted.count << '\n';
         }
     }
     if (selfTest)

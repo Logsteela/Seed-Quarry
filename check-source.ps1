@@ -180,8 +180,10 @@ Assert-SourceCheck ($lootConditionHeaderText.Contains("struct LootRuleSet")) `
     "src/lootcondition.h is missing the GUI loot-rule model."
 Assert-SourceCheck ($lootConditionSourceText.Contains("matchAreaLoot")) `
     "src/lootcondition.cpp is missing area-total evaluation."
-Assert-SourceCheck ($lootConditionSourceText.Contains("LootAccumulator")) `
+Assert-SourceCheck ($lootConditionSourceText.Contains("QVector<uint64_t> total")) `
     "src/lootcondition.cpp is missing wide-count aggregation."
+Assert-SourceCheck ($lootConditionSourceText.Contains("StructureLootEnchantment")) `
+    "src/lootcondition.cpp is missing item-specific enchantment matching."
 Assert-SourceCheck ($lootWidgetHeaderText.Contains("class LootRuleEditor")) `
     "src/lootconditionwidget.h is missing the GUI editor."
 Assert-SourceCheck ($lootWidgetSourceText.Contains("LootRuleEditor::addRule")) `

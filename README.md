@@ -27,7 +27,10 @@ Current Java 1.16 Loot filters cover:
 - Bastion remnants
 
 Loot conditions can include item counts, AND/OR combinations, per-chest and
-per-structure rules, area totals, enchantments, and chest coordinates.
+per-structure rules, area totals, enchantments, and chest coordinates. Bastion
+remnants use their generated chest positions and all four Java 1.16.1 chest
+tables; enchanted books and randomly enchanted equipment can be filtered by
+enchantment and level through the public Java 1.16 selector.
 
 For example, a search can require a structure to contain a particular item or
 combination of items instead of stopping at "find a village" or "find a
@@ -78,6 +81,11 @@ matches. Once a family produces a Loot match, Seed Quarry checks every remaining
 upper-16-bit seed in that family. The application exposes this as a separate
 mode and describes the trade-off in the selector tooltip. Unsafe logical combinations disable
 village-family sampling automatically.
+
+For Bastion Loot the same option is not approximate: Java 1.16.1 Bastion
+layout, chest positions, LootTableSeed values, and chest contents are fixed by
+the lower 48 bits. Seed Quarry can therefore reject a failed family exactly and
+reuse a successful result while it checks every eligible upper-16-bit seed.
 
 Village generation also has deliberately conservative `unknown` cases when
 the Java 1.16 block state or shared RNG stream cannot be proved. Those cases

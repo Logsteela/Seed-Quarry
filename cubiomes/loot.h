@@ -232,12 +232,28 @@ enum DesertPyramidEnchantment
 };
 
 #define DP_ENCH_MAX_LEVEL 5
+#define STRUCTURE_LOOT_MAX_ENCHANTMENTS 16
+
+typedef struct StructureLootEnchantment
+{
+    uint16_t item;
+    uint8_t enchantment;
+    uint8_t level;
+    uint16_t count;
+} StructureLootEnchantment;
 
 typedef struct DesertPyramidLoot
 {
     uint16_t count[DP_LOOT_ITEM_COUNT];
     /* [enchantment][level], with valid levels in the range 1..5. */
     uint16_t enchantedBook[DP_ENCH_COUNT][DP_ENCH_MAX_LEVEL + 1];
+    /*
+     * Enchantments attached to books and equipment. Keeping this sparse
+     * avoids a large item x enchantment x level matrix in every chest.
+     */
+    uint8_t enchantmentCount;
+    StructureLootEnchantment enchantments[
+        STRUCTURE_LOOT_MAX_ENCHANTMENTS];
 } DesertPyramidLoot;
 
 /* The original type name remains source-compatible. */
@@ -322,6 +338,8 @@ int desertPyramidEnchantmentMaxLevel(int enchantment);
 
 const char *structureLootItemName(int item);
 int structureLootItemAvailable(int structureType, int item);
+int structureLootEnchantmentAvailable(int structureType, int item,
+                                      int enchantment);
 
 #ifdef __cplusplus
 }

@@ -16,6 +16,7 @@
 #include <algorithm>
 #include <deque>
 #include <memory>
+#include <utility>
 
 namespace {
 
@@ -767,9 +768,9 @@ QString bastionStructureData16Path()
     return bastionData16().path;
 }
 
-bool generateBastionLayout16(
+static bool generateBastionLayout16Internal(
     BastionLayout16 *out, uint64_t worldSeed,
-    int chunkX, int chunkZ, QString *error)
+    int chunkX, int chunkZ, bool includePieces, QString *error)
 {
     if (!out)
         return false;
@@ -986,28 +987,56 @@ bool generateBastionLayout16(
     out->startType = startType;
     out->rotation = startRotation;
     out->pieceCount = pieces.size();
-    out->pieces.reserve(pieces.size());
-    for (const Piece16& piece : pieces)
+    if (includePieces)
     {
-        const Template16& structure =
-            data.templates[piece.templateIndex];
-        BastionPiece16 generated;
-        generated.name = structure.name;
-        generated.pos = {
-            piece.origin.x, piece.origin.y, piece.origin.z,
-        };
-        generated.bb0 = {
-            piece.box.x0, piece.box.y0, piece.box.z0,
-        };
-        generated.bb1 = {
-            piece.box.x1, piece.box.y1, piece.box.z1,
-        };
-        generated.rotation = piece.rotation;
-        generated.depth = piece.depth;
-        out->pieces.push_back(generated);
+        out->pieces.reserve(pieces.size());
+        for (const Piece16& piece : pieces)
+        {
+            const Template16& structure =
+                data.templates[piece.templateIndex];
+            BastionPiece16 generated;
+            generated.name = structure.name;
+            generated.pos = {
+                piece.origin.x, piece.origin.y, piece.origin.z,
+            };
+            generated.bb0 = {
+                piece.box.x0, piece.box.y0, piece.box.z0,
+            };
+            generated.bb1 = {
+                piece.box.x1, piece.box.y1, piece.box.z1,
+            };
+            generated.rotation = piece.rotation;
+            generated.depth = piece.depth;
+            out->pieces.push_back(generated);
+        }
     }
     out->chests.reserve(pending.size());
     for (const PendingChest& generated : pending)
         out->chests.push_back(generated.chest);
+    return true;
+}
+
+bool generateBastionLayout16(
+    BastionLayout16 *out, uint64_t worldSeed,
+    int chunkX, int chunkZ, QString *error)
+{
+    return generateBastionLayout16Internal(
+        out, worldSeed, chunkX, chunkZ, true, error);
+}
+
+bool generateBastionLootChests16(
+    QVector<BastionLootChest16> *out, uint64_t worldSeed,
+    int chunkX, int chunkZ, QString *error)
+{
+    if (!out)
+        return false;
+    BastionLayout16 layout;
+    if (!generateBastionLayout16Internal(
+            &layout, worldSeed, chunkX, chunkZ, false, error))
+    {
+        out->clear();
+        return false;
+    }
+    *out = std::move(layout.chests);
     return true;
 }
