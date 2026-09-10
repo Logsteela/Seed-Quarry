@@ -55,8 +55,13 @@ missing portals are not resolved. Large-biome portal-category reconstruction
 has not been validated. A rare zero LootTableSeed, which needs world-state
 random-sequence information, is not reported as a known Loot match.
 
-The existing self-contained Nether-entry/frame-completion condition remains
-Java 1.16 only; porting modern portal Loot does not port that block-shape test.
+The self-contained Nether-entry/frame-completion condition is available for
+26.2 and retains the original portal_1, portal_6 and portal_9 scope. Loot,
+template transformation and crying-obsidian rolls use the 26.2 algorithms and
+the full 64-bit seed. Because Cubiomes cannot reconstruct post-1.17 block
+terrain, the Y coordinate feeding those position-based crying-obsidian rolls
+uses its modern terrain-height approximation; this condition can consequently
+have false positives or false negatives in 26.2.
 Village terrain and unknown-state handling are unchanged.
 
 Validation is deliberately small: build/source checks and console comparisons

@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstdint>
 #include <limits>
 
@@ -276,6 +277,51 @@ private:
     std::array<std::array<double, 33>, 25> m_columns = {};
 };
 
+class TerrainColumns26
+{
+public:
+    TerrainColumns26(const Generator *generator,
+        const std::array<Pos, 5>& points)
+        : m_ok(generator && generator->mc == MC_26_2 &&
+               generator->dim == DIM_OVERWORLD)
+    {
+        if (!m_ok)
+            return;
+        for (int i = 0; i < int(points.size()); i++)
+        {
+            float height = 0.0f;
+            if (mapApproxHeight(&height, nullptr, generator, nullptr,
+                    floorDiv4(points[i].x), floorDiv4(points[i].z), 1, 1))
+            {
+                m_ok = false;
+                return;
+            }
+            m_points[i] = points[i];
+            m_heights[i] = int(std::floor(height));
+        }
+    }
+
+    bool ok() const { return m_ok; }
+
+    int firstFreeHeight(Pos point, bool) const
+    {
+        for (int i = 0; i < int(m_points.size()); i++)
+            if (m_points[i].x == point.x && m_points[i].z == point.z)
+                return m_heights[i] + 1;
+        return -63;
+    }
+
+    bool matchesHeightmap(Pos point, int y, bool) const
+    {
+        return y < firstFreeHeight(point, false);
+    }
+
+private:
+    bool m_ok;
+    std::array<Pos, 5> m_points = {};
+    std::array<int, 5> m_heights = {};
+};
+
 static int findPortalY(
     const PortalTemplate& portal, const PortalBox& box,
     PortalLocation location, uint64_t *random,
@@ -312,6 +358,43 @@ static int findPortalY(
         }
     }
     return 15;
+}
+
+static int findPortalY26(
+    const PortalTemplate& portal, const PortalBox& box,
+    PortalLocation location, uint64_t *random,
+    const TerrainColumns26& terrain)
+{
+    bool oceanFloor = location == PORTAL_ON_OCEAN_FLOOR;
+    Pos center = {
+        box.minX + (box.maxX - box.minX + 1) / 2,
+        box.minZ + (box.maxZ - box.minZ + 1) / 2,
+    };
+    int height = terrain.firstFreeHeight(center, oceanFloor) - 1;
+    const int minimumY = -64 + 15;
+    int y;
+    if (location == PORTAL_IN_MOUNTAIN)
+        y = nextIntInclusive(random, 70, height - portal.size.y);
+    else if (location == PORTAL_UNDERGROUND)
+        y = nextIntInclusive(random, minimumY, height - portal.size.y);
+    else if (location == PORTAL_PARTLY_BURIED)
+        y = height - portal.size.y + nextIntInclusive(random, 2, 8);
+    else
+        y = height;
+
+    const Pos corners[] = {
+        {box.minX, box.minZ}, {box.maxX, box.minZ},
+        {box.minX, box.maxZ}, {box.maxX, box.maxZ},
+    };
+    for (int dig = y; dig > minimumY; dig--)
+    {
+        int matches = 0;
+        for (Pos corner : corners)
+            if (terrain.matchesHeightmap(corner, dig, oceanFloor) &&
+                ++matches == 3)
+                return dig;
+    }
+    return minimumY;
 }
 
 static uint64_t blockPositionRandomSeed(Point3 point)
@@ -427,5 +510,89 @@ bool isSelfCompletableRuinedPortal16(
 
     if (details)
         *details = result;
+    return result.lootSufficient && result.frameSufficient;
+}
+
+bool isSelfCompletableRuinedPortal26(
+    uint64_t worldSeed,
+    Pos structurePos,
+    const StructureVariant& variant,
+    const Generator *generator,
+    RuinedPortalCompletion16Details *details)
+{
+    RuinedPortalCompletion16Details result;
+    const PortalTemplate *portal = getPortalTemplate(variant);
+    if (!generator || generator->mc != MC_26_2 ||
+        generator->dim != DIM_OVERWORLD || !portal)
+    {
+        if (details) *details = result;
+        return false;
+    }
+    result.supported = true;
+    result.approximateTerrain = true;
+    result.requiredObsidian = portal->requiredObsidian;
+
+    // Modern chest contents depend on the full 64-bit seed. Keep this exact,
+    // cheap rejection ahead of the approximate terrain/Y calculation.
+    StructureLoot loot = {};
+    if (!getRuinedPortalLoot26(&loot, worldSeed,
+            structurePos.x >> 4, structurePos.z >> 4,
+            variant.biome, 0))
+    {
+        if (details) *details = result;
+        return false;
+    }
+    const bool ignition = loot.count[DP_LOOT_FLINT_AND_STEEL] > 0 ||
+        loot.count[DP_LOOT_FIRE_CHARGE] > 0;
+    result.lootSufficient = ignition &&
+        loot.count[DP_LOOT_OBSIDIAN] >= portal->requiredObsidian;
+    if (!result.lootSufficient && !details)
+        return false;
+
+    uint64_t random;
+    bool frontBackMirror;
+    if (!advancePortalVariantRandom(
+            worldSeed, structurePos, variant, &random, &frontBackMirror))
+    {
+        if (details) *details = result;
+        return false;
+    }
+
+    PortalBox box = getPortalBox(structurePos, *portal,
+        variant.rotation, frontBackMirror);
+    Pos center = {
+        box.minX + (box.maxX - box.minX + 1) / 2,
+        box.minZ + (box.maxZ - box.minZ + 1) / 2,
+    };
+    std::array<Pos, 5> terrainPoints = {{
+        center,
+        {box.minX, box.minZ}, {box.maxX, box.minZ},
+        {box.minX, box.maxZ}, {box.maxX, box.maxZ},
+    }};
+    TerrainColumns26 terrain(generator, terrainPoints);
+    if (!terrain.ok())
+    {
+        if (details) *details = result;
+        return false;
+    }
+    result.portalY = findPortalY26(*portal, box,
+        getPortalLocation(variant), &random, terrain);
+
+    const Point3 pivot = {portal->size.x / 2, 0, portal->size.z / 2};
+    result.frameSufficient = true;
+    for (int i = 0; i < portal->minimalFrameCount; i++)
+    {
+        Point3 point = transformPoint(portal->minimalFrame[i], pivot,
+            variant.rotation, frontBackMirror);
+        point.x += structurePos.x;
+        point.y += result.portalY;
+        point.z += structurePos.z;
+        if (isCryingObsidian(point))
+        {
+            result.frameSufficient = false;
+            break;
+        }
+    }
+    if (details) *details = result;
     return result.lootSufficient && result.frameSufficient;
 }

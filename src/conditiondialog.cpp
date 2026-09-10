@@ -867,7 +867,8 @@ void ConditionDialog::updateMode()
         ui->comboPortalRotation->setEnabled(wi.mc >= MC_1_16_1);
         ui->checkPortalSelfCompletable->setEnabled(
             filterindex == F_PORTAL &&
-            (wi.mc == MC_1_16_1 || wi.mc == MC_1_16_5));
+            (wi.mc == MC_1_16_1 || wi.mc == MC_1_16_5 ||
+             wi.mc == MC_26_2));
         portalLootEditor->setContext(ft.stype, wi.mc);
     }
     else if (filterindex == F_ENDCITY)

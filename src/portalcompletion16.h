@@ -10,6 +10,7 @@ struct RuinedPortalCompletion16Details
     bool supported = false;
     bool lootSufficient = false;
     bool frameSufficient = false;
+    bool approximateTerrain = false;
     int portalY = -1;
     int requiredObsidian = 0;
 };
@@ -31,6 +32,19 @@ bool isSelfCompletableRuinedPortal16(
     const StructureVariant& variant,
     const Generator *generator,
     const SurfaceNoise *surfaceNoise,
+    RuinedPortalCompletion16Details *details = nullptr);
+
+/**
+ * Java 26.2 counterpart of the 1.16 test. Loot, template selection,
+ * transformation and crying-obsidian replacement are reconstructed from the
+ * exact seed. Cubiomes has no post-1.17 block terrain generator, so the portal
+ * Y used by the replacement test comes from its modern surface approximation.
+ */
+bool isSelfCompletableRuinedPortal26(
+    uint64_t worldSeed,
+    Pos structurePos,
+    const StructureVariant& variant,
+    const Generator *generator,
     RuinedPortalCompletion16Details *details = nullptr);
 
 #endif

@@ -1016,11 +1016,22 @@ static bool isVariantOk(const Condition *c, SearchThreadEnv *e, int stype, int v
         if (c->varflags & Condition::VAR_PORTAL_SELF_COMPLETABLE)
         {
             if (stype != Ruined_Portal ||
-                (e->mc != MC_1_16_1 && e->mc != MC_1_16_5))
+                (e->mc != MC_1_16_1 && e->mc != MC_1_16_5 &&
+                 e->mc != MC_26_2))
                 return false;
-            e->prepareSurfaceNoise(DIM_OVERWORLD);
-            if (!isSelfCompletableRuinedPortal16(
-                    e->seed, e->mc, *pos, sv, &e->g, &e->sn))
+            bool complete;
+            if (e->mc == MC_26_2)
+            {
+                complete = isSelfCompletableRuinedPortal26(
+                    e->seed, *pos, sv, &e->g);
+            }
+            else
+            {
+                e->prepareSurfaceNoise(DIM_OVERWORLD);
+                complete = isSelfCompletableRuinedPortal16(
+                    e->seed, e->mc, *pos, sv, &e->g, &e->sn);
+            }
+            if (!complete)
                 return false;
         }
 
