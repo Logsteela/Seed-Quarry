@@ -160,7 +160,7 @@ QPushButton:hover {
        <item>
        <widget class="QComboBox" name="comboLootMode">
          <property name="toolTip">
-          <string>Exact checks every eligible upper-16-bit seed. Fast mode checks lower-48-dependent Loot first. Bastion layout and Loot are fixed by those lower 48 bits, so a failed family is rejected exactly and a matching family keeps every eligible upper-16-bit seed. Village Loot uses one otherwise-valid upper-16-bit sample and may skip false negatives until that family produces a match.</string>
+          <string>Exact checks every eligible upper-16-bit seed. Fast mode checks lower-48-dependent Loot first. Java 1.16 Bastion layout and Loot are fixed by those lower 48 bits, so a failed family is rejected exactly and a matching family keeps every eligible upper-16-bit seed. Java 26.2 chest contents use all 64 bits: only Bastion layouts are reused, never chest contents. Village Loot uses one otherwise-valid upper-16-bit sample and may skip false negatives until that family produces a match.</string>
          </property>
         </widget>
        </item>

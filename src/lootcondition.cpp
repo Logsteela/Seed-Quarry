@@ -449,6 +449,21 @@ bool getStructureLoot(
     {
         out->chests.resize(1);
         GeneratedLootChest& chest = out->chests[0];
+        if (mc == MC_26_2)
+        {
+            bool nether = rules.structureType == Ruined_Portal_N;
+            int biome = nether_wastes;
+            if (!nether)
+            {
+                Generator generator;
+                setupGenerator(&generator, mc, 0);
+                applySeed(&generator, DIM_OVERWORLD, worldSeed);
+                biome = getBiomeAt(&generator, 4, chunkX * 4 + 2, 0, chunkZ * 4 + 2);
+            }
+            chest.present = getRuinedPortalLoot26(
+                &chest.loot, worldSeed, chunkX, chunkZ, biome, nether);
+            return chest.present;
+        }
         chest.present = getRuinedPortalLoot16(
             &chest.loot, worldSeed, chunkX, chunkZ);
         return chest.present;
@@ -474,21 +489,22 @@ bool getStructureLoot(
     if (rules.structureType == Bastion)
     {
         QVector<BastionLootChest16> generatedChests;
-        if (!generateBastionLootChests16(
-                &generatedChests, worldSeed, chunkX, chunkZ))
+        auto generate = mc == MC_26_2 ? generateBastionLootChests26 : generateBastionLootChests16;
+        if (!generate(
+                &generatedChests, worldSeed, chunkX, chunkZ, nullptr))
             return false;
         out->chests.reserve(generatedChests.size());
         for (const BastionLootChest16& generated :
              generatedChests)
         {
             GeneratedLootChest chest;
-            const int firstTable = rules.bastionLootProfile ==
+            const int firstTable = mc == MC_26_2 ? LOOT_TABLE26_BASTION_BRIDGE : rules.bastionLootProfile ==
                     LootRuleSet::BASTION_LOOT_1_16_1
                 ? LOOT_TABLE16_BASTION_BRIDGE
                 : LOOT_TABLE16_BASTION_BRIDGE_1_16_5;
             const int table = firstTable +
                 (generated.table - LOOT_TABLE16_BASTION_BRIDGE);
-            chest.present = generateStructureLootTable16(
+            chest.present = (mc != MC_26_2 || generated.lootTableSeed != 0) && generateStructureLootTable16(
                 &chest.loot, table,
                 generated.lootTableSeed);
             if (!chest.present)
@@ -569,7 +585,8 @@ bool getCachedRuleCounts(
     LootSearchCacheKey key;
     if (useFamilyCache)
     {
-        const uint64_t familySeed = worldSeed & MASK48;
+        const uint64_t familySeed = lootUsesFullSeed(rules.structureType, mc)
+            ? worldSeed : worldSeed & MASK48;
         if (cache->familySeed != familySeed)
         {
             cache->familySeed = familySeed;
@@ -806,8 +823,21 @@ void LootSearchCache::reset()
     ruleHashes.clear();
 }
 
+bool lootUsesFullSeed(int structureType, int mc)
+{
+    return mc == MC_26_2 && (structureType == Bastion ||
+        structureType == Ruined_Portal || structureType == Ruined_Portal_N);
+}
+
+int lootProfileForVersion(int mc, int selectedProfile)
+{
+    return mc == MC_26_2 ? LOOT_PROFILE_26_2 : selectedProfile;
+}
+
 bool isLootSupported(int structureType, int mc)
 {
+    if (lootUsesFullSeed(structureType, mc))
+        return structureType != Bastion || isBastionStructureData26Available();
     const bool fixedStructureSupported =
         structureType == Desert_Pyramid ||
         structureType == Shipwreck ||
@@ -831,6 +861,12 @@ QString lootSupportDescription(int structureType, int mc)
         return QString();
     if (structureType == Bastion)
     {
+        if (mc == MC_26_2)
+        {
+            QString error;
+            isBastionStructureData26Available(&error);
+            return error;
+        }
         if (mc != MC_1_16_1 && mc != MC_1_16)
         {
             return lootConditionTr(
@@ -867,6 +903,7 @@ QString lootSupportDescription(int structureType, int mc)
 
 QString validateLootRuleSet(const LootRuleSet& rules, int mc)
 {
+    const int profile = lootProfileForVersion(mc, rules.bastionLootProfile);
     QString unsupported = lootSupportDescription(rules.structureType, mc);
     if (!unsupported.isEmpty())
         return unsupported;
@@ -948,7 +985,7 @@ QString validateLootRuleSet(const LootRuleSet& rules, int mc)
             return lootConditionTr("The item selection is invalid.");
         if (!structureLootItemAvailable(
                 rules.structureType, rule.item,
-                rules.bastionLootProfile))
+                profile))
         {
             return lootConditionTr(
                 "The selected item does not occur in this structure's chests.");
@@ -963,17 +1000,17 @@ QString validateLootRuleSet(const LootRuleSet& rules, int mc)
             rule.enchantment == LootRule::ENCHANTMENT_ANY
                 ? structureLootItemCanBeEnchanted(
                       rules.structureType, rule.item,
-                      rules.bastionLootProfile)
+                      profile)
                 : (rule.item == DP_LOOT_ENCHANTED_BOOK
-                    ? (rules.structureType != Bastion ||
+                    ? ((rules.structureType != Bastion && rule.enchantment < DP_ENCH_SOUL_SPEED) ||
                        structureLootEnchantmentAvailable(
                            rules.structureType, rule.item,
                            rule.enchantment,
-                           rules.bastionLootProfile))
+                           profile))
                     : structureLootEnchantmentAvailable(
                           rules.structureType, rule.item,
                           rule.enchantment,
-                          rules.bastionLootProfile));
+                          profile));
         if (rule.enchantment != LootRule::ENCHANTMENT_NONE &&
             !enchantmentSupported)
         {
@@ -1297,6 +1334,8 @@ bool canMatchStructureLoot48(
     Pos structurePos, LootSearchCache *cache,
     uint64_t cacheRuleKey, Pos locationReference)
 {
+    if (lootUsesFullSeed(rules.structureType, mc))
+        return true; // Xoroshiro decoration is not determined by lower 48 bits.
     /*
      * A village's start pool and exact Y layout need the biome and the full
      * 64-bit terrain seed.  The lower-48 pass may therefore keep it as a
@@ -1330,6 +1369,8 @@ bool canMatchAreaLoot48(
     LootSearchCache *cache, uint64_t cacheRuleKey,
     Pos locationReference)
 {
+    if (lootUsesFullSeed(rules.structureType, mc))
+        return candidatePositions.size() >= qMax(0, minimumInstances);
     if (rules.rules.isEmpty())
         return true;
     minimumInstances = qMax(0, minimumInstances);

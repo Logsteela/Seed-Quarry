@@ -1424,7 +1424,8 @@ testCondAt(
         (st == Ruined_Portal || st == Ruined_Portal_N) &&
         hasVariantFilter;
     const bool structureDepends64 =
-        structureInfo->dep64 || portalVariantDepends64;
+        structureInfo->dep64 || portalVariantDepends64 ||
+        (lootRules && lootUsesFullSeed(st, env->mc));
 
     if (cond->rmax > 0)
     {

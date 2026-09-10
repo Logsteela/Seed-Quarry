@@ -110,6 +110,10 @@ if (-not (Test-Path $exe)) {
 }
 
 $structureManifest = Join-Path $sourceDir "build-structure-data\jigsaw-1.16.1.json"
+$modernManifest = Join-Path $sourceDir "build-structure-data\jigsaw-26.2.json"
+if (Test-Path $modernManifest) {
+    Copy-Item -LiteralPath $modernManifest -Destination (Split-Path $exe -Parent) -Force
+}
 if (Test-Path $structureManifest) {
     Copy-Item -LiteralPath $structureManifest `
         -Destination (Split-Path $exe -Parent) -Force

@@ -188,6 +188,11 @@ enum DesertPyramidLootItem
     DP_LOOT_DIAMOND_PICKAXE,
     DP_LOOT_IRON_BLOCK,
 
+    DP_LOOT_SNOUT_ARMOR_TRIM_SMITHING_TEMPLATE,
+    DP_LOOT_NETHERITE_UPGRADE_SMITHING_TEMPLATE,
+    DP_LOOT_IRON_CHAIN,
+    DP_LOOT_DIAMOND_SPEAR,
+
     DP_LOOT_ITEM_COUNT
 };
 
@@ -232,6 +237,7 @@ enum DesertPyramidEnchantment
     DP_ENCH_VANISHING_CURSE,
     /* Appended to keep all pre-existing saved enchantment ids stable. */
     DP_ENCH_SOUL_SPEED,
+    DP_ENCH_LUNGE,
     DP_ENCH_COUNT
 };
 
@@ -301,6 +307,11 @@ enum StructureLootTable16
     LOOT_TABLE16_BASTION_HOGLIN_STABLE_1_16_5,
     LOOT_TABLE16_BASTION_OTHER_1_16_5,
     LOOT_TABLE16_BASTION_TREASURE_1_16_5,
+    LOOT_TABLE26_BASTION_BRIDGE,
+    LOOT_TABLE26_BASTION_HOGLIN_STABLE,
+    LOOT_TABLE26_BASTION_OTHER,
+    LOOT_TABLE26_BASTION_TREASURE,
+    LOOT_TABLE26_RUINED_PORTAL,
     LOOT_TABLE16_COUNT
 };
 
@@ -313,7 +324,15 @@ enum BastionLootProfile16
 {
     BASTION_LOOT_PROFILE_1_16_1,
     BASTION_LOOT_PROFILE_1_16_2_TO_1_16_5,
+    /* Runtime context derived from the world version, not a saved 1.16 choice. */
+    LOOT_PROFILE_26_2,
 };
+
+/* 26.2 decoration uses WorldgenRandom wrapping xoroshiro, including its
+ * two-draw nextLong adapter. Chest Loot itself still uses the legacy LCG. */
+uint64_t structureLootDecorationSeed26(uint64_t worldSeed, int blockX, int blockZ);
+int getRuinedPortalLoot26(StructureLoot *out, uint64_t worldSeed,
+                         int chunkX, int chunkZ, int biomeId, int isNether);
 
 /**
  * Calculates the combined, non-indexed contents of one desert-pyramid chest

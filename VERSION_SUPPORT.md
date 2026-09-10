@@ -3,6 +3,10 @@
 The viewer exposes every stable Java Edition release from 1.21.1 through 26.2.
 Snapshots, pre-releases and release candidates are intentionally excluded.
 
+Map-version support is separate from Loot support. Java 26.2 ruined portals
+and Bastion remnants have dedicated Loot implementations; other modern Loot
+versions are not inferred from map compatibility. See [Loot 26.2](LOOT_26_2.md).
+
 | Releases | Seed-generation impact handled by the viewer |
 | --- | --- |
 | 1.21.1 | Existing 1.21 generation and Trial Chambers |

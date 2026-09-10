@@ -41,7 +41,7 @@ test-versions: tests_versions.c $(CUBIOMES_SRC) $(wildcard *.h)
 finders.o: finders.c finders.h
 	$(CC) -c $(CFLAGS) $<
 
-loot.o: loot.c loot.h
+loot.o: loot.c loot.h loot_tables_1_16_1.inc loot_tables_bastion_1_16_5.inc loot_tables_26_2.inc
 	$(CC) -c $(CFLAGS) $<
 
 generator.o: generator.c generator.h

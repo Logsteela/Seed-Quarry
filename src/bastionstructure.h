@@ -55,6 +55,7 @@ struct BastionLayout16
  * generated locally from the user's official Minecraft client jar.
  */
 bool isBastionStructureData16Available(QString *error = nullptr);
+bool isBastionStructureData26Available(QString *error = nullptr);
 QString bastionStructureData16Path();
 
 /**
@@ -73,6 +74,12 @@ bool generateBastionLayout16(
  * skipped.
  */
 bool generateBastionLootChests16(
+    QVector<BastionLootChest16> *out, uint64_t worldSeed,
+    int chunkX, int chunkZ, QString *error = nullptr);
+
+// 26.2: lower-48 layout cache, full-64 decoration/chest seeds. The exported
+// chest type/table identifiers are shared with the 1.16 layout API.
+bool generateBastionLootChests26(
     QVector<BastionLootChest16> *out, uint64_t worldSeed,
     int chunkX, int chunkZ, QString *error = nullptr);
 

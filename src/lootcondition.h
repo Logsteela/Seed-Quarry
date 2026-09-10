@@ -163,6 +163,8 @@ struct LootSearchCache
 };
 
 bool isLootSupported(int structureType, int mc);
+bool lootUsesFullSeed(int structureType, int mc);
+int lootProfileForVersion(int mc, int selectedProfile);
 QString lootSupportDescription(int structureType, int mc);
 QString validateLootRuleSet(const LootRuleSet& rules, int mc);
 

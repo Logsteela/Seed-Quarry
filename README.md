@@ -32,6 +32,12 @@ remnants use their generated chest positions and all four Java 1.16.1 chest
 tables; enchanted books and randomly enchanted equipment can be filtered by
 enchantment and level through the public Java 1.16 selector.
 
+Java **26.2** additionally supports ruined-portal Loot and all four Bastion
+chest tables, including equipment enchantments and Bastion chest coordinates.
+The selected world version chooses these tables automatically. This does not
+enable Loot for other 1.20/1.21/26.x releases; see [26.2 details](LOOT_26_2.md)
+for setup and limitations.
+
 For example, a search can require a structure to contain a particular item or
 combination of items instead of stopping at "find a village" or "find a
 shipwreck".
@@ -86,6 +92,11 @@ For Bastion Loot the same option is not approximate: Java 1.16.1 Bastion
 layout, chest positions, LootTableSeed values, and chest contents are fixed by
 the lower 48 bits. Seed Quarry can therefore reject a failed family exactly and
 reuse a successful result while it checks every eligible upper-16-bit seed.
+
+In Java 26.2, the decoration RNG instead uses **all 64 seed bits**. Only
+Bastion layouts are reused across a family; chest contents are recalculated.
+A 48-bit-only search therefore retains possible candidates without deciding
+26.2 Loot. Use a full-seed/family-block search for actual Loot matches.
 
 Village generation also has deliberately conservative `unknown` cases when
 the Java 1.16 block state or shared RNG stream cannot be proved. Those cases

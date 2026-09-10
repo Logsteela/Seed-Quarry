@@ -57,6 +57,11 @@ SOFTWARE.
 
 ## MineMap
 
+The Java 26.2 Loot extension instead uses compact factual metadata extracted
+locally from the official 26.2 client JAR. Its extraction script and version
+pin are documented in `LOOT_26_2.md`. Minecraft JARs, raw structure templates
+and decompiled Minecraft source are not distributed in this repository.
+
 The fixed-structure Loot implementation and validation work also used
 MineMap 1.0.26 as a behavioral reference. Seed Quarry does not distribute the
 MineMap application or its Java user interface.

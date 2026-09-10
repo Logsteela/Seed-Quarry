@@ -81,11 +81,59 @@ typedef struct LootTableDefinition16
 #include "loot_tables_1_16_1.inc"
 #include "loot_tables_bastion_1_16_5.inc"
 
+typedef struct ModernEnchantment
+{
+    uint16_t item;
+    uint8_t enchantment;
+    uint8_t maxLevel;
+} ModernEnchantment;
+
+#include "loot_tables_26_2.inc"
+
+static int modernEnchantmentLevel(int item, int enchantment)
+{
+    for (unsigned i = 0; i < sizeof(MODERN_ENCHANTMENTS_26_2) /
+            sizeof(MODERN_ENCHANTMENTS_26_2[0]); i++)
+    {
+        const ModernEnchantment *e = MODERN_ENCHANTMENTS_26_2 + i;
+        if (e->item == item && e->enchantment == enchantment)
+            return e->maxLevel;
+    }
+    return 0;
+}
+
+static int selectModernEnchantment(uint64_t *rng, int item, int *level)
+{
+    const ModernEnchantment *choices[DP_ENCH_COUNT];
+    int count = 0;
+    for (unsigned i = 0; i < sizeof(MODERN_ENCHANTMENTS_26_2) /
+            sizeof(MODERN_ENCHANTMENTS_26_2[0]); i++)
+    {
+        if (MODERN_ENCHANTMENTS_26_2[i].item == item)
+            choices[count++] = MODERN_ENCHANTMENTS_26_2 + i;
+    }
+    if (!count)
+        return -1;
+    const ModernEnchantment *e = choices[nextInt(rng, count)];
+    *level = e->maxLevel == 1 ? 1 : 1 + nextInt(rng, e->maxLevel);
+    return e->enchantment;
+}
+
 static int resolveStructureLootTable16(
     int table, const LootTableDefinition16 **definition,
     const LootTablePool16 **pools,
     const LootTableEntry16 **entries, const char **name)
 {
+    if (table >= LOOT_TABLE26_BASTION_BRIDGE &&
+        table <= LOOT_TABLE26_RUINED_PORTAL)
+    {
+        int local = table - LOOT_TABLE26_BASTION_BRIDGE;
+        if (definition) *definition = MODERN_LOOT_TABLES_26_2 + local;
+        if (pools) *pools = MODERN_LOOT_POOLS_26_2;
+        if (entries) *entries = MODERN_LOOT_ENTRIES_26_2;
+        if (name) *name = MODERN_LOOT_TABLE_NAMES_26_2[local];
+        return 1;
+    }
     if (table >= LOOT_TABLE16_BASTION_BRIDGE_1_16_5 &&
         table <= LOOT_TABLE16_BASTION_TREASURE_1_16_5)
     {
@@ -716,6 +764,76 @@ int getRuinedPortalLoot16(
     return 1;
 }
 
+uint64_t structureLootDecorationSeed26(uint64_t worldSeed, int blockX, int blockZ)
+{
+    Xoroshiro xr;
+    xSetSeed(&xr, worldSeed);
+    uint64_t a = xNextLongJ(&xr) | 1;
+    uint64_t b = xNextLongJ(&xr) | 1;
+    return ((uint64_t)(int64_t)blockX * a +
+            (uint64_t)(int64_t)blockZ * b) ^ worldSeed;
+}
+
+int getRuinedPortalLoot26(StructureLoot *out, uint64_t worldSeed,
+                         int chunkX, int chunkZ, int biomeId, int isNether)
+{
+    if (!out || biomeId < 0 || chunkX < -DP_WORLD_BORDER_CHUNKS ||
+        chunkX > DP_WORLD_BORDER_CHUNKS || chunkZ < -DP_WORLD_BORDER_CHUNKS ||
+        chunkZ > DP_WORLD_BORDER_CHUNKS)
+        return 0;
+    StructureVariant category;
+    getVariant(&category, isNether ? Ruined_Portal_N : Ruined_Portal,
+               MC_26_2, worldSeed, chunkX * 16, chunkZ * 16, biomeId);
+    int cat = isNether ? nether_wastes : category.biome;
+    uint64_t rng = chunkGenerateRnd(worldSeed, chunkX, chunkZ);
+    int index = 10;
+    switch (cat)
+    {
+    case desert: index = 11; break;
+    case jungle: index = 12; (void)nextFloat(&rng); break;
+    case mountains: index = 13; /* fall through */
+    case plains:
+        /* Setup weights are [underground, surface] = [0.5, 0.5].
+         * Only the surface setup samples its 0.5 air-pocket probability. */
+        if (nextFloat(&rng) >= 0.5f) (void)nextFloat(&rng);
+        break;
+    case nether_wastes: index = 14; (void)nextFloat(&rng); break;
+    case ocean: index = 15; break;
+    case swamp: index = 16; break;
+    default: return 0;
+    }
+    int giant = nextFloat(&rng) < 0.05f;
+    int portal = giant ? 10 + nextInt(&rng, 3) : nextInt(&rng, 10);
+    int rotation = nextInt(&rng, 4);
+    int mirror = nextFloat(&rng) >= 0.5f; // FRONT_BACK mirrors local X.
+    int sx = PORTAL_SIZES_26_2[portal][0], sz = PORTAL_SIZES_26_2[portal][1];
+    int px = sx / 2, pz = sz / 2;
+    int minX = 999, minZ = 999, maxX = -999, maxZ = -999;
+    for (int i = 0; i < 4; i++)
+    {
+        int x = (i & 1) ? sx - 1 : 0;
+        int z = (i & 2) ? sz - 1 : 0;
+        if (mirror) x = -x;
+        int tx = x, tz = z;
+        if (rotation == 1) { tx = px + pz - z; tz = pz - px + x; }
+        if (rotation == 2) { tx = 2 * px - x; tz = 2 * pz - z; }
+        if (rotation == 3) { tx = px - pz + z; tz = px + pz - x; }
+        if (tx < minX) minX = tx;
+        if (tx > maxX) maxX = tx;
+        if (tz < minZ) minZ = tz;
+        if (tz > maxZ) maxZ = tz;
+    }
+    /* Portals are placed wholly in their bounding-box CENTER chunk, even
+     * when the chest lies across its boundary. */
+    int centerX = chunkX * 16 + minX + (maxX - minX + 1) / 2;
+    int centerZ = chunkZ * 16 + minZ + (maxZ - minZ + 1) / 2;
+    Xoroshiro xr;
+    xSetSeed(&xr, structureLootDecorationSeed26(worldSeed,
+        floordiv(centerX, 16) * 16, floordiv(centerZ, 16) * 16) + 40000 + index);
+    uint64_t lootSeed = xNextLongJ(&xr);
+    return lootSeed && generateStructureLootTable16(out, LOOT_TABLE26_RUINED_PORTAL, lootSeed);
+}
+
 static uint64_t getCarverSeed16(
     uint64_t worldSeed, int chunkX, int chunkZ)
 {
@@ -956,6 +1074,10 @@ int generateStructureLootTable16(
                     enchantment = DP_ENCH_SOUL_SPEED;
                     level = 1 + nextInt(&rng, 3);
                 }
+                else if (table >= LOOT_TABLE26_BASTION_BRIDGE)
+                {
+                    enchantment = selectModernEnchantment(&rng, entry->item, &level);
+                }
                 else
                 {
                     enchantment = selectRandomEnchantment16(
@@ -1144,6 +1266,10 @@ const char *structureLootItemName(int item)
         "any_container",
         "diamond_pickaxe",
         "iron_block",
+        "snout_armor_trim_smithing_template",
+        "netherite_upgrade_smithing_template",
+        "iron_chain",
+        "diamond_spear",
     };
     if (item < 0 || item >= DP_LOOT_ITEM_COUNT)
         return 0;
@@ -1192,7 +1318,13 @@ static int bastionLootTableRange16(
     if (profile == BASTION_LOOT_PROFILE_1_16_2_TO_1_16_5)
     {
         *firstTable = LOOT_TABLE16_BASTION_BRIDGE_1_16_5;
-        *endTable = LOOT_TABLE16_COUNT;
+        *endTable = LOOT_TABLE16_BASTION_TREASURE_1_16_5 + 1;
+        return 1;
+    }
+    if (profile == LOOT_PROFILE_26_2)
+    {
+        *firstTable = LOOT_TABLE26_BASTION_BRIDGE;
+        *endTable = LOOT_TABLE26_BASTION_TREASURE + 1;
         return 1;
     }
     return 0;
@@ -1239,6 +1371,9 @@ int structureLootItemAvailable(int structureType, int item,
         return 0;
     case Ruined_Portal:
     case Ruined_Portal_N:
+        if (bastionLootProfile == LOOT_PROFILE_26_2)
+            return lootTableRangeHasItem16(LOOT_TABLE26_RUINED_PORTAL,
+                LOOT_TABLE26_RUINED_PORTAL + 1, item);
         switch (item)
         {
         case DP_LOOT_OBSIDIAN:
@@ -1327,6 +1462,10 @@ int structureLootEnchantmentAvailable(int structureType, int item,
                                       int enchantment,
                                       int bastionLootProfile)
 {
+    if ((structureType == Ruined_Portal || structureType == Ruined_Portal_N) &&
+        bastionLootProfile == LOOT_PROFILE_26_2)
+        return structureLootItemAvailable(structureType, item, bastionLootProfile) &&
+            modernEnchantmentLevel(item, enchantment) > 0;
     if (structureType != Bastion || item < 0 ||
         item >= DP_LOOT_ITEM_COUNT || enchantment < 0 ||
         enchantment >= DP_ENCH_COUNT)
@@ -1371,6 +1510,8 @@ int structureLootEnchantmentAvailable(int structureType, int item,
     }
     if (enchantment == DP_ENCH_SOUL_SPEED)
         return hasSoulSpeed;
+    if (bastionLootProfile == LOOT_PROFILE_26_2)
+        return hasRandomEnchant && modernEnchantmentLevel(item, enchantment) > 0;
     return hasRandomEnchant &&
         enchantmentAppliesToItem16(item, enchantment);
 }
@@ -1430,6 +1571,7 @@ const char *desertPyramidEnchantmentName(int enchantment)
         "mending",
         "vanishing_curse",
         "soul_speed",
+        "lunge",
     };
     if (enchantment < 0 || enchantment >= DP_ENCH_COUNT)
         return 0;
@@ -1440,7 +1582,7 @@ int desertPyramidEnchantmentMaxLevel(int enchantment)
 {
     if (enchantment < 0 || enchantment >= DP_ENCH_COUNT)
         return 0;
-    if (enchantment == DP_ENCH_SOUL_SPEED)
+    if (enchantment == DP_ENCH_SOUL_SPEED || enchantment == DP_ENCH_LUNGE)
         return 3;
     return DP_BOOK_MAX_LEVEL_16[enchantment];
 }

@@ -422,7 +422,7 @@ public:
                     m_structureType, i, m_bastionLootProfile))
             {
                 item->addItem(itemDisplayName(i), i);
-                if (m_structureType == Bastion &&
+                if ((m_structureType == Bastion || m_bastionLootProfile == LOOT_PROFILE_26_2) &&
                     i != DP_LOOT_ENCHANTED_BOOK &&
                     structureLootItemCanBeEnchanted(
                         m_structureType, i,
@@ -500,7 +500,7 @@ public:
         {
             const bool available =
                 selectedItem == DP_LOOT_ENCHANTED_BOOK
-                    ? (m_structureType != Bastion ||
+                    ? ((m_structureType != Bastion && i < DP_ENCH_SOUL_SPEED) ||
                        structureLootEnchantmentAvailable(
                            m_structureType, selectedItem, i,
                            m_bastionLootProfile))
@@ -668,7 +668,7 @@ LootRuleEditor::LootRuleEditor(QWidget *parent)
             qOverload<int>(&QComboBox::currentIndexChanged),
             this, [this] {
                 const int profile =
-                    m_bastionLootProfile->currentData().toInt();
+                    lootProfileForVersion(m_mc, m_bastionLootProfile->currentData().toInt());
                 for (LootRuleRow *row : m_rows)
                     row->setContext(m_structureType, profile);
                 updateEnabledState();
@@ -682,13 +682,13 @@ LootRuleEditor::LootRuleEditor(QWidget *parent)
 
 void LootRuleEditor::setContext(int structureType, int mc)
 {
-    bool changed = m_structureType != structureType;
+    bool changed = m_structureType != structureType || m_mc != mc;
     m_structureType = structureType;
     m_mc = mc;
     if (changed)
     {
         const int profile =
-            m_bastionLootProfile->currentData().toInt();
+            lootProfileForVersion(m_mc, m_bastionLootProfile->currentData().toInt());
         for (LootRuleRow *row : m_rows)
             row->setContext(structureType, profile);
         updateChestModes();
@@ -774,7 +774,7 @@ void LootRuleEditor::addRule(const LootRule& rule)
     LootRuleRow *row =
         new LootRuleRow(
             m_structureType,
-            m_bastionLootProfile->currentData().toInt(),
+            lootProfileForVersion(m_mc, m_bastionLootProfile->currentData().toInt()),
             m_rowsWidget);
     row->setValue(rule);
     m_rows.insert(m_rows.size(), row);
@@ -903,6 +903,18 @@ void LootRuleEditor::updateEnabledState()
         m_support->show();
         setToolTip(QString());
     }
+    else if (lootUsesFullSeed(m_structureType, m_mc))
+    {
+        const QString help = lootTr(
+            "Java 26.2 chest tables and enchantments. Chest contents use all 64 seed bits; "
+            "48-bit-only searches retain candidates without deciding Loot. Bastion layouts "
+            "are cached per lower-48 family, but each full seed gets its own chest contents. "
+            "Portal biome/terrain viability uses the viewer's existing approximation; "
+            "terrain-dependent missing or overlapping portals are not resolved.");
+        m_support->hide();
+        setToolTip(help);
+        m_enabled->setToolTip(help);
+    }
     else if (m_structureType == Village)
     {
         const QString help = lootTr(
@@ -949,7 +961,7 @@ void LootRuleEditor::updateEnabledState()
             m_chestMode->findData(LootRuleSet::CHESTS_TOTAL));
     }
     m_chestMode->setEnabled(active && !total);
-    const bool isBastion = m_structureType == Bastion;
+    const bool isBastion = m_structureType == Bastion && m_mc != MC_26_2;
     m_bastionLootProfileLabel->setVisible(isBastion);
     m_bastionLootProfile->setVisible(isBastion);
     m_bastionLootProfile->setEnabled(active && isBastion);

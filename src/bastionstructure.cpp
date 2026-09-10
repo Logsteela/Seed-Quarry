@@ -200,7 +200,7 @@ int tableFromName(QString name)
     return -1;
 }
 
-QStringList manifestCandidates()
+QStringList manifestCandidates(bool modern)
 {
     QStringList paths;
     const QString configured =
@@ -226,6 +226,11 @@ QStringList manifestCandidates()
     }
     paths << QDir::current().filePath(
         QStringLiteral("build-structure-data/jigsaw-1.16.1.json"));
+    if (modern)
+    {
+        for (QString& path : paths)
+            path.replace(QStringLiteral("jigsaw-1.16.1.json"), QStringLiteral("jigsaw-26.2.json"));
+    }
     paths.removeDuplicates();
     return paths;
 }
@@ -245,10 +250,10 @@ bool runtimeOrderLess(
     return firstPlacement < secondPlacement;
 }
 
-BastionData16 loadBastionData16()
+BastionData16 loadBastionData16(bool modern = false)
 {
     BastionData16 data;
-    for (const QString& candidate : manifestCandidates())
+    for (const QString& candidate : manifestCandidates(modern))
     {
         QFileInfo info(candidate);
         if (info.isFile())
@@ -262,6 +267,8 @@ BastionData16 loadBastionData16()
         data.error = QCoreApplication::translate("BastionStructure",
             "The Java 1.16.1 structure data file jigsaw-1.16.1.json was not found. "
             "Run rebuild to deploy it.");
+        if (modern)
+            data.error = QStringLiteral("Java 26.2 structure data is missing. Run tools/generate_loot_26_2.py, then rebuild.");
         return data;
     }
 
@@ -288,9 +295,9 @@ BastionData16 loadBastionData16()
     const QJsonObject root = document.object();
     if (root.value(QStringLiteral("format")).toInt() != 1 ||
         root.value(QStringLiteral("minecraft_version")).toString() !=
-            QLatin1String("1.16.1") ||
+            QLatin1String(modern ? "26.2" : "1.16.1") ||
         root.value(QStringLiteral("jar_sha1")).toString() !=
-            QLatin1String("c9abbe8ee4fa490751ca70635340b7cf00db83ff"))
+            QLatin1String(modern ? "2dc72797acbc1b63fc16a11c4ac393605f453754" : "c9abbe8ee4fa490751ca70635340b7cf00db83ff"))
     {
         data.error = QCoreApplication::translate("BastionStructure",
             "The structure-data format, Minecraft version, or official JAR SHA-1 does not match.");
@@ -466,12 +473,12 @@ BastionData16 loadBastionData16()
     };
     for (const char *startPool : startPools)
     {
-        if (!data.poolByName.contains(QLatin1String(startPool)))
+        if (!data.poolByName.contains(QLatin1String(modern ? "bastion/starts" : startPool)))
             ok = false;
     }
 
     if (!ok || data.templates.size() != 167 ||
-        data.pools.size() != 63 || containerCount != 37)
+        data.pools.size() != (modern ? 60 : 63) || containerCount != 37)
     {
         data.error = QCoreApplication::translate("BastionStructure",
             "The structure data does not match the expected Java 1.16.1 contents "
@@ -490,6 +497,12 @@ BastionData16 loadBastionData16()
 const BastionData16& bastionData16()
 {
     static const BastionData16 data = loadBastionData16();
+    return data;
+}
+
+const BastionData16& bastionData26()
+{
+    static const BastionData16 data = loadBastionData16(true);
     return data;
 }
 
@@ -678,7 +691,7 @@ QVector<Jigsaw16> shuffledJigsaws(
 
 QVector<int> shuffledPool(
     const BastionData16& data, const QString& name,
-    uint64_t *random)
+    uint64_t *random, bool modern = false)
 {
     const auto found = data.poolByName.constFind(name);
     if (found == data.poolByName.constEnd())
@@ -690,7 +703,7 @@ QVector<int> shuffledPool(
      * Unlike Collections.shuffle (used by jigsaws and rotations), its loop
      * includes the final nextInt(1) call.
      */
-    if (!result.isEmpty())
+    if (!modern && !result.isEmpty())
         (void) nextInt(random, 1);
     return result;
 }
@@ -715,7 +728,7 @@ int floorChunk(int coordinate)
 }
 
 void assignLootSeeds(
-    QVector<PendingChest> *pending, uint64_t worldSeed)
+    QVector<PendingChest> *pending, uint64_t worldSeed, bool modern = false)
 {
     QHash<qint64, QVector<int>> byChunk;
     for (int index = 0; index < pending->size(); index++)
@@ -747,9 +760,13 @@ void assignLootSeeds(
                     return a.pieceIndex < b.pieceIndex;
                 return a.placementIndex < b.placementIndex;
             });
+        Xoroshiro xr;
+        if (modern)
+            xSetSeed(&xr, structureLootDecorationSeed26(worldSeed,
+                chunkX * 16, chunkZ * 16) + UINT64_C(40000));
         for (int index : indices)
-            (*pending)[index].chest.lootTableSeed =
-                nextLong(&random);
+            (*pending)[index].chest.lootTableSeed = modern
+                ? xNextLongJ(&xr) : nextLong(&random);
     }
 }
 
@@ -763,6 +780,13 @@ bool isBastionStructureData16Available(QString *error)
     return data.valid;
 }
 
+bool isBastionStructureData26Available(QString *error)
+{
+    const BastionData16& data = bastionData26();
+    if (error) *error = data.error;
+    return data.valid;
+}
+
 QString bastionStructureData16Path()
 {
     return bastionData16().path;
@@ -770,12 +794,13 @@ QString bastionStructureData16Path()
 
 static bool generateBastionLayout16Internal(
     BastionLayout16 *out, uint64_t worldSeed,
-    int chunkX, int chunkZ, bool includePieces, QString *error)
+    int chunkX, int chunkZ, bool includePieces, QString *error,
+    bool modern = false)
 {
     if (!out)
         return false;
     *out = BastionLayout16();
-    const BastionData16& data = bastionData16();
+    const BastionData16& data = modern ? bastionData26() : bastionData16();
     if (!data.valid)
     {
         if (error)
@@ -789,15 +814,16 @@ static bool generateBastionLayout16Internal(
         "bastion/treasure/starters",
         "bastion/bridge/start",
     };
-    constexpr int maxDepth = 60;
+    const int maxDepth = modern ? 6 : 60;
     constexpr int maximumPieces = 4096;
 
     uint64_t random = chunkGenerateRnd(worldSeed, chunkX, chunkZ);
-    const int startType = nextInt(&random, 4);
-    const int startRotation = nextInt(&random, 4);
+    int startType = nextInt(&random, 4);
+    int startRotation = nextInt(&random, 4);
+    if (modern) std::swap(startType, startRotation);
     const Pool16& startPool =
         data.pools[data.poolByName.value(
-            QLatin1String(startPools[startType]))];
+            QLatin1String(modern ? "bastion/starts" : startPools[startType]))];
     if (startPool.templates.isEmpty())
     {
         if (error)
@@ -806,8 +832,32 @@ static bool generateBastionLayout16Internal(
         return false;
     }
     const int startTemplateIndex =
-        startPool.templates[nextInt(
+        startPool.templates[modern ? startType : nextInt(
             &random, startPool.templates.size())];
+
+    // Limit each worker to one family and 32 positions. Only immutable layout
+    // metadata is reused; modern chest contents depend on all 64 seed bits.
+    static thread_local uint64_t cachedFamily = ~UINT64_C(0);
+    static thread_local QHash<qint64, QVector<PendingChest>> layouts;
+    if (modern && !includePieces)
+    {
+        if (cachedFamily != (worldSeed & MASK48))
+        {
+            layouts.clear();
+            cachedFamily = worldSeed & MASK48;
+        }
+        auto cached = layouts.constFind(chunkKey(chunkX, chunkZ));
+        if (cached != layouts.constEnd())
+        {
+            QVector<PendingChest> pending = *cached;
+            assignLootSeeds(&pending, worldSeed, true);
+            for (const PendingChest& chest : pending)
+                out->chests.push_back(chest.chest);
+            out->startType = startType;
+            out->rotation = startRotation;
+            return true;
+        }
+    }
 
     Piece16 startPiece;
     startPiece.templateIndex = startTemplateIndex;
@@ -832,7 +882,7 @@ static bool generateBastionLayout16Internal(
         (startPiece.box.z0 + startPiece.box.z1) / 2;
     auto globalFree = std::make_shared<FreeRegion>();
     globalFree->outer = {
-        double(centerX - 80), double(33 - 80),
+        double(centerX - 80), double(modern ? 0 : 33 - 80),
         double(centerZ - 80),
         double(centerX + 81), double(33 + 81),
         double(centerZ + 81),
@@ -886,9 +936,9 @@ static bool generateBastionLayout16Internal(
                 const Pool16& pool = data.pools[*primaryPool];
                 if (state.depth != maxDepth)
                     candidates = shuffledPool(
-                        data, pool.name, &random);
+                        data, pool.name, &random, modern);
                 const QVector<int> fallback =
-                    shuffledPool(data, pool.fallback, &random);
+                    shuffledPool(data, pool.fallback, &random, modern);
                 candidates += fallback;
             }
 
@@ -982,7 +1032,12 @@ static bool generateBastionLayout16Internal(
             pending.push_back(generated);
         }
     }
-    assignLootSeeds(&pending, worldSeed);
+    if (modern && !includePieces)
+    {
+        if (layouts.size() >= 32) layouts.clear();
+        layouts.insert(chunkKey(chunkX, chunkZ), pending);
+    }
+    assignLootSeeds(&pending, worldSeed, modern);
 
     out->startType = startType;
     out->rotation = startRotation;
@@ -1033,6 +1088,22 @@ bool generateBastionLootChests16(
     BastionLayout16 layout;
     if (!generateBastionLayout16Internal(
             &layout, worldSeed, chunkX, chunkZ, false, error))
+    {
+        out->clear();
+        return false;
+    }
+    *out = std::move(layout.chests);
+    return true;
+}
+
+bool generateBastionLootChests26(
+    QVector<BastionLootChest16> *out, uint64_t worldSeed,
+    int chunkX, int chunkZ, QString *error)
+{
+    if (!out) return false;
+    BastionLayout16 layout;
+    if (!generateBastionLayout16Internal(&layout, worldSeed,
+            chunkX, chunkZ, false, error, true))
     {
         out->clear();
         return false;
