@@ -143,6 +143,7 @@ SOURCES += \
         src/tablocations.cpp \
         src/tabslime.cpp \
         src/tabstructures.cpp \
+        src/terrainoracle26.cpp \
         src/mainwindow.cpp \
         src/main.cpp \
         src/util.cpp \
@@ -218,6 +219,7 @@ HEADERS += \
         src/tablocations.h \
         src/tabslime.h \
         src/tabstructures.h \
+        src/terrainoracle26.h \
         src/mainwindow.h \
         src/util.h \
         src/villagelootseed.h \

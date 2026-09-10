@@ -36,7 +36,9 @@ Java **26.2** additionally supports ruined-portal Loot and all four Bastion
 chest tables, including equipment enchantments and Bastion chest coordinates.
 The selected world version chooses these tables automatically. This does not
 enable Loot for other 1.20/1.21/26.x releases; see [26.2 details](LOOT_26_2.md)
-for setup and limitations.
+for setup and limitations. The self-contained ruined-portal condition uses the
+locally installed official 26.2 terrain generator for exact portal height and
+frame replacement; Rebuild and Run prepares its shared hidden Java helper.
 
 For example, a search can require a structure to contain a particular item or
 combination of items instead of stopping at "find a village" or "find a

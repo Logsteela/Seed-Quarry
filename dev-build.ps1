@@ -109,6 +109,83 @@ if (-not (Test-Path $exe)) {
     throw "Build completed but the executable was not found: $exe"
 }
 
+# Compile the tiny bridge to the official 26.2 terrain generator. It is kept
+# out of the native process so one hidden, memory-bounded JVM can be shared by
+# every search worker. The Minecraft JAR itself is never copied or bundled.
+$minecraftDir = Join-Path $env:APPDATA ".minecraft"
+$version262Dir = Join-Path $minecraftDir "versions\26.2"
+$version262Jar = Join-Path $version262Dir "26.2.jar"
+$version262Json = Join-Path $version262Dir "26.2.json"
+$terrainHelperSource = Join-Path $sourceDir "tools\ExactTerrainOracle262.java"
+$terrainHelperBuild = Join-Path $sourceDir "build-structure-data\java26-helper"
+$terrainHelperClass = Join-Path $terrainHelperBuild "ExactTerrainOracle262.class"
+$terrainHelperDeploy = Join-Path (Split-Path $exe -Parent) "helpers"
+$terrainHelperLogging = Join-Path $sourceDir "tools\exact-terrain-log4j2.xml"
+
+if ((Test-Path $version262Jar) -and (Test-Path $version262Json) -and
+    (Test-Path $terrainHelperSource)) {
+    $javacCandidates = @(
+        "C:\Program Files (x86)\Minecraft Launcher\runtime\java-runtime-epsilon\windows-x64\java-runtime-epsilon\bin\javac.exe",
+        "C:\Program Files\Minecraft Launcher\runtime\java-runtime-epsilon\windows-x64\java-runtime-epsilon\bin\javac.exe"
+    )
+    $javac = $javacCandidates |
+        Where-Object { Test-Path -LiteralPath $_ } |
+        Select-Object -First 1
+    if (-not $javac) {
+        $javacCommand = Get-Command "javac.exe" -ErrorAction SilentlyContinue
+        if ($javacCommand) {
+            $javac = $javacCommand.Source
+        }
+    }
+    if (-not $javac) {
+        throw "Minecraft's Java 26.2 compiler was not found. Repair the official Minecraft Launcher runtime."
+    }
+
+    $compileHelper = -not (Test-Path $terrainHelperClass)
+    if (-not $compileHelper) {
+        $compileHelper =
+            (Get-Item $terrainHelperSource).LastWriteTimeUtc -gt
+            (Get-Item $terrainHelperClass).LastWriteTimeUtc
+    }
+    if ($compileHelper) {
+        $metadata262 = Get-Content -Raw $version262Json | ConvertFrom-Json
+        $terrainClassPath = @($version262Jar)
+        foreach ($library in $metadata262.libraries) {
+            $relative = $library.downloads.artifact.path
+            if ($relative) {
+                $candidate = Join-Path (Join-Path $minecraftDir "libraries") $relative
+                if (Test-Path -LiteralPath $candidate) {
+                    $terrainClassPath += $candidate
+                }
+            }
+        }
+        New-Item -ItemType Directory -Path $terrainHelperBuild -Force | Out-Null
+        $joinedTerrainClassPath = [string]::Join(";", $terrainClassPath)
+        $savedErrorAction = $ErrorActionPreference
+        $ErrorActionPreference = "Continue"
+        try {
+            $javacOutput = & $javac -encoding UTF-8 -cp $joinedTerrainClassPath `
+                -d $terrainHelperBuild $terrainHelperSource 2>&1
+            $javacExitCode = $LASTEXITCODE
+        }
+        finally {
+            $ErrorActionPreference = $savedErrorAction
+        }
+        if ($javacExitCode -ne 0 -or -not (Test-Path $terrainHelperClass)) {
+            throw "Java 26.2 terrain helper compilation failed:`n$($javacOutput -join [Environment]::NewLine)"
+        }
+    }
+    New-Item -ItemType Directory -Path $terrainHelperDeploy -Force | Out-Null
+    Copy-Item -LiteralPath $terrainHelperClass -Destination $terrainHelperDeploy -Force
+    Copy-Item -LiteralPath $terrainHelperLogging -Destination $terrainHelperDeploy -Force
+}
+else {
+    Write-Warning @"
+Minecraft Java 26.2 is not installed in the official launcher.
+The exact 26.2 self-contained ruined-portal condition will remain disabled.
+"@
+}
+
 $structureManifest = Join-Path $sourceDir "build-structure-data\jigsaw-1.16.1.json"
 $modernManifest = Join-Path $sourceDir "build-structure-data\jigsaw-26.2.json"
 if (Test-Path $modernManifest) {

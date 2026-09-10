@@ -2041,7 +2041,7 @@ QPushButton:hover {
                <item row="4" column="0" colspan="2">
                 <widget class="QCheckBox" name="checkPortalSelfCompletable">
                  <property name="toolTip">
-                  <string>Java 1.16 and 26.2. Requires every existing non-corner block of the minimal frame to be normal obsidian, plus enough chest obsidian to finish it and either flint and steel or a fire charge. Supports portal_1 (2 obsidian), portal_6 (1), and portal_9 (2). Flint and iron nuggets do not count. Java 26.2 Loot and crying-obsidian RNG use the full 64-bit seed; portal Y uses Cubiomes' approximate modern terrain height, so the 26.2 result is approximate. The Java 1.16.1 chest-removal terrain bug is not modeled.</string>
+                  <string>Java 1.16 and 26.2. Requires every existing non-corner block of the minimal frame to be normal obsidian, plus enough chest obsidian to finish it and either flint and steel or a fire charge. Supports portal_1 (2 obsidian), portal_6 (1), and portal_9 (2). Flint and iron nuggets do not count. Java 26.2 uses the locally installed official generator for exact portal height and frame RNG; Rebuild and Run deploys one shared hidden Java helper. The Java 1.16.1 chest-removal terrain bug is not modeled.</string>
                  </property>
                  <property name="text">
                   <string>Completable and lightable using only this portal</string>

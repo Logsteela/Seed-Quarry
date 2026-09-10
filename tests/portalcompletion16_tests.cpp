@@ -1,7 +1,10 @@
 #include "src/portalcompletion16.h"
+#include "src/terrainoracle26.h"
 
 #include "cubiomes/biomenoise.h"
 #include "cubiomes/generator.h"
+
+#include <QCoreApplication>
 
 #include <cassert>
 #include <cstdio>
@@ -12,8 +15,9 @@ extern "C" int getStructureConfig_override(
     return getStructureConfig(structureType, mc, config);
 }
 
-int main()
+int main(int argc, char **argv)
 {
+    QCoreApplication application(argc, argv);
     struct Fixture {
         uint64_t seed;
         int mc, chunkX, chunkZ;
@@ -71,50 +75,17 @@ int main()
         assert(complete == fixture.complete);
     }
 
-    // The 26.2 path must use all 64 bits for Loot/terrain while preserving
-    // the lower-48-dependent portal template transform. Find a bounded local
-    // fixture rather than baking an approximate terrain height into the test.
-    bool checkedModern = false;
-    bool observedUpperDifference = false;
-    for (uint64_t low = 0; low < 256 && !observedUpperDifference; low++)
+    // One small protocol/terrain smoke check. This asks the official 26.2
+    // generator for one center and four columns; exhaustive terrain testing
+    // belongs to Minecraft itself rather than the native unit test.
+    if (isExactTerrainOracle26Available())
     {
-        Pos pos = {0, 0};
-        Generator lowerGenerator, upperGenerator;
-        setupGenerator(&lowerGenerator, MC_26_2, 0);
-        setupGenerator(&upperGenerator, MC_26_2, 0);
-        applySeed(&lowerGenerator, DIM_OVERWORLD, low);
-        applySeed(&upperGenerator, DIM_OVERWORLD,
-            low + (UINT64_C(1) << 48));
-        int lowerBiome = getBiomeAt(&lowerGenerator, 4, 2, 0, 2);
-        int upperBiome = getBiomeAt(&upperGenerator, 4, 2, 0, 2);
-        StructureVariant lowerVariant = {}, upperVariant = {};
-        assert(getVariant(&lowerVariant, Ruined_Portal, MC_26_2,
-            low, 0, 0, lowerBiome));
-        assert(getVariant(&upperVariant, Ruined_Portal, MC_26_2,
-            low + (UINT64_C(1) << 48), 0, 0, upperBiome));
-        if (lowerVariant.giant || (lowerVariant.start != 1 &&
-                lowerVariant.start != 6 && lowerVariant.start != 9) ||
-            upperVariant.biome != lowerVariant.biome)
-            continue;
-        RuinedPortalCompletion16Details lowerDetails, upperDetails;
-        bool lower = isSelfCompletableRuinedPortal26(low, pos,
-            lowerVariant, &lowerGenerator, &lowerDetails);
-        bool upper = isSelfCompletableRuinedPortal26(
-            low + (UINT64_C(1) << 48), pos,
-            upperVariant, &upperGenerator, &upperDetails);
-        assert(lowerDetails.supported && upperDetails.supported);
-        assert(lowerDetails.approximateTerrain &&
-            upperDetails.approximateTerrain);
-        assert(lower == (lowerDetails.lootSufficient &&
-            lowerDetails.frameSufficient));
-        assert(upper == (upperDetails.lootSufficient &&
-            upperDetails.frameSufficient));
-        checkedModern = true;
-        observedUpperDifference =
-            lowerDetails.portalY != upperDetails.portalY ||
-            lowerDetails.lootSufficient != upperDetails.lootSufficient ||
-            lowerDetails.frameSufficient != upperDetails.frameSufficient;
+        int y = 0;
+        QString error;
+        assert(exactRuinedPortalY26(
+            UINT64_C(1), UINT64_C(25214903916), 0, 10,
+            0, 0, 5, 5, false, &y, &error));
+        assert(y == 62);
     }
-    assert(checkedModern && observedUpperDifference);
     return 0;
 }

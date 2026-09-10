@@ -20,10 +20,12 @@ python tools/generate_loot_26_2.py --jar "$env:APPDATA\.minecraft\versions\26.2\
 
 The extractor pins SHA-1 `2dc72797acbc1b63fc16a11c4ac393605f453754`. It emits
 compact Loot/enchantment metadata and `build-structure-data/jigsaw-26.2.json`.
-Rebuild deploys the latter alongside the application. Once deployed, no Java
-runtime or running Minecraft instance is needed to search. The JAR, templates
-and decompiled reference files are not included in Git. A missing manifest
-disables Bastion Loot with an explanation rather than starting a Java helper.
+Rebuild deploys the latter alongside the application. Ordinary Loot search
+does not need a Java process. The exact self-contained ruined-portal condition
+uses one hidden, shared Java process and the locally installed official 26.2
+JAR for terrain columns. The JAR, templates and decompiled reference files are
+not included in Git. Missing local data disables the affected condition with
+an explanation.
 
 ## RNG and speed
 
@@ -49,19 +51,18 @@ supported-item definitions rather than the 1.16 enum order.
 
 This implementation targets the default, unmodified Java 26.2 data pack.
 Other modern releases are intentionally not enabled by similarity alone.
-Portal biome/terrain viability remains the viewer's approximation. Full
-terrain reconstruction, overlapping portal attempts, and terrain-related
-missing portals are not resolved. Large-biome portal-category reconstruction
-has not been validated. A rare zero LootTableSeed, which needs world-state
-random-sequence information, is not reported as a known Loot match.
+Portal biome viability before the completion check remains the viewer's
+reconstruction. Overlapping portal attempts and terrain-related missing
+portals outside that check are not resolved. A rare zero LootTableSeed, which
+needs world-state random-sequence information, is not reported as a known Loot
+match.
 
 The self-contained Nether-entry/frame-completion condition is available for
 26.2 and retains the original portal_1, portal_6 and portal_9 scope. Loot,
 template transformation and crying-obsidian rolls use the 26.2 algorithms and
-the full 64-bit seed. Because Cubiomes cannot reconstruct post-1.17 block
-terrain, the Y coordinate feeding those position-based crying-obsidian rolls
-uses its modern terrain-height approximation; this condition can consequently
-have false positives or false negatives in 26.2.
+the full 64-bit seed. Its center height, four supporting columns and downward
+placement scan are calculated by Minecraft 26.2's official terrain generator;
+the position-based crying-obsidian test therefore uses the exact portal Y.
 Village terrain and unknown-state handling are unchanged.
 
 Validation is deliberately small: build/source checks and console comparisons

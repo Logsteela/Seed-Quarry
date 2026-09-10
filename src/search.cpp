@@ -6,6 +6,7 @@
 #include "util.h"
 #include "lootcondition.h"
 #include "portalcompletion16.h"
+#include "terrainoracle26.h"
 
 #include "cubiomes/finders.h"
 #include "cubiomes/quadbase.h"
@@ -373,6 +374,16 @@ QString SearchThreadEnv::init(
 
     for (const Condition& c: condtree.condvec)
     {
+        if (c.type == F_PORTAL &&
+            (c.varflags & Condition::VAR_PORTAL_SELF_COMPLETABLE) &&
+            mc == MC_26_2)
+        {
+            QString error;
+            if (!isExactTerrainOracle26Available(&error))
+                return QApplication::translate("Filter",
+                    "Condition %1: %2").arg(c.save).arg(error);
+            warmUpExactTerrainOracle26();
+        }
         if (c.type == F_LUA)
         {
             if (!scripts.contains(c.hash))
